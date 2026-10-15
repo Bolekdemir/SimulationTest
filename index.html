@@ -13,8 +13,8 @@
     --paper-2: #e9d8b2;
     --paper-3: #d6bf91;
     --ink: #3a2830;
-    --ink-2: #66504a;
-    --ink-3: #8f7565;
+    --ink-2: #6b4636;
+    --ink-3: #7e5a48;
     --frame: #2d1f29;
     --wood: #c88b53;
     --wood-hi: #e7b37b;
@@ -272,11 +272,11 @@
       <canvas id="dial" class="px" width="48" height="24" aria-hidden="true"></canvas>
       <span id="clock-time">06:30</span>
       <div id="clock-sub"><b id="clock-date">Fri, Spring 1</b> <span id="clock-weather">Sunny</span></div>
-      <div id="stock"><span id="stock-food-wrap" class="well"><img id="ico-food" class="px" alt="">Pantry <b id="stock-food">0</b></span><span id="stock-wood-wrap" class="well"><img id="ico-wood" class="px" alt="">Wood <b id="stock-wood">0</b></span></div>
+      <div id="stock"><span id="stock-food-wrap" class="well"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" id="ico-food" class="px" alt="">Pantry <b id="stock-food">0</b></span><span id="stock-wood-wrap" class="well"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" id="ico-wood" class="px" alt="">Wood <b id="stock-wood">0</b></span></div>
       <div id="next-event"></div>
     </div>
     <div id="speed" class="plank" role="group" aria-label="Simulation speed">
-      <button class="key icon" data-speed="0" title="Pause (Space)" aria-label="Pause"><img id="ico-pause" alt=""></button>
+      <button class="key icon" data-speed="0" title="Pause (Space)" aria-label="Pause"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" id="ico-pause" alt=""></button>
       <button class="key" data-speed="1" title="Normal speed (2)">1×</button>
       <button class="key" data-speed="2" title="Double speed (3)">2×</button>
       <button class="key" data-speed="3" title="Five times (4)">5×</button>
@@ -290,19 +290,19 @@
   </div>
 
   <div id="hud-tr" class="plank">
-    <button class="key icon" id="zoom-out" title="Zoom out (-)" aria-label="Zoom out"><img data-icon="minus" alt=""></button>
-    <button class="key icon" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in"><img data-icon="plus" alt=""></button>
+    <button class="key icon" id="zoom-out" title="Zoom out (-)" aria-label="Zoom out"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="minus" alt=""></button>
+    <button class="key icon" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="plus" alt=""></button>
     <span class="gap"></span>
-    <button class="key" id="btn-roofs" title="See inside buildings (R)"><img data-icon="roof" alt=""><span class="lbl">Roofs</span></button>
-    <button class="key" id="btn-names" title="Name tags (N)"><img data-icon="tag" alt=""><span class="lbl">Names</span></button>
-    <button class="key" id="btn-log" title="Island journal (L)"><img data-icon="book" alt=""><span class="lbl">Journal</span></button>
-    <button class="key" id="btn-full" title="Fullscreen, or hide the HUD where fullscreen is blocked (H)"><img data-icon="full" alt=""><span class="lbl" id="btn-full-lbl">Fullscreen</span></button>
-    <button class="key icon" id="btn-help" title="How to play" aria-label="How to play"><img data-icon="help" alt=""></button>
+    <button class="key" id="btn-roofs" title="See inside buildings (R)"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="roof" alt=""><span class="lbl">Roofs</span></button>
+    <button class="key" id="btn-names" title="Name tags (N)"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="tag" alt=""><span class="lbl">Names</span></button>
+    <button class="key" id="btn-log" title="Island journal (L)"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="book" alt=""><span class="lbl">Journal</span></button>
+    <button class="key" id="btn-full" title="Fullscreen, or hide the HUD where fullscreen is blocked (H)"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="full" alt=""><span class="lbl" id="btn-full-lbl">Fullscreen</span></button>
+    <button class="key icon" id="btn-help" title="How to play" aria-label="How to play"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="help" alt=""></button>
   </div>
 
   <aside id="inspector" class="paper" hidden>
     <div id="insp-head">
-      <div class="face"><img id="insp-portrait" alt=""></div>
+      <div class="face"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" id="insp-portrait" alt=""></div>
       <div id="insp-title"><h2 id="insp-name">Name</h2><div id="insp-sub"><span class="mood" id="insp-mood"></span><span id="insp-mood-word"></span></div></div>
       <div id="insp-actions"><button class="key" id="insp-follow">Follow</button><button class="key" id="insp-close">Close</button></div>
     </div>
