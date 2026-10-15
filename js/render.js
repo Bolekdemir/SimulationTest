@@ -75,12 +75,15 @@ IS.Renderer = class {
     this.canvas.style.height = vh * z + 'px';
     this.light.c.width = vw; this.light.c.height = vh;
     this.shadow.c.width = vw; this.shadow.c.height = vh;
+    this.bloomA = IS.makeCanvas(Math.ceil(vw / 4), Math.ceil(vh / 4), false);
+    this.bloomB = IS.makeCanvas(Math.ceil(vw / 10), Math.ceil(vh / 10), false);
+    this.haze = IS.makeCanvas(Math.ceil(vw / 6), Math.ceil(vh / 6), false);
     // Vignette: warm, dark edges pull the eye in and make everything feel snug
     const vg = IS.makeCanvas(vw, vh, false);
     const rad = Math.hypot(vw, vh) / 2;
     const gr = vg.g.createRadialGradient(vw / 2, vh / 2, rad * 0.45, vw / 2, vh / 2, rad);
-    gr.addColorStop(0, 'rgba(40, 16, 40, 0)');
-    gr.addColorStop(1, 'rgba(40, 16, 40, 0.42)');
+    gr.addColorStop(0, 'rgba(46, 24, 70, 0)');
+    gr.addColorStop(1, 'rgba(46, 24, 70, 0.4)');
     vg.g.fillStyle = gr; vg.g.fillRect(0, 0, vw, vh);
     this.vignette = vg.c;
     this.ctx.imageSmoothingEnabled = false;
@@ -124,25 +127,30 @@ IS.Renderer = class {
     return c;
   }
 
-  // Ambient tint by time of day, as [r, g, b, alpha]
+  // Ambient light by time of day: a tint colour and how strongly it applies.
+  // Applied as a multiply pass, so dusk turns lavender instead of grey.
   ambient(min) {
     const K = [
-      [0, [18, 10, 58, 0.72]], [300, [18, 10, 58, 0.7]], [360, [90, 50, 110, 0.38]], [420, [255, 160, 110, 0.16]],
-      [500, [255, 215, 170, 0.05]], [960, [255, 205, 150, 0.05]], [1050, [255, 160, 80, 0.14]], [1110, [255, 115, 50, 0.24]], [1170, [150, 50, 120, 0.34]],
-      [1230, [40, 22, 90, 0.58]], [1320, [18, 10, 58, 0.72]], [1440, [18, 10, 58, 0.72]],
+      [0, [54, 38, 112], 0.8], [300, [54, 38, 112], 0.78], [345, [110, 80, 160], 0.6], [390, [250, 150, 175], 0.36],
+      [450, [255, 205, 185], 0.16], [540, [255, 236, 214], 0.06], [960, [255, 230, 205], 0.07], [1010, [255, 185, 135], 0.24],
+      [1065, [238, 140, 168], 0.4], [1120, [170, 125, 215], 0.56], [1190, [118, 86, 186], 0.68], [1290, [54, 38, 112], 0.8],
+      [1440, [54, 38, 112], 0.8],
     ];
     let i = 1;
     while (i < K.length - 1 && K[i][0] <= min) i++;
-    const [m0, a] = K[i - 1], [m1, b] = K[i];
+    const [m0, c0, k0] = K[i - 1], [m1, c1, k1] = K[i];
     const t = IS.clamp((min - m0) / (m1 - m0), 0, 1);
-    const out = a.map((v, k) => IS.lerp(v, b[k], t));
+    let tint = c0.map((v, j) => IS.lerp(v, c1[j], t));
+    let k = IS.lerp(k0, k1, t);
     const w = this.sim.weather;
-    if (w === 'cloudy') out[3] += 0.06;
-    if (w === 'rain') { out[3] += 0.22; out[0] = IS.lerp(out[0], 45, 0.8); out[1] = IS.lerp(out[1], 58, 0.8); out[2] = IS.lerp(out[2], 85, 0.8); }
-    if (w === 'storm') { out[3] += 0.4; out[0] = IS.lerp(out[0], 28, 0.9); out[1] = IS.lerp(out[1], 34, 0.9); out[2] = IS.lerp(out[2], 62, 0.9); }
-    if (w === 'fog') out[3] += 0.04;
-    out[3] = Math.min(0.8, out[3]);
-    return out;
+    const toward = (c, f) => { tint = tint.map((v, j) => IS.lerp(v, c[j], f)); };
+    if (w === 'cloudy') { k += 0.07; toward([190, 190, 215], 0.4); }
+    if (w === 'rain') { k += 0.2; toward([120, 128, 172], 0.7); }
+    if (w === 'storm') { k += 0.32; toward([88, 92, 140], 0.85); }
+    if (w === 'fog') { k += 0.05; toward([220, 215, 235], 0.4); }
+    k = Math.min(0.86, k);
+    const mult = tint.map(v => Math.round(IS.lerp(255, v, k)));
+    return { tint, k, mult, dark: IS.clamp((k - 0.16) / 0.42, 0, 1) };
   }
 
   // ------------------------------------------------------------------
@@ -263,15 +271,16 @@ IS.Renderer = class {
     this.drawPendants(ctx, ox, oy, t);
     this.drawGulls(ctx, ox, oy, rdt, t);
 
-    // Cozy colour grade: a warm soft-light wash adds saturation and depth
-    ctx.globalCompositeOperation = 'soft-light';
-    ctx.fillStyle = 'rgba(255, 186, 120, 0.2)';
-    ctx.fillRect(0, 0, vw, vh);
-    ctx.globalCompositeOperation = 'source-over';
-
-    // Lighting
+    // Lighting, then a warm daytime grade, then a soft dreamy haze
     const amb = this.ambient(sim.clock.min);
+    if (amb.dark < 1) {
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.fillStyle = `rgba(255, 186, 120, ${0.16 * (1 - amb.dark)})`;
+      ctx.fillRect(0, 0, vw, vh);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     this.drawLighting(ctx, amb, ox, oy, t);
+    this.drawHaze(ctx, amb);
     this.drawWeather(ctx, rdt, t, amb);
     this.drawStars(ctx, now);
 
@@ -569,97 +578,167 @@ IS.Renderer = class {
     this.gulls = this.gulls.filter(g => g.x > ox - 80 && g.x < ox + this.vw + 80);
   }
 
-  drawLighting(ctx, amb, ox, oy, t) {
-    const [r, g, b, a] = amb;
-    if (a < 0.01) return;
-    const sim = this.sim, w = sim.world, T = IS.TILE;
-    const L = this.light.g, vw = this.vw, vh = this.vh;
-    const dark = IS.clamp((a - 0.12) / 0.45, 0, 1);
-    L.globalCompositeOperation = 'source-over';
-    L.clearRect(0, 0, vw, vh);
-    L.fillStyle = `rgba(${r | 0},${g | 0},${b | 0},${a})`;
-    L.fillRect(0, 0, vw, vh);
+  // Light sources for this frame: each is a hole in the darkness, a warm glow,
+  // and (if `emit`) a bright shape that blooms.
+  collectLights(amb, t) {
+    const sim = this.sim, w = sim.world, T = IS.TILE, dark = amb.dark;
     const lights = [];
-    if (dark > 0) {
-      for (const l of w.lamps) lights.push({ x: l.x, y: l.y + 6, r: 56, s: 0.95 * dark, warm: 0.55 });
-      const min = sim.clock.min;
-      const evening = min >= 17.5 * 60 || min < 7.5 * 60;
-      for (const bld of w.buildings) {
-        const inside = sim.people.some(p => p.building === bld && p.pose !== 'sleep');
-        const hallEv = bld.kind === 'hall' && sim.events.list.some(e => e.state === 'active' && e.seat === 'hallSeat');
-        if (bld.cut > 0.3 && !(evening && (inside || hallEv))) {
-          for (const [c, r] of this.pendantSpots(bld)) lights.push({ x: (bld.x0 + c) * T, y: (bld.y0 + r) * T, r: T * 3.2, s: 0.85 * dark * bld.cut, warm: 0.7 });
-          if (bld.kind === 'hall') lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 60, s: dark * bld.cut * 0.8, warm: 0.6 });
-          continue;
-        }
-        if (!(evening && (inside || hallEv))) continue;
-        bld.lit = true;
-        for (const win of bld.ext.windows) lights.push({ x: bld.px + win.x + 7, y: bld.py + win.y + 6, r: 30, s: 0.8 * dark, warm: 0.5, win: { x: bld.px + win.x, y: bld.py + win.y, w: win.w, h: win.h }, cut: bld.cut });
-        if (bld.kind === 'hall' && bld.cut > 0.3) lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 70, s: dark * bld.cut, warm: 0.7 });
-        if (bld.cut > 0.3) for (const [c, r] of this.pendantSpots(bld)) lights.push({ x: (bld.x0 + c) * T, y: (bld.y0 + r) * T, r: T * 3.4, s: 0.95 * dark * bld.cut, warm: 0.8 });
+    const min = sim.clock.min;
+    const evening = min >= 16.5 * 60 || min < 7.5 * 60;
+    const lateNight = min >= 22.5 * 60 || min < 5 * 60;
+    for (const l of w.lamps) lights.push({ x: l.x, y: l.y + 6, r: 60, s: 0.95 * dark, warm: 0.6, emit: { x: l.x, y: l.y - 5, r: 4 } });
+    for (const bld of w.buildings) {
+      bld.lit = false;
+      const awake = sim.people.some(p => p.building === bld && p.pose !== 'sleep');
+      const hallEv = bld.kind === 'hall' && sim.events.list.some(e => e.state === 'active' && e.seat === 'hallSeat');
+      const lit = evening && (awake || hallEv || !lateNight);
+      if (bld.cut > 0.3) {
+        for (const [c, r] of this.pendantSpots(bld)) lights.push({ x: (bld.x0 + c) * T, y: (bld.y0 + r) * T, r: T * 3.4, s: 0.95 * dark * bld.cut, warm: 0.8, emit: { x: (bld.x0 + c) * T, y: (bld.y0 + r) * T - 12, r: 5 } });
+        if (bld.kind === 'hall') lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 70, s: dark * bld.cut, warm: 0.7, emit: { x: (bld.x0 + 7) * T, y: (bld.y0 + 1.4) * T, r: 7 } });
       }
-      if (w.bonfire.lit) {
-        const fl = 1 + Math.sin(t * 13) * 0.06 + Math.sin(t * 7.3) * 0.05;
-        lights.push({ x: w.bonfire.x * T + 12, y: w.bonfire.y * T + 10, r: 95 * fl, s: dark, warm: 0.6 });
+      if (!lit) continue;
+      bld.lit = true;
+      for (const win of bld.ext.windows) {
+        const wx = bld.px + win.x, wy = bld.py + win.y;
+        // light spills out of the window onto the ground below it
+        lights.push({ x: wx + 7, y: wy + 22, r: 34, s: 0.85 * dark * (1 - bld.cut), warm: 0.5, win: { x: wx, y: wy, w: win.w, h: win.h }, cut: bld.cut, emit: bld.cut < 0.6 ? { rect: [wx, wy, win.w, win.h] } : null });
       }
-      lights.push({ x: w.lighthouseLight.x, y: w.lighthouseLight.y, r: 40, s: dark, warm: 0.4 });
+      for (const d of bld.ext.doors) lights.push({ x: bld.px + d.x + d.w / 2, y: bld.py + d.y + d.h + 4, r: 26, s: 0.5 * dark * (1 - bld.cut), warm: 0.4 });
+    }
+    if (w.bonfire.lit) {
+      const fl = 1 + Math.sin(t * 13) * 0.06 + Math.sin(t * 7.3) * 0.05;
+      const bx = w.bonfire.x * T + 12, by = w.bonfire.y * T + 10;
+      lights.push({ x: bx, y: by, r: 100 * fl, s: dark, warm: 0.7, emit: { x: bx, y: by - 8, r: 9 * fl } });
+    }
+    lights.push({ x: w.lighthouseLight.x, y: w.lighthouseLight.y, r: 44, s: dark, warm: 0.4, emit: { x: w.lighthouseLight.x, y: w.lighthouseLight.y, r: 6 } });
+    if (sim.weather !== 'rain' && sim.weather !== 'storm') {
       for (const ff of this.fireflies) {
         const fx = ff.x + Math.sin(t * 0.7 + ff.ph) * 14, fy = ff.y + Math.cos(t * 0.5 + ff.ph * 2) * 10;
-        const on = Math.sin(t * 2 + ff.ph * 3) > 0.2;
-        ff.cx = fx; ff.cy = fy; ff.on = on;
-        if (on && sim.weather !== 'rain' && sim.weather !== 'storm') lights.push({ x: fx, y: fy, r: 8, s: dark * 0.8, warm: 0, ff: true });
+        if (Math.sin(t * 2 + ff.ph * 3) > 0.2) lights.push({ x: fx, y: fy, r: 9, s: dark * 0.8, warm: 0, ff: true, emit: { x: fx, y: fy, r: 1.5, col: '#e8ff9a' } });
       }
     }
-    L.globalCompositeOperation = 'destination-out';
-    for (const l of lights) {
-      const x = l.x - ox, y = l.y - oy;
-      if (x < -l.r || y < -l.r || x > vw + l.r || y > vh + l.r) continue;
-      const gr = L.createRadialGradient(x, y, 0, x, y, l.r);
-      gr.addColorStop(0, `rgba(0,0,0,${l.s})`);
-      gr.addColorStop(0.5, `rgba(0,0,0,${l.s * 0.6})`);
-      gr.addColorStop(1, 'rgba(0,0,0,0)');
-      L.fillStyle = gr;
-      L.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
-    }
-    // Lighthouse beam sweeping over the sea
+    return lights;
+  }
+
+  drawLighting(ctx, amb, ox, oy, t) {
+    const sim = this.sim, w = sim.world, vw = this.vw, vh = this.vh;
+    const L = this.light.g, dark = amb.dark;
+    if (amb.k < 0.01) return;
+    const lights = this.collectLights(amb, t);
+    const vis = l => { const x = l.x - ox, y = l.y - oy; return !(x < -l.r || y < -l.r || x > vw + l.r || y > vh + l.r); };
+
+    // 1. Darkness as a multiply layer, with soft holes where light falls
+    L.globalCompositeOperation = 'source-over';
+    L.fillStyle = `rgb(${amb.mult[0]},${amb.mult[1]},${amb.mult[2]})`;
+    L.fillRect(0, 0, vw, vh);
     if (dark > 0) {
+      L.globalCompositeOperation = 'destination-out';
+      for (const l of lights) {
+        if (!vis(l)) continue;
+        const x = l.x - ox, y = l.y - oy;
+        const gr = L.createRadialGradient(x, y, 0, x, y, l.r);
+        gr.addColorStop(0, `rgba(0,0,0,${l.s})`);
+        gr.addColorStop(0.45, `rgba(0,0,0,${l.s * 0.65})`);
+        gr.addColorStop(1, 'rgba(0,0,0,0)');
+        L.fillStyle = gr;
+        L.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+      }
+      // Lighthouse beam sweeping over the sea
       const lx = w.lighthouseLight.x - ox, ly = w.lighthouseLight.y - oy;
-      const ang = t * 0.6;
       L.save();
-      L.translate(lx, ly);
-      L.rotate(ang);
+      L.translate(lx, ly); L.rotate(t * 0.6);
       const bg = L.createLinearGradient(0, 0, 420, 0);
       bg.addColorStop(0, `rgba(0,0,0,${0.75 * dark})`); bg.addColorStop(1, 'rgba(0,0,0,0)');
       L.fillStyle = bg;
       L.beginPath(); L.moveTo(0, 0); L.lineTo(420, -40); L.lineTo(420, 40); L.closePath(); L.fill();
       L.restore();
+      L.globalCompositeOperation = 'source-over';
     }
-    L.globalCompositeOperation = 'source-over';
+    // Drain some colour first so the warm lights are what you notice
+    ctx.globalCompositeOperation = 'saturation';
+    ctx.fillStyle = `rgba(128, 128, 128, ${0.38 * dark})`;
+    ctx.fillRect(0, 0, vw, vh);
+    ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(this.light.c, 0, 0);
-    // Warm glow pass
-    if (dark > 0) {
-      ctx.globalCompositeOperation = 'lighter';
-      for (const l of lights) {
-        const x = l.x - ox, y = l.y - oy;
-        if (x < -l.r || y < -l.r || x > vw + l.r || y > vh + l.r) continue;
-        if (l.ff) {
-          ctx.fillStyle = `rgba(220, 255, 140, ${0.9 * dark})`;
-          ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
-          continue;
-        }
-        if (l.win && (l.cut || 0) < 0.6) {
-          ctx.fillStyle = `rgba(255, 190, 90, ${0.55 * dark})`;
-          ctx.fillRect(l.win.x - ox, l.win.y - oy, l.win.w, l.win.h);
-        }
-        if (!l.warm) continue;
-        const gr = ctx.createRadialGradient(x, y, 0, x, y, l.r * 0.8);
-        gr.addColorStop(0, `rgba(255, 165, 60, ${l.warm * 0.5 * l.s})`);
-        gr.addColorStop(1, 'rgba(255, 170, 70, 0)');
-        ctx.fillStyle = gr;
-        ctx.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
-      }
-      ctx.globalCompositeOperation = 'source-over';
+    // 2. Lift the shadows toward purple so nights stay soft, not crushed
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = `rgba(${amb.tint[0] * 0.5 | 0}, ${amb.tint[1] * 0.4 | 0}, ${amb.tint[2] * 0.6 | 0}, ${0.18 * dark})`;
+    ctx.fillRect(0, 0, vw, vh);
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 3. Lit windows glow cream from late afternoon onward
+    const winA = IS.clamp(0.25 + dark * 1.2, 0, 1);
+    for (const l of lights) {
+      if (!l.win || (l.cut || 0) > 0.6 || !vis(l)) continue;
+      ctx.globalAlpha = winA * (1 - (l.cut || 0));
+      ctx.fillStyle = '#ffe2a0';
+      ctx.fillRect(l.win.x - ox, l.win.y - oy, l.win.w, l.win.h);
+      ctx.fillStyle = '#fff6d8';
+      ctx.fillRect(l.win.x - ox + 1, l.win.y - oy + 1, l.win.w - 2, 3);
     }
+    ctx.globalAlpha = 1;
+    if (dark <= 0) return;
+
+    // 4. Warm additive glow around each light
+    ctx.globalCompositeOperation = 'lighter';
+    for (const l of lights) {
+      if (!l.warm || !vis(l)) continue;
+      const x = l.x - ox, y = l.y - oy;
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, l.r * 0.85);
+      gr.addColorStop(0, `rgba(255, 160, 70, ${l.warm * 0.42 * l.s})`);
+      gr.addColorStop(1, 'rgba(255, 160, 70, 0)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 5. Bloom: bright shapes drawn small, blurred by down-sampling, added back
+    const B = this.bloomA, C = this.bloomB;
+    const bw = B.c.width, bh = B.c.height;
+    B.g.setTransform(1, 0, 0, 1, 0, 0);
+    B.g.clearRect(0, 0, bw, bh);
+    B.g.setTransform(bw / vw, 0, 0, bh / vh, -ox * bw / vw, -oy * bh / vh);
+    for (const l of lights) {
+      const e = l.emit;
+      if (!e) continue;
+      if (e.rect) {
+        B.g.fillStyle = '#ffd48a';
+        B.g.fillRect(e.rect[0] - 2, e.rect[1] - 2, e.rect[2] + 4, e.rect[3] + 4);
+      } else {
+        B.g.fillStyle = e.col || '#ffcf7a';
+        B.g.beginPath(); B.g.arc(e.x, e.y, e.r * 2, 0, Math.PI * 2); B.g.fill();
+      }
+    }
+    B.g.setTransform(1, 0, 0, 1, 0, 0);
+    C.g.clearRect(0, 0, C.c.width, C.c.height);
+    C.g.imageSmoothingEnabled = true;
+    C.g.drawImage(B.c, 0, 0, C.c.width, C.c.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.75 * dark;
+    ctx.drawImage(C.c, 0, 0, vw, vh);
+    ctx.globalAlpha = 0.45 * dark;
+    ctx.drawImage(B.c, 0, 0, vw, vh);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = false;
+    // Fireflies stay crisp on top of their bloom
+    for (const l of lights) if (l.ff && vis(l)) { ctx.fillStyle = '#f0ffb0'; ctx.fillRect(Math.round(l.x - ox), Math.round(l.y - oy), 1, 1); }
+  }
+
+  // Dreamy soft-focus: a blurred copy of the frame screened back on top
+  drawHaze(ctx, amb) {
+    const H = this.haze;
+    H.g.imageSmoothingEnabled = true;
+    H.g.clearRect(0, 0, H.c.width, H.c.height);
+    H.g.drawImage(this.canvas, 0, 0, H.c.width, H.c.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.08 + 0.14 * amb.dark;
+    ctx.drawImage(H.c, 0, 0, this.vw, this.vh);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = false;
   }
 
   drawWeather(ctx, rdt, t, amb) {

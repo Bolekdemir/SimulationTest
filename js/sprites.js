@@ -146,7 +146,7 @@ IS.Sprites = (() => {
         if (style === 'wavy') { P(3, 9, 14, 2, hr); for (let i = 0; i < 7; i++) P(3 + i * 2, 11, 1, 1, hrD); }
         if (style === 'bob') { P(3, 9, 14, 3, hr); P(3, 11, 14, 1, hrD); }
         if (style === 'ponytail') { P(8, 9, 4, 7, hr); P(9, 15, 2, 2, hrD); P(8, 9, 4, 1, acc); }
-        if (style === 'curly') { P(2, -1, 16, 12, hr); for (let i = 0; i < 7; i++) P(3 + i * 2, -2, 1, 1, hr); for (let y = 0; y < 10; y += 2) for (let x = 3 + (y % 4 ? 1 : 0); x < 17; x += 3) { P(x, y, 1, 1, hrD); P(x + 1, y - 1, 1, 1, hrL); } for (let i = 0; i < 8; i++) P(2 + i * 2, 11, 1, 1, hr); }
+        if (style === 'curly') { P(2, -1, 16, 12, hr); for (let i = 0; i < 7; i++) P(3 + i * 2, -2, 1, 1, hr); for (const [x, y] of [[4, 1], [9, 0], [14, 2], [6, 5], [12, 5], [3, 8], [9, 8], [15, 8]]) { P(x, y, 2, 1, hrD); P(x, y - 1, 1, 1, hrL); } for (let i = 0; i < 8; i++) P(2 + i * 2, 11, 1, 1, hr); }
         if (style === 'spiky') { for (let i = 0; i < 5; i++) P(5 + i * 2, -2, 1, 2, hr); }
         if (style === 'bun') { P(7, -3, 6, 4, hr); P(8, -3, 2, 1, hrL); }
         if (look.roots) { P(5, 0, 10, 1, look.roots); P(6, 1, 8, 1, IS.mix(look.roots, hr, 0.5)); }
