@@ -1,5 +1,7 @@
 # Tidewhistle Isle
 
+**Play:** https://bolekdemir.github.io/SimulationTest/ (GitHub Pages, deployed from the `claude/tidewhistle-isle` branch)
+
 A cozy isometric pixel-art island life simulation. Six islanders (and a cat) live on a small island with their own personalities, needs, memories, friendships and grudges. You watch from above as the Sky Hand, and you can pick them up, carry them around, and throw them into the sea.
 
 Open `index.html` in a browser. No build step, no dependencies.
