@@ -1,4 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Tidewhistle Isle</title>
+<meta name="description" content="A cozy pixel island life sim. Six islanders with their own personalities, crushes and grudges. You are the Sky Hand.">
+<meta name="theme-color" content="#2f5a44">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tidewhistle">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jersey+10&family=Pixelify+Sans:wght@400;500;600;700&display=swap">
@@ -287,7 +301,13 @@
   #help kbd { font-family: var(--ui); font-size: 13px; padding: 0 5px 1px; background: var(--page-2); box-shadow: var(--frame-px); color: var(--ink); margin: 0 2px; }
   #help-close { margin-top: 18px; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--night); z-index: 5; }
-  #loading .page { padding: 14px 22px; font-size: 18px; }
+  .boot { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--page); }
+  .boot img { width: 96px; height: 96px; image-rendering: pixelated; box-shadow: var(--frame-px); }
+  .boot b { font-size: 26px; font-weight: 700; }
+  .boot > span { font-size: 15px; color: #d9cfe2; }
+  .dots i { font-style: normal; animation: blink 1.2s infinite both; }
+  .dots i:nth-child(2) { animation-delay: 0.2s; } .dots i:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
 
   /* After dark the pages are lamp-lit, not screen-bright */
   body.dusk .page, body.dusk .spread, body.dusk .token, body.dusk .key { filter: brightness(0.88) sepia(0.1); }
@@ -300,6 +320,7 @@
   #menu-book::after { content: ""; position: absolute; right: 48px; bottom: -34px; width: 14px; height: 48px; background: var(--ribbon); box-shadow: inset -3px 0 0 0 var(--ribbon-lo); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); }
   @keyframes rise { from { transform: translateY(16px); opacity: 0; } }
   .plate { position: relative; padding: 18px 20px 16px; text-align: center; background: var(--page); box-shadow: var(--frame-px), inset 0 -3px 0 0 var(--page-3); }
+  .plate-icon { display: block; width: 64px; height: 64px; margin: -50px auto 12px; image-rendering: pixelated; box-shadow: var(--frame-px); }
   .plate h1 { margin: 0; font-size: 40px; font-weight: 700; line-height: 0.95; text-wrap: balance; color: var(--ink); }
   .plate p { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); }
   .menu-list { display: flex; flex-direction: column; gap: 12px; }
@@ -320,6 +341,27 @@
   .cast-card .bio { font-size: 14px; }
   .cast-type { margin: 6px 0 8px; font-size: 13px; color: var(--berry); }
   #cast-close { min-height: 32px; }
+  #settings { width: min(460px, 100%); padding: 10px; animation: rise 320ms var(--out); }
+  #settings .inner { padding: 20px 22px; background: var(--page); box-shadow: 0 0 0 2px var(--cover-lo); display: flex; flex-direction: column; gap: 16px; }
+  #settings h2 { margin: 0; font-size: 26px; font-weight: 700; }
+  .opts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .opts li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 2px dotted var(--page-3); }
+  .opts li > div:first-child { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .opts b { font-size: 16px; font-weight: 700; }
+  .opts small { font-size: 13px; color: var(--ink-3); }
+  .switch { position: relative; flex: none; width: 46px; height: 24px; background: var(--page-3); box-shadow: var(--frame-px); transition: background-color 140ms ease; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: var(--page); box-shadow: var(--frame-px); transition: transform 160ms var(--out); }
+  .switch[aria-checked="true"] { background: var(--ribbon); }
+  .switch[aria-checked="true"]::after { transform: translateX(22px); }
+  .seg { display: flex; flex: none; box-shadow: var(--frame-px); }
+  .seg button { padding: 4px 9px 5px; font-family: var(--num); font-size: 19px; background: var(--page); color: var(--ink); }
+  .seg button + button { box-shadow: -2px 0 0 0 var(--frame); }
+  .seg button[aria-pressed="true"] { background: var(--ribbon); color: var(--on-ribbon); }
+  #settings-close { align-self: flex-start; }
+  #menu-foot { position: absolute; left: 0; right: 0; bottom: max(10px, env(safe-area-inset-bottom, 0px)); margin: 0; text-align: center; font-size: 13px; color: #e6dcea; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); pointer-events: none; }
+  #stage { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #stage input { -webkit-user-select: text; user-select: text; }
+
   body.menu-open #hud-tl, body.menu-open #hud-tr, body.menu-open #roster, body.menu-open #inspector, body.menu-open #toasts { display: none !important; }
 
   body.focus #hud-tl, body.focus #roster, body.focus #inspector, body.focus #hud-tr > *:not(#btn-full) { display: none !important; }
@@ -354,10 +396,17 @@
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
-
+</head>
+<body>
 <div id="stage">
   <canvas id="game" aria-label="Island simulation view"></canvas>
-  <div id="loading"><div class="page">Washing ashore on Tidewhistle Isle…</div></div>
+  <div id="loading">
+    <div class="boot">
+      <img src="icons/icon-192.png" alt="" width="96" height="96">
+      <b>Tidewhistle Isle</b>
+      <span>Washing ashore<span class="dots"><i>.</i><i>.</i><i>.</i></span></span>
+    </div>
+  </div>
   <div id="overlay"></div>
 
   <div id="hud-tl">
@@ -431,6 +480,7 @@
   <div id="menu" hidden>
     <div id="menu-book" class="leather">
       <div class="plate">
+        <img class="plate-icon" src="icons/icon-192.png" alt="" width="64" height="64">
         <h1>Tidewhistle Isle</h1>
         <p>An island journal, designed by Mav</p>
       </div>
@@ -439,8 +489,25 @@
         <button class="tag" id="m-new"><b>New island</b><small id="m-new-meta">Start the journal over</small></button>
         <button class="tag" id="m-cast"><b>Meet the islanders</b><small>Who's who, and who they fall for</small></button>
         <button class="tag" id="m-help"><b>How to play</b><small>Grabbing, throwing, whispering</small></button>
+        <button class="tag" id="m-settings"><b>Settings</b><small>Speed, name tags, autosave</small></button>
+        <button class="tag" id="m-install" hidden><b>Install the app</b><small id="m-install-meta">Fullscreen, offline, on your home screen</small></button>
       </nav>
     </div>
+    <div id="settings" class="leather" hidden>
+      <div class="inner">
+        <h2>Settings</h2>
+        <ul class="opts">
+          <li><div><b>Starting speed</b><small>How fast time runs when you open the island</small></div><div class="seg" data-opt="speed"><button data-v="1">1×</button><button data-v="2">2×</button><button data-v="3">5×</button></div></li>
+          <li><div><b>Name tags</b><small>Show names under everyone</small></div><button class="switch" data-opt="names"></button></li>
+          <li><div><b>Island journal</b><small>Open the event log on start</small></div><button class="switch" data-opt="journal"></button></li>
+          <li><div><b>Skip the night</b><small>Speed up time while everyone sleeps</small></div><button class="switch" data-opt="nightSkip"></button></li>
+          <li><div><b>Autosave</b><small>Save every in-game hour and when you leave</small></div><button class="switch" data-opt="autosave"></button></li>
+          <li><div><b>Erase saved island</b><small id="erase-meta">Deletes your save on this device</small></div><button class="key" id="erase">Erase</button></li>
+        </ul>
+        <button class="key" id="settings-close">Done</button>
+      </div>
+    </div>
+
     <div id="cast" class="leather" hidden>
       <div class="spread">
         <section class="leaf-l" id="cast-left"></section>
@@ -448,6 +515,7 @@
       </div>
       <button class="key" id="cast-close">Close the book</button>
     </div>
+    <p id="menu-foot">v1.0 · Designed by Mav · Built with Claude Code</p>
   </div>
 
   <div id="help" hidden>
@@ -522,4 +590,10 @@
     document.addEventListener('fullscreenchange', sync);
     document.addEventListener('webkitfullscreenchange', sync);
   })();
+  // Offline support when installed from GitHub Pages (not inside the Claude viewer)
+  if ('serviceWorker' in navigator && /github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname)) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
 </script>
+</body>
+</html>

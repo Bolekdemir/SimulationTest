@@ -2,6 +2,8 @@
 
 **Play:** https://bolekdemir.github.io/SimulationTest/ (GitHub Pages, deployed from the `claude/tidewhistle-isle` branch)
 
+**Install it as an app:** open the link, then use **Install the app** in the main menu (Chrome, Edge, Android), or on iPhone tap **Share → Add to Home Screen**. Installed, it opens fullscreen and works offline.
+
 A cozy isometric pixel-art island life simulation. Six islanders (and a cat) live on a small island with their own personalities, needs, memories, friendships and grudges. You watch from above as the Sky Hand, and you can pick them up, carry them around, and throw them into the sea.
 
 Open `index.html` in a browser. No build step, no dependencies.
@@ -67,7 +69,9 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | `js/social.js` | Conversations, attraction, noticing, relationship changes |
 | `js/command.js` | Parses typed orders into activities and conversations |
 | `js/mind.js` | Plans, grudges, emotions, invitations, gossip, reactions |
-| `js/save.js`, `js/menu.js` | Autosave and the title / pause menu |
+| `js/save.js`, `js/menu.js` | Autosave, settings, install prompt, title / pause menu |
+| `manifest.webmanifest`, `sw.js`, `icons/` | App install: name, icon, fullscreen, offline cache |
+| `tools/build-artifact.py` | Builds the fragment version used for the Claude artifact |
 | `js/dialogue.js` | Line pools, per-islander voices, questions with real answers, no-repeat picking |
 | `js/events.js` | Calendar, weather, random events, supply boat |
 | `js/render.js` | Drawing, lighting, weather, particles |

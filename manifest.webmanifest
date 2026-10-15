@@ -1,0 +1,19 @@
+{
+  "name": "Tidewhistle Isle",
+  "short_name": "Tidewhistle",
+  "description": "A cozy pixel island life sim. Six islanders with their own personalities, crushes and grudges. You are the Sky Hand.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#1b1426",
+  "theme_color": "#2f5a44",
+  "categories": ["games", "entertainment", "simulation"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -5,7 +5,7 @@ IS.UI = class {
     this.bubbleEls = new Map();
     this.tagEls = new Map();
     this.lastPanel = 0;
-    this.showNames = true;
+    this.showNames = IS.Settings.get('names');
     this.tab = 'now';
     this.makeIcons();
     this.buildRoster();
@@ -79,7 +79,7 @@ IS.UI = class {
     };
     form.addEventListener('submit', e => { e.preventDefault(); send(input.value); });
     this.$('cmd-ideas').addEventListener('click', e => { const b = e.target.closest('.idea'); if (b) send(b.textContent); });
-    if (window.innerWidth < 760) this.$('log').hidden = true;
+    if (!IS.Settings.get('journal')) this.$('log').hidden = true;
     this.syncToggles();
   }
 

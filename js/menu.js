@@ -13,9 +13,17 @@ IS.Menu = class {
     this.$('m-help').addEventListener('click', () => { this.$('help').hidden = false; });
     this.$('cast-close').addEventListener('click', () => this.showCast(false));
     this.$('btn-menu').addEventListener('click', () => this.open('pause'));
+    this.$('m-settings').addEventListener('click', () => this.showPanel('settings'));
+    this.$('settings-close').addEventListener('click', () => this.showPanel(null));
+    this.$('m-install').addEventListener('click', () => this.install());
+    this.$('erase').addEventListener('click', () => this.erase());
+    document.addEventListener('tw-installable', () => this.refreshInstall());
+    window.addEventListener('appinstalled', () => { IS.installPrompt = null; this.refreshInstall(); });
+    this.bindSettings();
+    this.refreshInstall();
     this.buildCast();
     // Keep the journal safe when the tab goes away
-    const autosave = () => { if (sim.started) IS.Save.save(sim); };
+    const autosave = () => { if (sim.started && IS.Settings.get('autosave')) IS.Save.save(sim); };
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autosave(); });
     window.addEventListener('pagehide', autosave);
     if (autoStart) this.start();
@@ -61,10 +69,11 @@ IS.Menu = class {
     if (!sim.started) {
       sim.started = true;
       sim.lastSaveHour = Math.floor(sim.clock.abs / 60);
+      sim.ui.showNames = IS.Settings.get('names'); sim.ui.syncToggles();
       if (!this.save) sim.toast('Welcome to Tidewhistle Isle. Click an islander to open their page.');
       else sim.toast('Welcome back. The island kept going without you.');
     }
-    sim.setSpeed(1);
+    sim.setSpeed(IS.Settings.get('speed') || 1);
   }
 
   newIsland() {
@@ -96,8 +105,63 @@ IS.Menu = class {
     this.$('cast-right').innerHTML = all.slice(half).map(card).join('');
   }
 
-  showCast(on) {
-    this.$('cast').hidden = !on;
-    this.$('menu-book').hidden = on;
+  showCast(on) { this.showPanel(on ? 'cast' : null); }
+
+  // One thing at a time on the menu: the closed book, the cast, or settings
+  showPanel(which) {
+    this.$('cast').hidden = which !== 'cast';
+    this.$('settings').hidden = which !== 'settings';
+    this.$('menu-book').hidden = !!which;
+    this.erasing = false;
+    this.$('erase-meta').textContent = this.save ? 'Deletes your save on this device' : 'Nothing saved yet';
+  }
+
+  bindSettings() {
+    const sync = () => {
+      document.querySelectorAll('#settings .switch').forEach(b => b.setAttribute('aria-checked', !!IS.Settings.get(b.dataset.opt)));
+      document.querySelectorAll('#settings .seg button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === IS.Settings.get('speed')));
+    };
+    document.querySelectorAll('#settings .switch').forEach(b => {
+      b.setAttribute('role', 'switch');
+      b.addEventListener('click', () => {
+        const k = b.dataset.opt, v = !IS.Settings.get(k);
+        IS.Settings.set(k, v);
+        if (k === 'names') { this.sim.ui.showNames = v; this.sim.ui.syncToggles(); }
+        if (k === 'journal') { this.$('log').hidden = !v; this.sim.ui.syncToggles(); }
+        sync();
+      });
+    });
+    document.querySelectorAll('#settings .seg button').forEach(b => b.addEventListener('click', () => {
+      IS.Settings.set('speed', +b.dataset.v);
+      if (this.mode === 'pause') this.resumeSpeed = +b.dataset.v;
+      sync();
+    }));
+    sync();
+  }
+
+  erase() {
+    if (!this.save) return;
+    if (!this.erasing) { this.erasing = true; this.$('erase-meta').textContent = 'Click again to delete it for good.'; return; }
+    IS.Save.clear();
+    this.save = null;
+    this.erasing = false;
+    this.$('erase-meta').textContent = 'Erased. Starts fresh next time.';
+  }
+
+  // Installable from GitHub Pages; iPhone needs the Share menu instead
+  refreshInstall() {
+    const btn = this.$('m-install');
+    const installed = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && /^https:/.test(location.protocol) && !/claude/.test(location.hostname);
+    this.iosInstall = !IS.installPrompt && ios && !installed;
+    btn.hidden = installed || !(IS.installPrompt || this.iosInstall);
+  }
+
+  install() {
+    if (this.iosInstall) { this.$('m-install-meta').textContent = 'Tap the Share button, then “Add to Home Screen”.'; return; }
+    const p = IS.installPrompt;
+    if (!p) return;
+    p.prompt();
+    Promise.resolve(p.userChoice).then(() => { IS.installPrompt = null; this.refreshInstall(); }).catch(() => {});
   }
 };

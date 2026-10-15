@@ -81,3 +81,21 @@ IS.Save = (() => {
 
   return S;
 })();
+
+// Player preferences, kept on this device
+IS.Settings = (() => {
+  const KEY = 'tw-settings';
+  const s = { speed: 1, names: true, journal: window.innerWidth >= 760, nightSkip: true, autosave: true };
+  try { Object.assign(s, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { /* defaults */ }
+  return {
+    get: k => s[k],
+    set: (k, v) => { s[k] = v; try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* storage blocked */ } },
+  };
+})();
+
+// The browser offers installation once it decides the app qualifies
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  IS.installPrompt = e;
+  document.dispatchEvent(new Event('tw-installable'));
+});

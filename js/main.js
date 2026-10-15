@@ -134,7 +134,7 @@ IS.Sim = class {
     this.last = now;
     // Fast-forward the night while everyone is asleep
     const sleeping = this.people.every(p => p.pose === 'sleep' || p.sick);
-    this.nightFF = sleeping && (this.clock.min >= 22 * 60 || this.clock.min < 5.75 * 60) && this.people.every(p => p.mode === 'normal');
+    this.nightFF = IS.Settings.get('nightSkip') && sleeping && (this.clock.min >= 22 * 60 || this.clock.min < 5.75 * 60) && this.people.every(p => p.mode === 'normal');
     const speed = this.speedValue();
     const total = rdt * speed;
     const steps = Math.max(1, Math.ceil(total / 0.5));
@@ -160,7 +160,7 @@ IS.Sim = class {
       b.cut += (target - b.cut) * Math.min(1, rdt * 8);
     }
     // Autosave every in-game hour once the journal is open
-    if (this.started && dt > 0) {
+    if (this.started && dt > 0 && IS.Settings.get('autosave')) {
       const hour = Math.floor(this.clock.abs / 60);
       if (hour !== this.lastSaveHour) { this.lastSaveHour = hour; IS.Save.save(this); }
     }
