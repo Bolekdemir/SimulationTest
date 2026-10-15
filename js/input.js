@@ -1,5 +1,6 @@
 // Mouse / touch / keyboard. Click a person to inspect them, press and hold
 // (or drag) to pick them up with the Sky Hand, flick to throw.
+// Pointer positions go screen -> iso pixels -> ground point in world px.
 IS.Input = class {
   constructor(sim, canvas) {
     this.sim = sim;
@@ -17,58 +18,56 @@ IS.Input = class {
     window.addEventListener('keyup', e => this.key(e, false));
   }
 
-  toWorld(cx, cy) {
+  toIso(cx, cy) {
     const r = this.sim.renderer;
     const rect = this.canvas.getBoundingClientRect();
     const z = this.sim.cam.zoom;
     return { x: (cx - rect.left) / z + r.ox, y: (cy - rect.top) / z + r.oy };
   }
+  toWorld(cx, cy) { const i = this.toIso(cx, cy); return IS.Iso.s2w(i.x, i.y); }
 
-  personAt(wx, wy) {
-    let best = null;
+  personAt(ix, iy) {
+    let best = null, bestY = -Infinity;
     for (const p of this.sim.people) {
       if (p.mode === 'carried') continue;
       if (p.building && p.building.cut < 0.3 && p.mode === 'normal') continue;
-      const top = p.pose === 'sleep' ? p.y - 30 : p.y - p.z - 32;
-      const bottom = p.pose === 'sleep' ? p.y + 20 : p.y - p.z + 2;
-      if (wx >= p.x - 10 && wx <= p.x + 10 && wy >= top && wy <= bottom) {
-        if (!best || p.y > best.y) best = p;
-      }
+      const s = IS.Iso.w2s(p.x, p.y);
+      const top = p.pose === 'sleep' ? s.y - 26 : s.y - p.z - 34;
+      const bottom = p.pose === 'sleep' ? s.y + 14 : s.y - p.z + 3;
+      if (ix >= s.x - 11 && ix <= s.x + 11 && iy >= top && iy <= bottom && s.y > bestY) { best = p; bestY = s.y; }
     }
     return best;
   }
 
   down(e) {
     if (e.button === 2 || e.button === 1) { this.press = { pan: true, cx: e.clientX, cy: e.clientY, camX: this.sim.cam.x, camY: this.sim.cam.y }; return; }
-    const w = this.toWorld(e.clientX, e.clientY);
-    this.sim.hoverWorld = w;
-    const p = this.personAt(w.x, w.y);
+    const i = this.toIso(e.clientX, e.clientY);
+    this.sim.hoverIso = i;
+    const p = this.personAt(i.x, i.y);
     this.canvas.setPointerCapture?.(e.pointerId);
-    if (p) {
-      this.press = { person: p, cx: e.clientX, cy: e.clientY, t: performance.now(), grabbed: false };
-    } else {
-      this.press = { pan: true, cx: e.clientX, cy: e.clientY, camX: this.sim.cam.x, camY: this.sim.cam.y, moved: false };
-    }
+    if (p) this.press = { person: p, cx: e.clientX, cy: e.clientY, t: performance.now(), grabbed: false };
+    else this.press = { pan: true, cx: e.clientX, cy: e.clientY, camX: this.sim.cam.x, camY: this.sim.cam.y, moved: false };
   }
 
   move(e) {
     const sim = this.sim;
-    const w = this.toWorld(e.clientX, e.clientY);
-    sim.hoverWorld = w;
-    sim.hover = this.press && this.press.grabbed ? this.press.person : this.personAt(w.x, w.y);
+    if (!sim.renderer) return;
+    const i = this.toIso(e.clientX, e.clientY);
+    sim.hoverIso = i;
+    sim.hover = this.press && this.press.grabbed ? this.press.person : this.personAt(i.x, i.y);
     const pr = this.press;
     if (!pr) { this.canvas.style.cursor = sim.hover ? 'grab' : 'default'; return; }
     if (pr.pan) {
       const z = sim.cam.zoom;
       const dx = e.clientX - pr.cx, dy = e.clientY - pr.cy;
-      if (Math.abs(dx) + Math.abs(dy) > 4) { pr.moved = true; sim.follow = false; sim.ui.syncToggles(); }
+      if (Math.abs(dx) + Math.abs(dy) > 4) { pr.moved = true; if (sim.follow) { sim.follow = false; sim.ui.syncToggles(); } }
       sim.cam.x = pr.camX - dx / z;
       sim.cam.y = pr.camY - dy / z;
       this.canvas.style.cursor = 'move';
       return;
     }
     if (!pr.grabbed && Math.hypot(e.clientX - pr.cx, e.clientY - pr.cy) > 5) this.startGrab();
-    if (pr.grabbed) this.drag(w);
+    if (pr.grabbed) this.drag(i);
   }
 
   startGrab() {
@@ -79,16 +78,19 @@ IS.Input = class {
     this.canvas.style.cursor = 'grabbing';
   }
 
-  drag(w) {
+  // The cursor holds the person by the collar; the ground point is below it
+  drag(i) {
+    const p = this.press.person;
+    const ground = IS.Iso.s2w(i.x, i.y + p.z + 22);
     const now = performance.now();
-    this.trail.push({ x: w.x, y: w.y, t: now });
+    this.trail.push({ x: ground.x, y: ground.y, ix: i.x, t: now });
     while (this.trail.length > 2 && now - this.trail[0].t > 90) this.trail.shift();
     let vx = 0;
     if (this.trail.length > 1) {
       const a = this.trail[0], b = this.trail[this.trail.length - 1];
-      vx = (b.x - a.x) / Math.max(0.016, (b.t - a.t) / 1000);
+      vx = (b.ix - a.ix) / Math.max(0.016, (b.t - a.t) / 1000) * 1.5;
     }
-    this.press.person.dragTo(w.x, w.y, vx);
+    p.dragTo(ground.x, ground.y, vx);
   }
 
   up(e) {
@@ -114,7 +116,6 @@ IS.Input = class {
       this.canvas.style.cursor = 'grab';
       return;
     }
-    // Quick click on a person: inspect
     sim.select(pr.person);
   }
 
@@ -143,18 +144,17 @@ IS.Input = class {
 
   update(rdt) {
     const sim = this.sim;
-    const sp = 260 * rdt;
+    const sp = 300 * rdt;
     let dx = 0, dy = 0;
     if (this.keys.has('a') || this.keys.has('arrowleft')) dx -= sp;
     if (this.keys.has('d') || this.keys.has('arrowright')) dx += sp;
     if (this.keys.has('w') || this.keys.has('arrowup')) dy -= sp;
     if (this.keys.has('s') || this.keys.has('arrowdown')) dy += sp;
     if (dx || dy) { sim.cam.x += dx; sim.cam.y += dy; if (sim.follow) { sim.follow = false; sim.ui.syncToggles(); } }
-    // Press and hold also picks someone up
     const pr = this.press;
     if (pr && pr.person && !pr.grabbed && performance.now() - pr.t > 220) {
       this.startGrab();
-      if (sim.hoverWorld) this.drag(sim.hoverWorld);
+      if (sim.hoverIso) this.drag(sim.hoverIso);
     }
   }
 };

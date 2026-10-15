@@ -77,7 +77,8 @@ IS.Cat = class {
   draw(ctx, ox, oy, now) {
     const b = this.building;
     if (b && b.cut < 0.05) return;
-    const sx = Math.round(this.x - ox), sy = Math.round(this.y - oy);
+    const s = IS.Iso.w2s(this.x, this.y);
+    const sx = Math.round(s.x - ox), sy = Math.round(s.y - oy);
     const key = this.state === 'nap' ? 'nap' : this.state === 'walk' ? (Math.floor(this.anim / 5) % 2 ? 'walk1' : 'walk2') : 'sit';
     const img = this.frames[this.dir][key];
     if (b) ctx.globalAlpha = b.cut;

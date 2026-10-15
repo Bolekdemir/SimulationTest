@@ -1,17 +1,19 @@
-// Particles
+// Particles live in isometric screen space (iso pixels).
 IS.FX = class {
   constructor() { this.p = []; }
-  add(o) { if (this.p.length < 600) this.p.push(Object.assign({ life: 0, g: 0, size: 1, alpha: 1 }, o)); }
-  splash(x, y, n = 10) {
-    for (let i = 0; i < n; i++) this.add({ x, y, vx: IS.rand(-40, 40), vy: IS.rand(-110, -40), g: 300, max: IS.rand(0.4, 0.8), color: Math.random() < 0.5 ? '#ffffff' : '#bfe8f2', size: 2 });
-    this.ripple(x, y + 2);
+  add(o) { if (this.p.length < 700) this.p.push(Object.assign({ life: 0, g: 0, size: 1, alpha: 1 }, o)); }
+  at(wx, wy, h = 0) { const s = IS.Iso.w2s(wx, wy); return { x: s.x, y: s.y - h }; }
+  splash(wx, wy, n = 10) {
+    const s = this.at(wx, wy);
+    for (let i = 0; i < n; i++) this.add({ x: s.x, y: s.y, vx: IS.rand(-40, 40), vy: IS.rand(-110, -40), g: 300, max: IS.rand(0.4, 0.8), color: Math.random() < 0.5 ? '#ffffff' : '#bff6ff', size: 2 });
+    this.add({ x: s.x, y: s.y + 2, kind: 'ring', max: 1.1, color: '#e8fbff' });
   }
-  ripple(x, y) { this.add({ x, y, kind: 'ring', max: 1.1, color: '#e8fbff' }); }
-  drip(x, y) { this.add({ x, y, vx: 0, vy: 10, g: 200, max: 0.35, color: '#7ec6e8', size: 1 }); }
-  dust(x, y) { for (let i = 0; i < 8; i++) this.add({ x: x + IS.rand(-6, 6), y: y - 2, vx: IS.rand(-30, 30), vy: IS.rand(-30, -5), g: 30, max: IS.rand(0.4, 0.7), color: '#d9c8a8', size: 3, fade: true }); }
-  chips(x, y) { this.add({ x: x + IS.rand(-4, 4), y, vx: IS.rand(-50, 50), vy: IS.rand(-90, -40), g: 320, max: 0.6, color: Math.random() < 0.5 ? '#c49a63' : '#8a5a34', size: 2 }); }
-  smoke(x, y) { this.add({ x: x + IS.rand(-2, 2), y, vx: IS.rand(4, 10), vy: IS.rand(-14, -8), g: 0, max: IS.rand(2.2, 3.2), color: '#e8e4ee', size: 4, fade: true, grow: true }); }
-  spark(x, y) { this.add({ x: x + IS.rand(-5, 5), y, vx: IS.rand(-8, 8), vy: IS.rand(-45, -25), g: 0, max: IS.rand(0.6, 1.2), color: Math.random() < 0.5 ? '#ffd56a' : '#ff8a3a', size: 1, fade: true }); }
+  ripple(wx, wy) { const s = this.at(wx, wy); this.add({ x: s.x, y: s.y, kind: 'ring', max: 1.1, color: '#e8fbff' }); }
+  drip(wx, wy, h = 14) { const s = this.at(wx, wy, h); this.add({ x: s.x, y: s.y, vx: 0, vy: 10, g: 200, max: 0.35, color: '#7ed6f8', size: 1 }); }
+  dust(wx, wy) { const s = this.at(wx, wy); for (let i = 0; i < 8; i++) this.add({ x: s.x + IS.rand(-6, 6), y: s.y - 2, vx: IS.rand(-30, 30), vy: IS.rand(-30, -5), g: 30, max: IS.rand(0.4, 0.7), color: '#f0dcc0', size: 3, fade: true }); }
+  chips(wx, wy, h = 22) { const s = this.at(wx, wy, h); this.add({ x: s.x + IS.rand(-4, 4), y: s.y, vx: IS.rand(-50, 50), vy: IS.rand(-90, -40), g: 320, max: 0.6, color: Math.random() < 0.5 ? '#e0a868' : '#9a5a34', size: 2 }); }
+  smoke(sx, sy) { this.add({ x: sx + IS.rand(-2, 2), y: sy, vx: IS.rand(4, 10), vy: IS.rand(-14, -8), g: 0, max: IS.rand(2.2, 3.2), color: '#f2ecf8', size: 4, fade: true, grow: true }); }
+  spark(sx, sy) { this.add({ x: sx + IS.rand(-5, 5), y: sy, vx: IS.rand(-8, 8), vy: IS.rand(-45, -25), g: 0, max: IS.rand(0.6, 1.2), color: Math.random() < 0.5 ? '#ffe07a' : '#ff8a3a', size: 1, fade: true }); }
   update(rdt) {
     for (const q of this.p) {
       q.life += rdt;
@@ -26,11 +28,8 @@ IS.FX = class {
       const t = q.life / q.max;
       if (q.kind === 'ring') {
         ctx.globalAlpha = 0.7 * (1 - t);
-        ctx.strokeStyle = q.color;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.ellipse(Math.round(q.x - ox) + 0.5, Math.round(q.y - oy) + 0.5, 3 + t * 10, 1.5 + t * 4, 0, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.strokeStyle = q.color; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(Math.round(q.x - ox) + 0.5, Math.round(q.y - oy) + 0.5, 3 + t * 10, 1.5 + t * 5, 0, 0, Math.PI * 2); ctx.stroke();
         continue;
       }
       ctx.globalAlpha = q.fade ? 0.85 * (1 - t) : 1;
@@ -57,12 +56,38 @@ IS.Renderer = class {
     this.flash = 0;
     this.nextFlash = 3;
     this.gulls = [];
-    this.clouds = Array.from({ length: 5 }, () => ({ x: Math.random() * sim.world.pxW, y: Math.random() * sim.world.pxH, s: IS.rand(0.8, 1.5) }));
-    this.fireflies = Array.from({ length: 40 }, () => {
+    const I = IS.Iso;
+    this.clouds = Array.from({ length: 6 }, () => ({ x: Math.random() * I.W, y: Math.random() * I.H, s: IS.rand(0.9, 1.6) }));
+    this.fireflies = Array.from({ length: 50 }, () => {
       const t = IS.pick(sim.world.spots.forage || [{ x: 30, y: 12 }]);
       return { x: t.x * IS.TILE + IS.rand(0, 24), y: t.y * IS.TILE + IS.rand(-20, 10), ph: Math.random() * 10 };
     });
+    for (const b of sim.world.buildings) {
+      const c = b.iso.canvas;
+      b.iso.alpha = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    }
+    this.prepObjects();
     this.resize();
+  }
+
+  // Static depth keys, nudged so things in front of a building draw after it
+  prepObjects() {
+    for (const o of this.sim.world.objects) {
+      const gx = o.x / IS.TILE, gy = (o.y - 6) / IS.TILE;
+      o.s = IS.Iso.w2s(o.x, o.y);
+      o.depth = this.depthAt(gx, gy);
+    }
+  }
+  depthAt(gx, gy) {
+    let key = gx + gy;
+    for (const b of this.sim.world.buildings) {
+      if (gx < b.x0 - 2 || gx > b.x0 + b.w + 2 || gy < b.y0 - 2 || gy > b.y0 + b.h + 2) continue;
+      const inside = gx >= b.x0 && gx <= b.x0 + b.w && gy >= b.y0 && gy <= b.y0 + b.h;
+      if (inside) key = Math.min(key, b.depth - 0.02);
+      else if (gy >= b.y0 + b.h || gx >= b.x0 + b.w) key = Math.max(key, b.depth + 0.02);
+      else key = Math.min(key, b.depth - 0.02);
+    }
+    return key;
   }
 
   resize() {
@@ -75,28 +100,48 @@ IS.Renderer = class {
     this.canvas.style.height = vh * z + 'px';
     this.light.c.width = vw; this.light.c.height = vh;
     this.shadow.c.width = vw; this.shadow.c.height = vh;
-    this.bloomA = IS.makeCanvas(Math.ceil(vw / 4), Math.ceil(vh / 4), false);
-    this.bloomB = IS.makeCanvas(Math.ceil(vw / 10), Math.ceil(vh / 10), false);
-    this.haze = IS.makeCanvas(Math.ceil(vw / 6), Math.ceil(vh / 6), false);
-    // Vignette: warm, dark edges pull the eye in and make everything feel snug
+    this.bloomA = IS.makeCanvas(Math.ceil(vw / 4), Math.ceil(vh / 4), true);
+    this.bloomB = IS.makeCanvas(Math.ceil(vw / 12), Math.ceil(vh / 12), false);
     const vg = IS.makeCanvas(vw, vh, false);
     const rad = Math.hypot(vw, vh) / 2;
-    const gr = vg.g.createRadialGradient(vw / 2, vh / 2, rad * 0.45, vw / 2, vh / 2, rad);
-    gr.addColorStop(0, 'rgba(46, 24, 70, 0)');
-    gr.addColorStop(1, 'rgba(46, 24, 70, 0.4)');
+    const gr = vg.g.createRadialGradient(vw / 2, vh / 2, rad * 0.5, vw / 2, vh / 2, rad);
+    gr.addColorStop(0, 'rgba(40, 20, 80, 0)');
+    gr.addColorStop(1, 'rgba(40, 20, 80, 0.38)');
     vg.g.fillStyle = gr; vg.g.fillRect(0, 0, vw, vh);
     this.vignette = vg.c;
+    // Directional light: warm from the upper left, cool toward the lower right
+    const dl = IS.makeCanvas(vw, vh, false);
+    const lg = dl.g.createLinearGradient(0, 0, vw, vh);
+    lg.addColorStop(0, 'rgba(255, 200, 120, 1)'); lg.addColorStop(0.55, 'rgba(255, 220, 190, 0.2)'); lg.addColorStop(1, 'rgba(90, 100, 220, 1)');
+    dl.g.fillStyle = lg; dl.g.fillRect(0, 0, vw, vh);
+    this.dirLight = dl.c;
     this.ctx.imageSmoothingEnabled = false;
     this.vw = vw; this.vh = vh;
     this.waveA = this.ctx.createPattern(this.wave, 'repeat');
   }
 
+  // World px (ground) -> canvas px
+  toScreen(x, y, z = 0) {
+    const s = IS.Iso.w2s(x, y);
+    return { x: s.x - this.ox, y: s.y - this.oy - z };
+  }
+
+  buildingAtIso(ix, iy) {
+    for (const b of this.sim.world.buildings) {
+      if (b.noCut) continue;
+      const lx = Math.floor(ix - b.iso.ox), ly = Math.floor(iy - b.iso.oy);
+      if (lx < 0 || ly < 0 || lx >= b.iso.w || ly >= b.iso.h) continue;
+      if (b.iso.alpha[(ly * b.iso.canvas.width + lx) * 4 + 3] > 0) return b;
+    }
+    return null;
+  }
+
   makeWaveTexture() {
     const { c, g } = IS.makeCanvas(96, 96);
     const r = IS.mulberry32(5);
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < 30; i++) {
       const x = Math.floor(r() * 96), y = Math.floor(r() * 96), len = 2 + Math.floor(r() * 5);
-      g.fillStyle = r() < 0.7 ? 'rgba(220, 248, 252, 0.55)' : 'rgba(255,255,255,0.8)';
+      g.fillStyle = r() < 0.7 ? 'rgba(220, 252, 255, 0.6)' : 'rgba(255,255,255,0.9)';
       g.fillRect(x, y, len, 1);
       if (len > 4) g.fillRect(x + 1, y - 1, len - 2, 1);
     }
@@ -107,34 +152,31 @@ IS.Renderer = class {
     const n = IS.makeNoise(99);
     const img = g.createImageData(256, 256);
     for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) {
-      // tileable-ish noise via wrapped sampling
-      const v = (n(x / 40, y / 40) + n((x + 256) / 40, y / 40) * 0 + n(x / 15, y / 15) * 0.4) / 1.4;
+      const v = (n(x / 40, y / 40) + n(x / 15, y / 15) * 0.4) / 1.4;
       const i = (y * 256 + x) * 4;
-      img.data[i] = 235; img.data[i + 1] = 240; img.data[i + 2] = 245; img.data[i + 3] = Math.max(0, v - 0.35) * 260;
+      img.data[i] = 235; img.data[i + 1] = 236; img.data[i + 2] = 250; img.data[i + 3] = Math.max(0, v - 0.35) * 260;
     }
     g.putImageData(img, 0, 0);
     return c;
   }
   makeCloud() {
-    const { c, g } = IS.makeCanvas(260, 160);
+    const { c, g } = IS.makeCanvas(300, 170);
     for (let i = 0; i < 7; i++) {
-      const gr = g.createRadialGradient(60 + i * 24, 80 + Math.sin(i) * 20, 0, 60 + i * 24, 80 + Math.sin(i) * 20, 60);
-      gr.addColorStop(0, 'rgba(20, 30, 60, 0.10)');
-      gr.addColorStop(1, 'rgba(20, 30, 60, 0)');
-      g.fillStyle = gr;
-      g.fillRect(0, 0, 260, 160);
+      const gr = g.createRadialGradient(60 + i * 28, 85 + Math.sin(i) * 20, 0, 60 + i * 28, 85 + Math.sin(i) * 20, 64);
+      gr.addColorStop(0, 'rgba(40, 30, 110, 0.12)');
+      gr.addColorStop(1, 'rgba(40, 30, 110, 0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 300, 170);
     }
     return c;
   }
 
-  // Ambient light by time of day: a tint colour and how strongly it applies.
-  // Applied as a multiply pass, so dusk turns lavender instead of grey.
+  // Ambient light by time of day: a tint and how strongly it applies (multiply).
   ambient(min) {
     const K = [
-      [0, [54, 38, 112], 0.8], [300, [54, 38, 112], 0.78], [345, [110, 80, 160], 0.6], [390, [250, 150, 175], 0.36],
-      [450, [255, 205, 185], 0.16], [540, [255, 236, 214], 0.06], [960, [255, 230, 205], 0.07], [1010, [255, 185, 135], 0.24],
-      [1065, [238, 140, 168], 0.4], [1120, [170, 125, 215], 0.56], [1190, [118, 86, 186], 0.68], [1290, [54, 38, 112], 0.8],
-      [1440, [54, 38, 112], 0.8],
+      [0, [50, 38, 120], 0.76], [300, [50, 38, 120], 0.74], [345, [110, 80, 170], 0.58], [390, [255, 150, 170], 0.34],
+      [450, [255, 205, 180], 0.14], [540, [255, 238, 214], 0.04], [960, [255, 232, 205], 0.05], [1010, [255, 180, 120], 0.22],
+      [1065, [245, 130, 160], 0.38], [1120, [170, 115, 220], 0.54], [1190, [110, 80, 195], 0.66], [1290, [50, 38, 120], 0.76],
+      [1440, [50, 38, 120], 0.76],
     ];
     let i = 1;
     while (i < K.length - 1 && K[i][0] <= min) i++;
@@ -144,34 +186,33 @@ IS.Renderer = class {
     let k = IS.lerp(k0, k1, t);
     const w = this.sim.weather;
     const toward = (c, f) => { tint = tint.map((v, j) => IS.lerp(v, c[j], f)); };
-    if (w === 'cloudy') { k += 0.07; toward([190, 190, 215], 0.4); }
-    if (w === 'rain') { k += 0.2; toward([120, 128, 172], 0.7); }
-    if (w === 'storm') { k += 0.32; toward([88, 92, 140], 0.85); }
-    if (w === 'fog') { k += 0.05; toward([220, 215, 235], 0.4); }
-    k = Math.min(0.86, k);
+    if (w === 'cloudy') { k += 0.07; toward([190, 190, 225], 0.4); }
+    if (w === 'rain') { k += 0.2; toward([110, 120, 180], 0.7); }
+    if (w === 'storm') { k += 0.32; toward([80, 84, 150], 0.85); }
+    if (w === 'fog') { k += 0.05; toward([220, 214, 240], 0.4); }
+    k = Math.min(0.85, k);
     const mult = tint.map(v => Math.round(IS.lerp(255, v, k)));
     return { tint, k, mult, dark: IS.clamp((k - 0.16) / 0.42, 0, 1) };
   }
 
   // ------------------------------------------------------------------
   draw(now, rdt) {
-    const sim = this.sim, w = sim.world, ctx = this.ctx, T = IS.TILE;
-    const vw = this.vw, vh = this.vh;
-    const cam = sim.cam;
-    cam.x = vw >= w.pxW ? w.pxW / 2 : IS.clamp(cam.x, vw / 2, w.pxW - vw / 2);
-    cam.y = vh >= w.pxH ? w.pxH / 2 : IS.clamp(cam.y, vh / 2, w.pxH - vh / 2);
+    const sim = this.sim, w = sim.world, ctx = this.ctx, I = IS.Iso, T = IS.TILE;
+    const vw = this.vw, vh = this.vh, cam = sim.cam;
+    cam.x = vw >= I.W ? I.W / 2 : IS.clamp(cam.x, vw / 2, I.W - vw / 2);
+    cam.y = vh >= I.H ? I.H / 2 : IS.clamp(cam.y, vh / 2, I.H - vh / 2);
     const ox = Math.round(cam.x - vw / 2), oy = Math.round(cam.y - vh / 2);
     this.ox = ox; this.oy = oy;
     const t = now / 1000;
+    const amb = this.ambient(sim.clock.min);
 
-    ctx.fillStyle = '#2d66a6';
+    ctx.fillStyle = '#3448b8';
     ctx.fillRect(0, 0, vw, vh);
-    // Water, moving sparkles, foam, then land on top
     const sx = Math.max(0, ox), sy = Math.max(0, oy);
-    const sw = Math.min(w.pxW - sx, vw - (sx - ox)), sh = Math.min(w.pxH - sy, vh - (sy - oy));
+    const sw = Math.min(I.W - sx, vw - (sx - ox)), sh = Math.min(I.H - sy, vh - (sy - oy));
     ctx.drawImage(w.waterCanvas, sx, sy, sw, sh, sx - ox, sy - oy, sw, sh);
     const wt = sim.waveTime;
-    for (const [dx, dy, a] of [[wt * 6, wt * 2, 0.55], [-wt * 4 + 40, wt * 3 + 20, 0.35]]) {
+    for (const [dx, dy, a] of [[wt * 6, wt * 3, 0.55], [-wt * 4 + 40, wt * 2 + 20, 0.35]]) {
       ctx.save();
       ctx.globalAlpha = a;
       ctx.translate(Math.round(-ox + dx), Math.round(-oy + dy));
@@ -179,7 +220,7 @@ IS.Renderer = class {
       ctx.fillRect(Math.round(ox - dx), Math.round(oy - dy), vw, vh);
       ctx.restore();
     }
-    ctx.globalAlpha = 0.55 + 0.35 * Math.sin(t * 1.4);
+    ctx.globalAlpha = 0.6 + 0.35 * Math.sin(t * 1.4);
     ctx.drawImage(w.foamCanvas, sx, sy, sw, sh, sx - ox, sy - oy, sw, sh);
     ctx.globalAlpha = 0.35 + 0.3 * Math.sin(t * 1.4 + 2);
     ctx.drawImage(w.foamCanvas, sx, sy, sw, sh, sx - ox, sy - oy + 1, sw, sh);
@@ -187,45 +228,43 @@ IS.Renderer = class {
     this.drawDolphins(ctx, ox, oy, now);
     ctx.drawImage(w.landCanvas, sx, sy, sw, sh, sx - ox, sy - oy, sw, sh);
 
-    // Flat things on the ground
-    const inView = (x, y, m = 60) => x > ox - m && x < ox + vw + m && y > oy - m && y < oy + vh + m * 2;
+    const inView = (x, y, m = 80) => x > ox - m && x < ox + vw + m && y > oy - m && y < oy + vh + m * 2;
     for (const cr of w.crops) {
-      if (!inView(cr.x * T, cr.y * T)) continue;
+      const s = I.g2s(cr.x + 0.5, cr.y + 0.5);
+      if (!inView(s.x, s.y)) continue;
       const st = cr.growth >= 1 ? 3 : cr.growth < 0.15 ? 0 : cr.growth < 0.55 ? 1 : 2;
-      ctx.drawImage(IS.Sprites.crops[cr.kind][st], cr.x * T + 3 - ox, cr.y * T + 2 - oy);
+      ctx.drawImage(IS.Sprites.crops[cr.kind][st], Math.round(s.x - 9 - ox), Math.round(s.y - 14 - oy));
     }
     const bot = sim.events.bottle;
     if (bot) {
-      const bx = bot.tx * T + 6 - ox, by = bot.ty * T + 12 - oy + Math.round(Math.sin(t * 2) * 1);
+      const s = I.g2s(bot.tx + 0.5, bot.ty + 0.5);
+      const bx = Math.round(s.x - 6 - ox), by = Math.round(s.y - 8 - oy + Math.sin(t * 2));
       ctx.drawImage(IS.Sprites.bottle, bx, by);
       if (Math.sin(t * 3) > 0.8) { ctx.fillStyle = '#ffffff'; ctx.fillRect(bx + 4, by - 2, 1, 1); ctx.fillRect(bx + 3, by - 1, 3, 1); }
     }
     for (const b of w.buildings) {
-      if (b.cut > 0.01) {
+      if (b.cut > 0.01 && b.iso.interior) {
         ctx.globalAlpha = b.cut;
-        ctx.drawImage(b.int.canvas, b.px - ox, b.py - oy);
+        ctx.drawImage(b.iso.interior.canvas, Math.round(b.iso.ox - ox), Math.round(b.iso.oy - oy));
         this.drawInteriorLive(ctx, b, ox, oy, t);
         ctx.globalAlpha = 1;
       }
     }
-    // Selection ring
     const sel = sim.selected;
     if (sel && sel.mode !== 'carried' && sel.mode !== 'air') {
-      ctx.strokeStyle = '#ffffff';
+      const s = this.toScreen(sel.x, sel.y);
+      ctx.strokeStyle = '#ffd27a';
       ctx.globalAlpha = 0.7 + 0.3 * Math.sin(t * 5);
-      ctx.beginPath();
-      ctx.ellipse(Math.round(sel.x - ox) + 0.5, Math.round(sel.y - oy) - 0.5, 9, 3.5, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(Math.round(s.x) + 0.5, Math.round(s.y) + 0.5, 11, 5, 0, 0, Math.PI * 2); ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    // Cloud shadows drift over everything on the ground
     if (sim.weather === 'sunny' || sim.weather === 'cloudy') {
       for (const cl of this.clouds) {
-        cl.x += rdt * 6 * Math.max(1, sim.speedValue() * 0.3);
-        if (cl.x > w.pxW + 200) { cl.x = -260; cl.y = Math.random() * w.pxH; }
-        if (!inView(cl.x, cl.y, 300)) continue;
+        cl.x += rdt * 7 * Math.max(1, sim.speedValue() * 0.3);
+        if (cl.x > I.W + 300) { cl.x = -320; cl.y = Math.random() * I.H; }
+        if (!inView(cl.x, cl.y, 340)) continue;
         ctx.globalAlpha = sim.weather === 'cloudy' ? 1 : 0.7;
-        ctx.drawImage(this.cloud, Math.round(cl.x - ox), Math.round(cl.y - oy), 260 * cl.s, 160 * cl.s);
+        ctx.drawImage(this.cloud, Math.round(cl.x - ox), Math.round(cl.y - oy), 300 * cl.s, 170 * cl.s);
       }
       ctx.globalAlpha = 1;
     }
@@ -234,28 +273,31 @@ IS.Renderer = class {
 
     // Depth-sorted pass
     const list = [];
-    for (const o of w.objects) if (inView(o.x, o.y, 80)) list.push({ y: o.sortY, o, kind: 'obj' });
-    for (const b of w.buildings) list.push({ y: b.sortY, b, kind: 'bld' });
-    for (const p of sim.people) list.push({ y: p.y + (p.mode === 'carried' || p.mode === 'air' ? 1000 : 0), p, kind: 'person' });
+    for (const o of w.objects) if (inView(o.s.x, o.s.y, 90)) list.push({ d: o.depth, o, kind: 'obj' });
+    for (const b of w.buildings) if (inView(b.iso.ox + b.iso.w / 2, b.iso.oy + b.iso.h / 2, b.iso.w)) list.push({ d: b.depth, b, kind: 'bld' });
+    for (const p of sim.people) {
+      const gx = p.x / T, gy = (p.y - 6) / T;
+      list.push({ d: (p.mode === 'carried' || p.mode === 'air' || p.mode === 'hop') ? 1e6 : this.depthAt(gx, gy), p, kind: 'person' });
+    }
     const boat = sim.events.boat;
-    if (boat) list.push({ y: boat.y, kind: 'boat' });
-    if (sim.cat) list.push({ y: sim.cat.y, kind: 'cat' });
-    list.sort((a, b) => a.y - b.y);
+    if (boat) list.push({ d: boat.x / T + (boat.y - 6) / T, kind: 'boat' });
+    if (sim.cat) list.push({ d: this.depthAt(sim.cat.x / T, (sim.cat.y - 6) / T), kind: 'cat' });
+    list.sort((a, b) => a.d - b.d);
     for (const it of list) {
       if (it.kind === 'obj') {
         const o = it.o;
-        ctx.drawImage(o.sprite, Math.round(o.x - o.ax - ox), Math.round(o.y - o.ay - oy));
-        if (o.kind === 'firepit' && w.bonfire.lit) this.drawFire(ctx, o.x - ox, o.y - oy - 6, t);
+        ctx.drawImage(o.sprite, Math.round(o.s.x - o.ax - ox), Math.round(o.s.y - o.ay - oy));
+        if (o.kind === 'firepit' && w.bonfire.lit) this.drawFire(ctx, o.s.x - ox, o.s.y - oy - 4, t);
       } else if (it.kind === 'bld') {
         const b = it.b;
         if (b.cut < 0.99) {
           ctx.globalAlpha = 1 - b.cut;
-          ctx.drawImage(b.ext.canvas, b.px - ox, b.py - oy);
+          ctx.drawImage(b.iso.canvas, Math.round(b.iso.ox - ox), Math.round(b.iso.oy - oy));
           ctx.globalAlpha = 1;
         }
-        if (b.cut > 0.01) {
+        if (b.cut > 0.01 && b.iso.interior) {
           ctx.globalAlpha = b.cut;
-          ctx.drawImage(b.int.front, b.px - ox, (b.y0 + b.h - 1) * T - 6 - oy);
+          ctx.drawImage(b.iso.interior.front, Math.round(b.iso.ox - ox), Math.round(b.iso.oy - oy));
           ctx.globalAlpha = 1;
         }
       } else if (it.kind === 'person') {
@@ -263,159 +305,104 @@ IS.Renderer = class {
       } else if (it.kind === 'cat') {
         sim.cat.draw(ctx, ox, oy, now);
       } else if (it.kind === 'boat') {
-        const bob = Math.round(Math.sin(t * 1.5) * 1.5);
-        ctx.drawImage(IS.Sprites.boat, Math.round(boat.x - 40 - ox), Math.round(boat.y - 60 - oy + bob));
+        const s = I.w2s(boat.x, boat.y);
+        ctx.drawImage(IS.Sprites.boat, Math.round(s.x - 40 - ox), Math.round(s.y - 60 - oy + Math.sin(t * 1.5) * 1.5));
       }
     }
     sim.fx.draw(ctx, ox, oy);
-    this.drawPendants(ctx, ox, oy, t);
+    this.drawPendants(ctx, ox, oy);
+    this.drawStringLights(ctx, ox, oy, t);
     this.drawGulls(ctx, ox, oy, rdt, t);
 
-    // Lighting, then a warm daytime grade, then a soft dreamy haze
-    const amb = this.ambient(sim.clock.min);
     if (amb.dark < 1) {
       ctx.globalCompositeOperation = 'soft-light';
-      ctx.fillStyle = `rgba(255, 186, 120, ${0.16 * (1 - amb.dark)})`;
-      ctx.fillRect(0, 0, vw, vh);
+      ctx.globalAlpha = 0.22 * (1 - amb.dark);
+      ctx.drawImage(this.dirLight, 0, 0);
+      ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     }
     this.drawLighting(ctx, amb, ox, oy, t);
-    this.drawHaze(ctx, amb);
     this.drawWeather(ctx, rdt, t, amb);
+    this.drawBloom(ctx, amb);
     this.drawStars(ctx, now);
-
     ctx.drawImage(this.vignette, 0, 0);
-    // Emotes after lighting so they stay readable at night
     for (const p of sim.people) this.drawEmote(ctx, p, ox, oy, now);
   }
 
   pendantSpots(b) {
-    return b.kind === 'hall' ? [[3.5, 3], [6.5, 3]] : [[3, 2]];
-  }
-
-  // Shadow of every object, cast away from the sun and squashed onto the ground
-  sun() {
-    const min = this.sim.clock.min;
-    const t = (min - 360) / 720;
-    if (t <= 0 || t >= 1) return null;
-    const edge = Math.abs(t - 0.5) * 2;
-    let a = Math.min(1, t / 0.08, (1 - t) / 0.1);
-    a *= { sunny: 1, cloudy: 0.45, fog: 0.3, rain: 0.2, storm: 0.1 }[this.sim.weather];
-    return { k: IS.lerp(-1.3, 1.3, t) + 0.55, len: 0.3 + edge * 0.4, a };
-  }
-  silhouette(img) {
-    let s = this.silCache.get(img);
-    if (!s) {
-      const { c, g } = IS.makeCanvas(img.width, img.height, false);
-      g.drawImage(img, 0, 0);
-      g.globalCompositeOperation = 'source-in';
-      g.fillStyle = '#000';
-      g.fillRect(0, 0, img.width, img.height);
-      this.silCache.set(img, c);
-      s = c;
-    }
-    return s;
-  }
-  drawCastShadows(ctx, ox, oy, inView) {
-    const sun = this.sun();
-    if (!sun || sun.a < 0.02) return;
-    const S = this.shadow.g, sim = this.sim, w = sim.world, T = IS.TILE;
-    S.setTransform(1, 0, 0, 1, 0, 0);
-    S.clearRect(0, 0, this.vw, this.vh);
-    const cast = (img, ax, ay, x, y, scale = 1) => {
-      S.setTransform(1, 0, -sun.k * sun.len * scale, -sun.len * scale, Math.round(x - ox), Math.round(y - oy));
-      S.drawImage(this.silhouette(img), -ax, -ay);
-    };
-    for (const o of w.objects) {
-      if (o.kind === 'log' || o.kind === 'bench' || !inView(o.x, o.y, 120)) continue;
-      cast(o.sprite, o.ax, o.ay, o.x, o.y - 2, o.kind === 'tree' || o.kind === 'bigoak' ? 0.9 : 1);
-    }
-    for (const b of w.buildings) {
-      if (b.cut > 0.5) continue;
-      cast(b.ext.canvas, 0, b.ext.h, b.px, b.py + b.ext.h, 0.42);
-    }
-    for (const p of sim.people) {
-      if (p.mode !== 'normal' || p.building || p.pose === 'swim' || p.pose === 'sleep') continue;
-      const f = p.frames[p.dir][p.pose === 'walk' ? [1, 0, 2, 0][Math.floor(p.anim / 6) % 4] : 0];
-      cast(f, 11, 34, p.x, p.y - 1);
-    }
-    const boat = sim.events.boat;
-    if (boat) cast(IS.Sprites.boat, 40, 60, boat.x, boat.y);
-    S.setTransform(1, 0, 0, 1, 0, 0);
-    S.globalCompositeOperation = 'source-in';
-    S.fillStyle = '#3a1a5a';
-    S.fillRect(0, 0, this.vw, this.vh);
-    S.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.3 * sun.a;
-    ctx.drawImage(this.shadow.c, 0, 0);
-    ctx.globalAlpha = 1;
-  }
-
-  // Hanging lamps over the tables, visible when a roof is lifted
-  drawPendants(ctx, ox, oy, t) {
-    const T = IS.TILE;
-    for (const b of this.sim.world.buildings) {
-      if (b.cut < 0.05) continue;
-      ctx.globalAlpha = b.cut;
-      for (const [c, r] of this.pendantSpots(b)) {
-        const x = Math.round((b.x0 + c) * T - ox), y = Math.round((b.y0 + r) * T - oy) - 14;
-        ctx.fillStyle = '#3b3346'; ctx.fillRect(x, y - 16, 1, 12);
-        ctx.fillStyle = '#7a3d24'; ctx.fillRect(x - 6, y - 5, 13, 2);
-        ctx.fillStyle = '#e8703a'; ctx.fillRect(x - 5, y - 4, 11, 4); ctx.fillRect(x - 6, y, 13, 2);
-        ctx.fillStyle = '#ffd56a'; ctx.fillRect(x - 3, y + 2, 7, 1);
-        ctx.fillStyle = '#fff4c8'; ctx.fillRect(x - 1, y + 2, 3, 1);
-      }
-    }
-    ctx.globalAlpha = 1;
+    return b.kind === 'hall' ? [[3.5, 3.5], [6.5, 3.5]] : [[3, 2.5]];
   }
 
   drawInteriorLive(ctx, b, ox, oy, t) {
-    const T = IS.TILE;
-    const sim = this.sim;
-    // Warm lamplight in the middle of the room, soft shade in the corners
-    const rx = (b.x0 + 1) * T - ox, ry = (b.y0) * T - oy - 6, rw = (b.w - 2) * T, rh = (b.h - 1) * T + 6;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.clip();
-    ctx.globalCompositeOperation = 'soft-light';
-    for (const [c, r] of this.pendantSpots(b)) {
-      const lx = (b.x0 + c) * T - ox, ly = (b.y0 + r) * T - oy;
-      const g1 = ctx.createRadialGradient(lx, ly, 2, lx, ly, T * 3.2);
-      g1.addColorStop(0, 'rgba(255, 190, 100, 0.85)'); g1.addColorStop(1, 'rgba(255, 190, 100, 0)');
-      ctx.fillStyle = g1; ctx.fillRect(rx, ry, rw, rh);
+    const I = IS.Iso, sim = this.sim;
+    if (b.kind !== 'hall') return;
+    const ev = sim.events.list.find(e => e.state === 'active' && e.seat === 'hallSeat');
+    if (!ev) return;
+    for (let c = 2; c <= 7; c++) {
+      const s = I.up(I.g2s(b.x0 + c + 0.5, b.y0 + 3.5), 10);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(s.x - ox) - 3, Math.round(s.y - oy) - 1, 6, 3);
+      ctx.fillStyle = ev.feast === false ? '#d8b07a' : ['#ff5a5a', '#ffc84a', '#7ad050'][c % 3]; ctx.fillRect(Math.round(s.x - ox) - 1, Math.round(s.y - oy) - 1, 3, 2);
     }
-    ctx.globalCompositeOperation = 'multiply';
-    const cx = rx + rw / 2, cy = ry + rh / 2;
-    const g2 = ctx.createRadialGradient(cx, cy, Math.min(rw, rh) * 0.3, cx, cy, Math.hypot(rw, rh) * 0.62);
-    g2.addColorStop(0, 'rgba(255, 255, 255, 0)'); g2.addColorStop(1, 'rgba(120, 70, 100, 0.55)');
-    ctx.fillStyle = g2; ctx.fillRect(rx, ry, rw, rh);
-    ctx.restore();
-    if (b.kind === 'hall') {
-      const ev = sim.events.list.find(e => e.state === 'active' && (e.seat === 'hallSeat'));
-      // fireplace flicker
-      const fx = (b.x0 + 6) * T - ox, fy = (b.y0 + 1) * T - oy;
-      ctx.fillStyle = '#ff8a3a'; ctx.fillRect(fx + 12, fy + 2 - Math.round(Math.sin(t * 9) * 2), 24, 8);
-      ctx.fillStyle = '#ffd56a'; ctx.fillRect(fx + 18, fy + 4 - Math.round(Math.sin(t * 7) * 2), 12, 6);
-      if (ev) {
-        const ty = (b.y0 + 3) * T + 5 - oy;
-        for (let c = 2; c <= 7; c++) {
-          const x = (b.x0 + c) * T + 6 - ox;
-          ctx.fillStyle = '#ffffff'; ctx.fillRect(x, ty, 12, 6);
-          ctx.fillStyle = ev.feast === false ? '#c9b07a' : ['#e0405a', '#f2b82e', '#5fae4a'][c % 3]; ctx.fillRect(x + 3, ty + 1, 6, 3);
-        }
-        if (ev.birthday) {
-          const cx = (b.x0 + 5) * T - ox, cy = (b.y0 + 3) * T - oy;
-          ctx.fillStyle = '#f4efe6'; ctx.fillRect(cx - 7, cy + 2, 14, 10);
-          ctx.fillStyle = '#f28aa8'; ctx.fillRect(cx - 7, cy + 2, 14, 3);
-          ctx.fillStyle = '#ffd56a'; ctx.fillRect(cx - 1, cy - 3 - Math.round(Math.sin(t * 10)), 2, 3);
-        }
+    if (ev.birthday) {
+      const s = I.up(I.g2s(b.x0 + 5, b.y0 + 3.5), 10);
+      const x = Math.round(s.x - ox), y = Math.round(s.y - oy);
+      ctx.fillStyle = '#fff4e6'; ctx.fillRect(x - 5, y - 8, 10, 8);
+      ctx.fillStyle = '#ff8ab8'; ctx.fillRect(x - 5, y - 8, 10, 2);
+      ctx.fillStyle = '#ffe07a'; ctx.fillRect(x, y - 12 - Math.round(Math.sin(t * 10)), 1, 3);
+    }
+  }
+
+  drawPendants(ctx, ox, oy) {
+    const I = IS.Iso;
+    for (const b of this.sim.world.buildings) {
+      if (b.cut < 0.05 || !b.iso.interior) continue;
+      ctx.globalAlpha = b.cut;
+      for (const [c, r] of this.pendantSpots(b)) {
+        const s = I.up(I.g2s(b.x0 + c, b.y0 + r), 28);
+        const x = Math.round(s.x - ox), y = Math.round(s.y - oy);
+        ctx.fillStyle = '#3b3346'; ctx.fillRect(x, y - 16, 1, 12);
+        ctx.fillStyle = '#8a3a2a'; ctx.fillRect(x - 6, y - 5, 13, 2);
+        ctx.fillStyle = '#ff7a3a'; ctx.fillRect(x - 5, y - 4, 11, 4); ctx.fillRect(x - 6, y, 13, 2);
+        ctx.fillStyle = '#ffe07a'; ctx.fillRect(x - 3, y + 2, 7, 1);
+        ctx.fillStyle = '#fff8d8'; ctx.fillRect(x - 1, y + 2, 3, 1);
       }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  stringPoints(s) {
+    const I = IS.Iso;
+    const a = I.g2s(s.a.gx, s.a.gy), b = I.g2s(s.b.gx, s.b.gy);
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const n = Math.max(2, Math.floor(len / 9));
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const u = i / n;
+      pts.push({ x: IS.lerp(a.x, b.x, u), y: IS.lerp(a.y, b.y, u) - s.h + Math.sin(u * Math.PI) * 9 });
+    }
+    return pts;
+  }
+  drawStringLights(ctx, ox, oy) {
+    const strings = this.sim.world.stringLights || [];
+    const cols = ['#ffd27a', '#ff9a6a', '#fff0b0', '#ffb8d8'];
+    for (const s of strings) {
+      const pts = this.stringPoints(s);
+      ctx.strokeStyle = '#3a2a48'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      pts.forEach((p, i) => (i ? ctx.lineTo(p.x - ox, p.y - oy) : ctx.moveTo(p.x - ox, p.y - oy)));
+      ctx.stroke();
+      pts.forEach((p, i) => {
+        if (i === 0 || i === pts.length - 1) return;
+        ctx.fillStyle = cols[i % cols.length];
+        ctx.fillRect(Math.round(p.x - ox) - 1, Math.round(p.y - oy) + 1, 2, 2);
+      });
     }
   }
 
   drawFire(ctx, x, y, t) {
     x = Math.round(x); y = Math.round(y);
     const f = k => Math.round(Math.sin(t * (7 + k) + k * 2) * 2);
-    ctx.fillStyle = '#d9343f'; ctx.fillRect(x - 7, y - 6 + f(1), 14, 8);
+    ctx.fillStyle = '#e8343f'; ctx.fillRect(x - 7, y - 6 + f(1), 14, 8);
     ctx.fillStyle = '#ff8a3a'; ctx.fillRect(x - 5, y - 11 + f(2), 10, 12); ctx.fillRect(x - 8, y - 4, 3, 5);
     ctx.fillStyle = '#ffd56a'; ctx.fillRect(x - 3, y - 14 + f(3), 6, 13);
     ctx.fillStyle = '#fff4c8'; ctx.fillRect(x - 1, y - 9 + f(4), 2, 7);
@@ -423,7 +410,8 @@ IS.Renderer = class {
   }
 
   drawPerson(ctx, p, ox, oy, t) {
-    const sx = Math.round(p.x - ox), sy = Math.round(p.y - oy);
+    const s = IS.Iso.w2s(p.x, p.y);
+    const sx = Math.round(s.x - ox), sy = Math.round(s.y - oy);
     if (sx < -40 || sy < -60 || sx > this.vw + 40 || sy > this.vh + 80) return;
     const frames = p.frames[p.dir];
     let f = 0;
@@ -433,63 +421,55 @@ IS.Renderer = class {
     else if (p.pose === 'swim') f = Math.floor(p.anim / 8) % 2 ? 1 : 2;
     const img = frames[f];
 
-    // Hidden indoors under a roof
     if (p.building && p.building.cut < 0.05 && p.mode === 'normal') return;
     if (p.building && p.building.cut < 0.99 && p.mode === 'normal') ctx.globalAlpha = p.building.cut;
 
     if (p.mode === 'carried' || p.mode === 'air' || p.mode === 'hop') {
       const z = Math.round(p.z);
       const shrink = IS.clamp(1 - z / 120, 0.4, 1);
-      ctx.fillStyle = 'rgba(20, 20, 40, 0.3)';
-      ctx.beginPath(); ctx.ellipse(sx, sy - 1, 7 * shrink, 2.5 * shrink, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(40, 20, 90, 0.32)';
+      ctx.beginPath(); ctx.ellipse(sx, sy, 8 * shrink, 3.5 * shrink, 0, 0, Math.PI * 2); ctx.fill();
       if (p.mode === 'carried') {
-        // soft divine glow around the held person
-        const gr = ctx.createRadialGradient(sx, sy - z - 14, 2, sx, sy - z - 14, 26);
-        gr.addColorStop(0, 'rgba(255, 240, 180, 0.35)'); gr.addColorStop(1, 'rgba(255, 240, 180, 0)');
-        ctx.fillStyle = gr; ctx.fillRect(sx - 30, sy - z - 44, 60, 60);
+        const gr = ctx.createRadialGradient(sx, sy - z - 14, 2, sx, sy - z - 14, 28);
+        gr.addColorStop(0, 'rgba(255, 236, 170, 0.45)'); gr.addColorStop(1, 'rgba(255, 236, 170, 0)');
+        ctx.fillStyle = gr; ctx.fillRect(sx - 32, sy - z - 46, 64, 64);
       }
       ctx.save();
       ctx.translate(sx, sy - z - 22);
       ctx.rotate(p.swing);
       ctx.drawImage(img, -11, -12);
       ctx.restore();
-      if (p.mode === 'carried' && Math.random() < 0.3) {
-        ctx.fillStyle = '#fff4c8';
-        ctx.fillRect(sx + IS.randi(-14, 14), sy - z - IS.randi(10, 40), 1, 1);
-      }
+      if (p.mode === 'carried' && Math.random() < 0.35) { ctx.fillStyle = '#fff6c8'; ctx.fillRect(sx + IS.randi(-14, 14), sy - z - IS.randi(10, 40), 1, 1); }
       ctx.globalAlpha = 1;
       return;
     }
-
     if (p.pose === 'sleep') {
-      const top = sy - 18;
-      ctx.drawImage(img, 0, 0, 22, 20, sx - 11, top - 11, 22, 20);
-      const col = p.bedSpot ? IS.shade(p.cfg.look.shirt, -0.1) : '#6a8fc9';
-      ctx.fillStyle = col; ctx.fillRect(sx - 9, top + 7, 18, 32);
-      ctx.fillStyle = IS.shade(col, 0.25); ctx.fillRect(sx - 9, top + 7, 18, 3);
-      ctx.fillStyle = IS.shade(col, -0.2); ctx.fillRect(sx - 9, top + 18, 18, 1); ctx.fillRect(sx - 9, top + 26, 18, 1);
+      const I = IS.Iso;
+      const tx = Math.floor(p.x / IS.TILE), ty = Math.floor((p.y - 6) / IS.TILE);
+      const head = I.up(I.g2s(tx + 0.5, ty + 0.35), 9);
+      ctx.drawImage(img, 0, 0, 22, 20, Math.round(head.x - ox) - 11, Math.round(head.y - oy) - 15, 22, 20);
+      const col = IS.shade(p.cfg.look.shirt, -0.05);
+      const L = (gx, gy) => { const q = I.up(I.g2s(gx, gy), 9); return { x: q.x - ox, y: q.y - oy }; };
+      I.poly(ctx, [L(tx + 0.14, ty + 0.62), L(tx + 0.86, ty + 0.62), L(tx + 0.86, ty + 1.88), L(tx + 0.14, ty + 1.88)], col);
+      I.poly(ctx, [L(tx + 0.14, ty + 0.62), L(tx + 0.86, ty + 0.62), L(tx + 0.86, ty + 0.75), L(tx + 0.14, ty + 0.75)], IS.shade(col, 0.3));
       ctx.globalAlpha = 1;
       return;
     }
     if (p.pose === 'swim') {
       ctx.drawImage(img, 0, 0, 22, 22, sx - 11, sy - 34 + 12, 22, 22);
       ctx.strokeStyle = 'rgba(232, 251, 255, 0.85)';
-      ctx.beginPath(); ctx.ellipse(sx + 0.5, sy - 2.5, 10 + Math.sin(t * 4), 3, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(sx + 0.5, sy - 1.5, 11 + Math.sin(t * 4), 4, 0, 0, Math.PI * 2); ctx.stroke();
       ctx.globalAlpha = 1;
       return;
     }
-    // ground shadow
-    ctx.fillStyle = 'rgba(20, 20, 40, 0.25)';
-    ctx.beginPath(); ctx.ellipse(sx, sy - 1, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
-    if (p.pose === 'sit') {
-      ctx.drawImage(img, 0, 0, 22, 30, sx - 11, sy - 34 + 4, 22, 30);
-    } else {
-      ctx.drawImage(img, sx - 11, sy - 34);
-    }
+    ctx.fillStyle = 'rgba(40, 20, 90, 0.28)';
+    ctx.beginPath(); ctx.ellipse(sx, sy, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    if (p.pose === 'sit') ctx.drawImage(img, 0, 0, 22, 30, sx - 11, sy - 34 + 4, 22, 30);
+    else ctx.drawImage(img, sx - 11, sy - 34);
     const a = p.action;
     if (a && a.phase === 'do' && p.pose === 'sit' && a.def.id === 'read' && p.dir === 'down') {
-      ctx.fillStyle = '#c9534f'; ctx.fillRect(sx - 4, sy - 13, 8, 5);
-      ctx.fillStyle = '#f4efe6'; ctx.fillRect(sx - 3, sy - 13, 6, 1);
+      ctx.fillStyle = '#e8584a'; ctx.fillRect(sx - 4, sy - 13, 8, 5);
+      ctx.fillStyle = '#fff4e6'; ctx.fillRect(sx - 3, sy - 13, 6, 1);
     }
     if (p.pose === 'fish' && !p.chat) this.drawRod(ctx, p, sx, sy, t);
     ctx.globalAlpha = 1;
@@ -501,14 +481,15 @@ IS.Renderer = class {
     const tipOff = { right: [14, -12], left: [-14, -12], down: [5, -14], up: [3, -16] }[d];
     const hx = sx + hand[0], hy = sy + hand[1];
     const tx = hx + tipOff[0], ty = hy + tipOff[1];
-    const bx = Math.round(p.bobberX() - this.ox), by = Math.round(p.bobberY() - this.oy + Math.sin(t * 3) * 1.2);
-    this.pixLine(ctx, hx, hy, tx, ty, '#6e4a2c');
+    const b = this.toScreen(p.bobberX(), p.bobberY());
+    const bx = Math.round(b.x), by = Math.round(b.y + Math.sin(t * 3) * 1.2);
+    this.pixLine(ctx, hx, hy, tx, ty, '#7a4a2c');
     ctx.strokeStyle = 'rgba(240, 240, 255, 0.7)';
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(tx + 0.5, ty + 0.5);
     ctx.quadraticCurveTo((tx + bx) / 2, Math.max(ty, by) + 6, bx + 0.5, by + 0.5);
     ctx.stroke();
-    ctx.fillStyle = '#e0405a'; ctx.fillRect(bx - 1, by - 2, 3, 2);
+    ctx.fillStyle = '#ff4a5a'; ctx.fillRect(bx - 1, by - 2, 3, 2);
     ctx.fillStyle = '#ffffff'; ctx.fillRect(bx - 1, by, 3, 1);
   }
 
@@ -531,19 +512,18 @@ IS.Renderer = class {
     if (p.building && p.building.cut < 0.3 && p.mode === 'normal') return;
     const age = (now - e.t0) / 1000;
     const pop = age < 0.12 ? Math.round((0.12 - age) * 40) : 0;
-    const sitDrop = p.pose === 'sit' ? 4 : p.pose === 'sleep' ? 14 : p.pose === 'swim' ? 12 : 0;
-    const x = Math.round(p.x - ox) - 7;
-    const y = Math.round(p.y - oy - p.z) - 50 + sitDrop + pop + Math.round(Math.sin(now / 200) * 1);
-    ctx.drawImage(IS.Sprites.emotes[e.icon] || IS.Sprites.emotes.exclaim, x, y);
+    const drop = p.pose === 'sit' ? 4 : p.pose === 'sleep' ? 14 : p.pose === 'swim' ? 12 : 0;
+    const s = this.toScreen(p.x, p.y, p.z);
+    ctx.drawImage(IS.Sprites.emotes[e.icon] || IS.Sprites.emotes.exclaim, Math.round(s.x) - 7, Math.round(s.y) - 52 + drop + pop + Math.round(Math.sin(now / 200)));
   }
 
   drawDolphins(ctx, ox, oy, now) {
     const d = this.sim.events.dolphins;
     if (!d) return;
-    const T = IS.TILE;
     for (let i = 0; i < 3; i++) {
       const cyc = ((now - d.t0) / 1000 / 2.4 + i * 0.33) % 1;
-      const baseX = d.tx * T + i * 30 - 30 - ox, baseY = d.ty * T + (i % 2) * 14 - oy;
+      const s = IS.Iso.g2s(d.tx + 0.5 + i * 1.2 - 1.2, d.ty + 0.5 + (i % 2) * 0.6);
+      const baseX = s.x - ox, baseY = s.y - oy;
       if (cyc < 0.5) {
         const k = cyc / 0.5;
         const x = baseX - 14 + k * 28, y = baseY - Math.sin(k * Math.PI) * 14;
@@ -552,7 +532,7 @@ IS.Renderer = class {
         if (k < 0.08 || k > 0.92) { ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(x) - 3, Math.round(baseY) - 1, 6, 2); }
       } else {
         ctx.strokeStyle = 'rgba(232,251,255,0.6)';
-        ctx.beginPath(); ctx.ellipse(Math.round(baseX + 14) + 0.5, Math.round(baseY) + 0.5, 4 + (cyc - 0.5) * 16, 2 + (cyc - 0.5) * 4, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(Math.round(baseX + 14) + 0.5, Math.round(baseY) + 0.5, 4 + (cyc - 0.5) * 16, 2 + (cyc - 0.5) * 5, 0, 0, Math.PI * 2); ctx.stroke();
       }
     }
   }
@@ -567,8 +547,8 @@ IS.Renderer = class {
     for (const g of this.gulls) {
       g.x += g.vx * rdt; g.y += g.vy * rdt;
       const fr = Math.floor(t * 5 + g.ph) % 2;
-      ctx.fillStyle = 'rgba(20, 20, 40, 0.18)';
-      ctx.fillRect(Math.round(g.x - ox) - 4, Math.round(g.y - oy) + 36, 9, 2);
+      ctx.fillStyle = 'rgba(40, 20, 90, 0.2)';
+      ctx.fillRect(Math.round(g.x - ox) - 4, Math.round(g.y - oy) + 40, 9, 2);
       const spr = IS.Sprites.gull[fr];
       ctx.save();
       if (g.vx < 0) { ctx.translate(Math.round(g.x - ox), 0); ctx.scale(-1, 1); ctx.drawImage(spr, -7, Math.round(g.y - oy) - 4); }
@@ -578,170 +558,216 @@ IS.Renderer = class {
     this.gulls = this.gulls.filter(g => g.x > ox - 80 && g.x < ox + this.vw + 80);
   }
 
-  // Light sources for this frame: each is a hole in the darkness, a warm glow,
-  // and (if `emit`) a bright shape that blooms.
+  // ---------------------------------------------------------------- shadows
+  sun() {
+    const min = this.sim.clock.min;
+    const t = (min - 360) / 720;
+    if (t <= 0 || t >= 1) return null;
+    const edge = Math.abs(t - 0.5) * 2;
+    let a = Math.min(1, t / 0.08, (1 - t) / 0.1);
+    a *= { sunny: 1, cloudy: 0.45, fog: 0.3, rain: 0.2, storm: 0.1 }[this.sim.weather];
+    return { k: IS.lerp(-1.2, 1.2, t) + 0.7, len: 0.3 + edge * 0.4, a };
+  }
+  silhouette(img) {
+    let s = this.silCache.get(img);
+    if (!s) {
+      const { c, g } = IS.makeCanvas(img.width, img.height, false);
+      g.drawImage(img, 0, 0);
+      g.globalCompositeOperation = 'source-in';
+      g.fillStyle = '#000'; g.fillRect(0, 0, img.width, img.height);
+      this.silCache.set(img, c);
+      s = c;
+    }
+    return s;
+  }
+  drawCastShadows(ctx, ox, oy, inView) {
+    const sun = this.sun();
+    if (!sun || sun.a < 0.02) return;
+    const S = this.shadow.g, sim = this.sim;
+    S.setTransform(1, 0, 0, 1, 0, 0);
+    S.clearRect(0, 0, this.vw, this.vh);
+    const cast = (img, ax, ay, x, y, scale = 1) => {
+      S.setTransform(1, 0, -sun.k * sun.len * scale, -sun.len * scale, Math.round(x - ox), Math.round(y - oy));
+      S.drawImage(this.silhouette(img), -ax, -ay);
+    };
+    for (const o of sim.world.objects) {
+      if (o.kind === 'log' || o.kind === 'bench' || o.kind === 'flowers' || o.kind === 'lounger' || !inView(o.s.x, o.s.y, 140)) continue;
+      cast(o.sprite, o.ax, o.ay, o.s.x, o.s.y, o.kind === 'tree' || o.kind === 'bigoak' ? 0.85 : 1);
+    }
+    for (const b of sim.world.buildings) {
+      if (b.cut > 0.5) continue;
+      const base = IS.Iso.g2s(b.x0 + b.w, b.y0 + b.h);
+      cast(b.iso.canvas, base.x - b.iso.ox, base.y - b.iso.oy, base.x, base.y, 0.5);
+    }
+    for (const p of sim.people) {
+      if (p.mode !== 'normal' || p.building || p.pose === 'swim' || p.pose === 'sleep') continue;
+      const s = IS.Iso.w2s(p.x, p.y);
+      const f = p.frames[p.dir][p.pose === 'walk' ? [1, 0, 2, 0][Math.floor(p.anim / 6) % 4] : 0];
+      cast(f, 11, 34, s.x, s.y);
+    }
+    S.setTransform(1, 0, 0, 1, 0, 0);
+    S.globalCompositeOperation = 'source-in';
+    S.fillStyle = '#3a2690';
+    S.fillRect(0, 0, this.vw, this.vh);
+    S.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.3 * sun.a;
+    ctx.drawImage(this.shadow.c, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------------------------------------------------------------- lighting
   collectLights(amb, t) {
-    const sim = this.sim, w = sim.world, T = IS.TILE, dark = amb.dark;
+    const sim = this.sim, w = sim.world, I = IS.Iso, dark = amb.dark;
     const lights = [];
     const min = sim.clock.min;
     const evening = min >= 16.5 * 60 || min < 7.5 * 60;
     const lateNight = min >= 22.5 * 60 || min < 5 * 60;
-    for (const l of w.lamps) lights.push({ x: l.x, y: l.y + 6, r: 60, s: 0.95 * dark, warm: 0.6, emit: { x: l.x, y: l.y - 5, r: 4 } });
+    for (const l of w.lamps) { const s = I.w2s(l.x, l.y); lights.push({ x: s.x, y: s.y - 30, gy: s.y, r: 60, s: 0.9 * dark, warm: 0.4 }); }
+    for (const st of w.stringLights || []) this.stringPoints(st).forEach((p, i) => { if (i % 3 === 1) lights.push({ x: p.x, y: p.y + 14, r: 22, s: 0.35 * dark, warm: 0.12 }); });
     for (const bld of w.buildings) {
       bld.lit = false;
       const awake = sim.people.some(p => p.building === bld && p.pose !== 'sleep');
       const hallEv = bld.kind === 'hall' && sim.events.list.some(e => e.state === 'active' && e.seat === 'hallSeat');
-      const lit = evening && (awake || hallEv || !lateNight);
-      if (bld.cut > 0.3) {
-        for (const [c, r] of this.pendantSpots(bld)) lights.push({ x: (bld.x0 + c) * T, y: (bld.y0 + r) * T, r: T * 3.4, s: 0.95 * dark * bld.cut, warm: 0.8, emit: { x: (bld.x0 + c) * T, y: (bld.y0 + r) * T - 12, r: 5 } });
-        if (bld.kind === 'hall') lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 70, s: dark * bld.cut, warm: 0.7, emit: { x: (bld.x0 + 7) * T, y: (bld.y0 + 1.4) * T, r: 7 } });
+      const lit = evening && (awake || hallEv || !lateNight || (bld.kind === 'deco' && min < 23 * 60));
+      if (bld.cut > 0.3 && bld.iso.interior) {
+        for (const [c, r] of this.pendantSpots(bld)) { const s = I.g2s(bld.x0 + c, bld.y0 + r); lights.push({ x: s.x, y: s.y - 10, r: 66, s: 0.8 * dark * bld.cut, warm: 0.45 }); }
       }
       if (!lit) continue;
       bld.lit = true;
-      for (const win of bld.ext.windows) {
-        const wx = bld.px + win.x, wy = bld.py + win.y;
-        // light spills out of the window onto the ground below it
-        lights.push({ x: wx + 7, y: wy + 22, r: 34, s: 0.85 * dark * (1 - bld.cut), warm: 0.5, win: { x: wx, y: wy, w: win.w, h: win.h }, cut: bld.cut, emit: bld.cut < 0.6 ? { rect: [wx, wy, win.w, win.h] } : null });
-      }
-      for (const d of bld.ext.doors) lights.push({ x: bld.px + d.x + d.w / 2, y: bld.py + d.y + d.h + 4, r: 26, s: 0.5 * dark * (1 - bld.cut), warm: 0.4 });
+      bld.iso.windows.forEach((win, wi) => {
+        const cx = (win.pts[0].x + win.pts[2].x) / 2, cy = (win.pts[0].y + win.pts[2].y) / 2;
+        // every window glows; only some cast light, so big buildings don't blow out
+        const casts = wi % 2 === 0;
+        lights.push({ x: cx + (win.face === 's' ? -6 : 6), y: cy + 16, r: casts ? 34 : 0, s: casts ? 0.6 * dark * (1 - bld.cut) : 0, warm: casts ? 0.22 : 0, win, cut: bld.cut });
+      });
+      for (const lt of bld.iso.lanterns || []) lights.push({ x: lt.x, y: lt.y + 4, r: 34, s: 0.8 * dark, warm: 0.4, lantern: lt });
     }
     if (w.bonfire.lit) {
       const fl = 1 + Math.sin(t * 13) * 0.06 + Math.sin(t * 7.3) * 0.05;
-      const bx = w.bonfire.x * T + 12, by = w.bonfire.y * T + 10;
-      lights.push({ x: bx, y: by, r: 100 * fl, s: dark, warm: 0.7, emit: { x: bx, y: by - 8, r: 9 * fl } });
+      const s = I.g2s(w.bonfire.x + 0.5, w.bonfire.y + 0.5);
+      lights.push({ x: s.x, y: s.y - 6, r: 110 * fl, s: dark, warm: 0.75 });
     }
-    lights.push({ x: w.lighthouseLight.x, y: w.lighthouseLight.y, r: 44, s: dark, warm: 0.4, emit: { x: w.lighthouseLight.x, y: w.lighthouseLight.y, r: 6 } });
+    { const s = I.w2s(w.lighthouseLight.x, w.lighthouseLight.y); lights.push({ x: s.x, y: s.y - w.lighthouseLight.h, r: 50, s: dark, warm: 0.5, lighthouse: true }); }
     if (sim.weather !== 'rain' && sim.weather !== 'storm') {
       for (const ff of this.fireflies) {
-        const fx = ff.x + Math.sin(t * 0.7 + ff.ph) * 14, fy = ff.y + Math.cos(t * 0.5 + ff.ph * 2) * 10;
-        if (Math.sin(t * 2 + ff.ph * 3) > 0.2) lights.push({ x: fx, y: fy, r: 9, s: dark * 0.8, warm: 0, ff: true, emit: { x: fx, y: fy, r: 1.5, col: '#e8ff9a' } });
+        const s = I.w2s(ff.x + Math.sin(t * 0.7 + ff.ph) * 14, ff.y + Math.cos(t * 0.5 + ff.ph * 2) * 10);
+        if (Math.sin(t * 2 + ff.ph * 3) > 0.2) lights.push({ x: s.x, y: s.y - 10 - Math.sin(t + ff.ph) * 4, r: 10, s: dark * 0.8, warm: 0, ff: true });
       }
     }
     return lights;
   }
 
   drawLighting(ctx, amb, ox, oy, t) {
-    const sim = this.sim, w = sim.world, vw = this.vw, vh = this.vh;
-    const L = this.light.g, dark = amb.dark;
+    const vw = this.vw, vh = this.vh, L = this.light.g, dark = amb.dark;
     if (amb.k < 0.01) return;
     const lights = this.collectLights(amb, t);
     const vis = l => { const x = l.x - ox, y = l.y - oy; return !(x < -l.r || y < -l.r || x > vw + l.r || y > vh + l.r); };
 
-    // 1. Darkness as a multiply layer, with soft holes where light falls
+    // Darkness as a multiply layer with soft holes where light falls
     L.globalCompositeOperation = 'source-over';
     L.fillStyle = `rgb(${amb.mult[0]},${amb.mult[1]},${amb.mult[2]})`;
     L.fillRect(0, 0, vw, vh);
     if (dark > 0) {
       L.globalCompositeOperation = 'destination-out';
       for (const l of lights) {
-        if (!vis(l)) continue;
-        const x = l.x - ox, y = l.y - oy;
+        if (!vis(l) || !l.r) continue;
+        const x = l.x - ox, y = (l.gy !== undefined ? l.gy : l.y) - oy;
         const gr = L.createRadialGradient(x, y, 0, x, y, l.r);
         gr.addColorStop(0, `rgba(0,0,0,${l.s})`);
-        gr.addColorStop(0.45, `rgba(0,0,0,${l.s * 0.65})`);
+        gr.addColorStop(0.45, `rgba(0,0,0,${l.s * 0.6})`);
         gr.addColorStop(1, 'rgba(0,0,0,0)');
         L.fillStyle = gr;
         L.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
       }
-      // Lighthouse beam sweeping over the sea
-      const lx = w.lighthouseLight.x - ox, ly = w.lighthouseLight.y - oy;
-      L.save();
-      L.translate(lx, ly); L.rotate(t * 0.6);
-      const bg = L.createLinearGradient(0, 0, 420, 0);
-      bg.addColorStop(0, `rgba(0,0,0,${0.75 * dark})`); bg.addColorStop(1, 'rgba(0,0,0,0)');
-      L.fillStyle = bg;
-      L.beginPath(); L.moveTo(0, 0); L.lineTo(420, -40); L.lineTo(420, 40); L.closePath(); L.fill();
-      L.restore();
+      const lh = lights.find(l => l.lighthouse);
+      if (lh) {
+        L.save();
+        L.translate(lh.x - ox, lh.y - oy); L.rotate(t * 0.6);
+        const bg = L.createLinearGradient(0, 0, 460, 0);
+        bg.addColorStop(0, `rgba(0,0,0,${0.75 * dark})`); bg.addColorStop(1, 'rgba(0,0,0,0)');
+        L.fillStyle = bg;
+        L.beginPath(); L.moveTo(0, 0); L.lineTo(460, -44); L.lineTo(460, 44); L.closePath(); L.fill();
+        L.restore();
+      }
       L.globalCompositeOperation = 'source-over';
     }
-    // Drain some colour first so the warm lights are what you notice
-    ctx.globalCompositeOperation = 'saturation';
-    ctx.fillStyle = `rgba(128, 128, 128, ${0.38 * dark})`;
-    ctx.fillRect(0, 0, vw, vh);
     ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(this.light.c, 0, 0);
-    // 2. Lift the shadows toward purple so nights stay soft, not crushed
     ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = `rgba(${amb.tint[0] * 0.5 | 0}, ${amb.tint[1] * 0.4 | 0}, ${amb.tint[2] * 0.6 | 0}, ${0.18 * dark})`;
+    ctx.fillStyle = `rgba(${amb.tint[0] * 0.45 | 0}, ${amb.tint[1] * 0.35 | 0}, ${amb.tint[2] * 0.6 | 0}, ${0.16 * dark})`;
     ctx.fillRect(0, 0, vw, vh);
     ctx.globalCompositeOperation = 'source-over';
 
-    // 3. Lit windows glow cream from late afternoon onward
-    const winA = IS.clamp(0.25 + dark * 1.2, 0, 1);
+    // Glowing windows: cream panes from late afternoon on
+    const winA = IS.clamp(0.3 + dark * 1.2, 0, 1);
     for (const l of lights) {
-      if (!l.win || (l.cut || 0) > 0.6 || !vis(l)) continue;
-      ctx.globalAlpha = winA * (1 - (l.cut || 0));
-      ctx.fillStyle = '#ffe2a0';
-      ctx.fillRect(l.win.x - ox, l.win.y - oy, l.win.w, l.win.h);
-      ctx.fillStyle = '#fff6d8';
-      ctx.fillRect(l.win.x - ox + 1, l.win.y - oy + 1, l.win.w - 2, 3);
+      if (l.win) {
+        if ((l.cut || 0) > 0.6) continue;
+        ctx.globalAlpha = winA * (1 - (l.cut || 0));
+        const pts = l.win.pts.map(p => ({ x: p.x - ox, y: p.y - oy }));
+        IS.Iso.poly(ctx, pts, l.win.glass ? '#fff0c0' : '#ffdf96');
+        IS.Iso.poly(ctx, [pts[0], pts[1], { x: pts[1].x, y: pts[1].y - 3 }, { x: pts[0].x, y: pts[0].y - 3 }], '#fff8e0');
+      } else if (l.lantern) {
+        ctx.globalAlpha = winA;
+        ctx.fillStyle = '#ffe9a8'; ctx.fillRect(Math.round(l.lantern.x - ox) - 1, Math.round(l.lantern.y - oy) - 2, 3, 5);
+      }
     }
     ctx.globalAlpha = 1;
     if (dark <= 0) return;
-
-    // 4. Warm additive glow around each light
+    for (const l of this.sim.world.lamps) {
+      const s = IS.Iso.w2s(l.x, l.y);
+      ctx.fillStyle = `rgba(255, 244, 200, ${dark})`;
+      ctx.fillRect(Math.round(s.x - ox) - 2, Math.round(s.y - oy) - 32, 5, 5);
+    }
     ctx.globalCompositeOperation = 'lighter';
     for (const l of lights) {
-      if (!l.warm || !vis(l)) continue;
+      if (!vis(l) || !l.r) continue;
       const x = l.x - ox, y = l.y - oy;
-      const gr = ctx.createRadialGradient(x, y, 0, x, y, l.r * 0.85);
-      gr.addColorStop(0, `rgba(255, 160, 70, ${l.warm * 0.42 * l.s})`);
-      gr.addColorStop(1, 'rgba(255, 160, 70, 0)');
+      if (l.ff) { ctx.fillStyle = `rgba(230, 255, 150, ${dark})`; ctx.fillRect(Math.round(x), Math.round(y), 1, 1); continue; }
+      if (!l.warm) continue;
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, l.r * 0.8);
+      gr.addColorStop(0, `rgba(255, 150, 60, ${l.warm * 0.32 * l.s})`);
+      gr.addColorStop(1, 'rgba(255, 150, 60, 0)');
       ctx.fillStyle = gr;
       ctx.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
     }
     ctx.globalCompositeOperation = 'source-over';
+  }
 
-    // 5. Bloom: bright shapes drawn small, blurred by down-sampling, added back
-    const B = this.bloomA, C = this.bloomB;
-    const bw = B.c.width, bh = B.c.height;
-    B.g.setTransform(1, 0, 0, 1, 0, 0);
-    B.g.clearRect(0, 0, bw, bh);
-    B.g.setTransform(bw / vw, 0, 0, bh / vh, -ox * bw / vw, -oy * bh / vh);
-    for (const l of lights) {
-      const e = l.emit;
-      if (!e) continue;
-      if (e.rect) {
-        B.g.fillStyle = '#ffd48a';
-        B.g.fillRect(e.rect[0] - 2, e.rect[1] - 2, e.rect[2] + 4, e.rect[3] + 4);
-      } else {
-        B.g.fillStyle = e.col || '#ffcf7a';
-        B.g.beginPath(); B.g.arc(e.x, e.y, e.r * 2, 0, Math.PI * 2); B.g.fill();
-      }
+  // Bloom: everything bright on screen glows. The frame is shrunk, everything
+  // below a brightness threshold is dropped, and the rest is blurred back on top.
+  drawBloom(ctx, amb) {
+    const A = this.bloomA, B = this.bloomB;
+    const aw = A.c.width, ah = A.c.height;
+    A.g.imageSmoothingEnabled = true;
+    A.g.clearRect(0, 0, aw, ah);
+    A.g.drawImage(this.canvas, 0, 0, aw, ah);
+    const img = A.g.getImageData(0, 0, aw, ah);
+    const d = img.data;
+    const thr = IS.lerp(0.86, 0.66, amb.dark), inv = 1 / (1 - thr);
+    for (let i = 0; i < d.length; i += 4) {
+      const l = (d[i] * 0.3 + d[i + 1] * 0.55 + d[i + 2] * 0.15) / 255;
+      const f = l > thr ? Math.min(1, (l - thr) * inv) : 0;
+      const k = f * f * 1.1;
+      d[i] *= k; d[i + 1] *= k * 0.92; d[i + 2] *= k * 0.78;
+      d[i + 3] = 255;
     }
-    B.g.setTransform(1, 0, 0, 1, 0, 0);
-    C.g.clearRect(0, 0, C.c.width, C.c.height);
-    C.g.imageSmoothingEnabled = true;
-    C.g.drawImage(B.c, 0, 0, C.c.width, C.c.height);
+    A.g.putImageData(img, 0, 0);
+    B.g.imageSmoothingEnabled = true;
+    B.g.clearRect(0, 0, B.c.width, B.c.height);
+    B.g.drawImage(A.c, 0, 0, B.c.width, B.c.height);
     ctx.imageSmoothingEnabled = true;
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.75 * dark;
-    ctx.drawImage(C.c, 0, 0, vw, vh);
-    ctx.globalAlpha = 0.45 * dark;
-    ctx.drawImage(B.c, 0, 0, vw, vh);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.imageSmoothingEnabled = false;
-    // Fireflies stay crisp on top of their bloom
-    for (const l of lights) if (l.ff && vis(l)) { ctx.fillStyle = '#f0ffb0'; ctx.fillRect(Math.round(l.x - ox), Math.round(l.y - oy), 1, 1); }
-  }
-
-  // Dreamy soft-focus: a blurred copy of the frame screened back on top
-  drawHaze(ctx, amb) {
-    const H = this.haze;
-    H.g.imageSmoothingEnabled = true;
-    H.g.clearRect(0, 0, H.c.width, H.c.height);
-    H.g.drawImage(this.canvas, 0, 0, H.c.width, H.c.height);
-    ctx.imageSmoothingEnabled = true;
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.08 + 0.14 * amb.dark;
-    ctx.drawImage(H.c, 0, 0, this.vw, this.vh);
+    ctx.globalAlpha = 0.4 + 0.3 * amb.dark;
+    ctx.drawImage(B.c, 0, 0, this.vw, this.vh);
+    ctx.globalAlpha = 0.2 + 0.15 * amb.dark;
+    ctx.drawImage(A.c, 0, 0, this.vw, this.vh);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.imageSmoothingEnabled = false;
   }
 
-  drawWeather(ctx, rdt, t, amb) {
+  drawWeather(ctx, rdt, t) {
     const sim = this.sim, vw = this.vw, vh = this.vh;
     const w = sim.weather;
     const target = w === 'rain' ? 160 : w === 'storm' ? 300 : 0;
@@ -749,7 +775,7 @@ IS.Renderer = class {
     if (this.rain.length > target) this.rain.length = target;
     if (target) {
       const slant = w === 'storm' ? 0.35 : 0.15;
-      ctx.strokeStyle = w === 'storm' ? 'rgba(200, 215, 240, 0.55)' : 'rgba(190, 210, 240, 0.5)';
+      ctx.strokeStyle = w === 'storm' ? 'rgba(200, 210, 250, 0.55)' : 'rgba(190, 205, 250, 0.5)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (const d of this.rain) {
@@ -777,7 +803,7 @@ IS.Renderer = class {
       ctx.globalAlpha = 0.55;
       for (let y = -256; y < vh + 256; y += 256) for (let x = -256; x < vw + 256; x += 256) ctx.drawImage(this.fog, Math.round(x + off - (this.ox % 256)), Math.round(y - (this.oy % 256)));
       ctx.globalAlpha = 1;
-      ctx.fillStyle = 'rgba(230, 236, 242, 0.18)';
+      ctx.fillStyle = 'rgba(232, 232, 250, 0.16)';
       ctx.fillRect(0, 0, vw, vh);
     }
   }
@@ -787,13 +813,11 @@ IS.Renderer = class {
     ev.stars = ev.stars.filter(s => now - s.t0 < 1400);
     for (const s of ev.stars) {
       const k = (now - s.t0) / 1400;
-      const x0 = s.x * this.vw, y0 = s.y * this.vh;
-      const x = x0 + k * 160, y = y0 + k * 60;
+      const x = s.x * this.vw + k * 160, y = s.y * this.vh + k * 60;
       const gr = ctx.createLinearGradient(x - 50, y - 19, x, y);
       gr.addColorStop(0, 'rgba(255,255,255,0)');
       gr.addColorStop(1, `rgba(255,255,230,${1 - k})`);
-      ctx.strokeStyle = gr;
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = gr; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(x - 50, y - 19); ctx.lineTo(x, y); ctx.stroke();
       ctx.fillStyle = `rgba(255,255,255,${1 - k})`;
       ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);

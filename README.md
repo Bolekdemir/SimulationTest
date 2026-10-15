@@ -1,6 +1,6 @@
 # Tidewhistle Isle
 
-A cozy pixel-art island life simulation. Six islanders (and a cat) live on a small island with their own personalities, needs, memories, friendships and grudges. You watch from above as the Sky Hand, and you can pick them up, carry them around, and throw them into the sea.
+A cozy isometric pixel-art island life simulation. Six islanders (and a cat) live on a small island with their own personalities, needs, memories, friendships and grudges. You watch from above as the Sky Hand, and you can pick them up, carry them around, and throw them into the sea.
 
 Open `index.html` in a browser. No build step, no dependencies.
 
@@ -18,7 +18,8 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 - **Relationships** drift toward what their personalities naturally support. Crushes, confessions, rejections and couples happen when romance is enabled.
 - **Weekly calendar**: Tue fishing contest, Wed supply boat, Thu story night, Fri community dinner, Sat beach bonfire, Sun picnic, plus birthday parties.
 - **Random life**: weather (sun, clouds, rain, storms, fog), dolphins, shooting stars, messages in bottles, colds (friends bring soup), food spoilage, firewood running out.
-- **Cozy lighting**: shadows cast by the moving sun, golden hours, a warm vignette, pendant lamps in every room, lit windows, a sweeping lighthouse beam, fireflies and bonfire light.
+- **Isometric world**: a raised island slab with cliff edges, 3D buildings with gable roofs and lit/shaded walls, cutaway interiors, market stalls, string lights, hedges, fences and beach umbrellas.
+- **Lighting**: warm sun and cool blue-violet shadows, a lavender dusk, glowing windows, threshold bloom, shadows cast by the moving sun, a sweeping lighthouse beam, fireflies and bonfire light.
 - **Humour and quirks**: roasts, dry jokes, goofy jokes, bragging, greed and impulsiveness all change how conversations go.
 
 ## Controls
@@ -39,7 +40,8 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | File | What it does |
 | --- | --- |
 | `js/config.js` | Islanders and tuning |
-| `js/world.js` | Island generation, buildings, activity spots, A* pathfinding, terrain pre-render |
+| `js/world.js` | Island generation, buildings, activity spots, A* pathfinding, isometric terrain pre-render |
+| `js/iso.js` | Isometric projection and procedural iso art (buildings, interiors, props) |
 | `js/sprites.js` | All pixel art, drawn procedurally |
 | `js/actions.js` | Every activity and how it is scored |
 | `js/person.js` | Islander entity: needs, movement, memory, relationships, Sky Hand physics |

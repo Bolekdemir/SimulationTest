@@ -122,7 +122,8 @@ IS.UI = class {
       const tag = this.tagEls.get(p);
       const hiddenIndoors = p.building && p.building.cut < 0.3 && p.mode === 'normal';
       const sitDrop = p.pose === 'sit' ? 4 : p.pose === 'sleep' ? 14 : p.pose === 'swim' ? 12 : 0;
-      const sx = (p.x - r.ox) * z, sy = (p.y - p.z - r.oy) * z;
+      const sp = r.toScreen(p.x, p.y, p.z);
+      const sx = sp.x * z, sy = sp.y * z;
       const showBubble = p.bubble && p.bubble.until > now && !hiddenIndoors;
       if (showBubble) {
         if (el.dataset.id !== String(p.bubble.id)) { el.textContent = p.bubble.text; el.dataset.id = p.bubble.id; }

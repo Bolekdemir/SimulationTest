@@ -155,7 +155,7 @@ IS.Actions = (() => {
     tick: (p, a, dt) => {
       a.acc = (a.acc || 0) + dt;
       p.needs.energy -= 0.03 * dt;
-      if (Math.random() < dt * 0.6) p.sim.fx.chips(p.x, p.y - 26);
+      if (Math.random() < dt * 0.6) p.sim.fx.chips(p.x, p.y);
       if (a.acc >= 20) { a.acc = 0; p.world.wood++; }
       if (p.loves.includes('chopping')) p.needs.fun = Math.min(100, p.needs.fun + 0.18 * dt);
     },

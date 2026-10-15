@@ -22,12 +22,13 @@ IS.Sim = class {
     this.waveTime = 0;
     this.nightFF = false;
     const plaza = this.world.pois.find(p => p.name === 'the plaza');
-    this.cam = { x: plaza.x * IS.TILE, y: plaza.y * IS.TILE - 40, zoom: this.defaultZoom() };
+    const c0 = IS.Iso.g2s(plaza.x + 0.5, plaza.y - 2);
+    this.cam = { x: c0.x, y: c0.y, zoom: this.defaultZoom() };
   }
 
   defaultZoom() {
     const w = window.innerWidth;
-    return IS.clamp(Math.round(w / (19 * IS.TILE)), 2, 6);
+    return IS.clamp(Math.round(w / 470), 2, 6);
   }
 
   boot() {
@@ -77,10 +78,10 @@ IS.Sim = class {
     const z1 = IS.clamp(z0 + d, 1, 6);
     if (z1 === z0) return;
     if (cx !== undefined && this.renderer && !this.follow) {
-      const w = this.input.toWorld(cx, cy);
+      const w = this.input.toIso(cx, cy);
       this.cam.zoom = z1;
       this.renderer.resize();
-      const w2 = this.input.toWorld(cx, cy);
+      const w2 = this.input.toIso(cx, cy);
       this.cam.x += w.x - w2.x; this.cam.y += w.y - w2.y;
     } else {
       this.cam.zoom = z1;
@@ -149,14 +150,15 @@ IS.Sim = class {
     this.ambientFx(rdt);
     this.input.update(rdt);
     for (const b of this.world.buildings) {
-      const hover = this.hoverWorld && this.world.buildingAtPx(this.hoverWorld.x, this.hoverWorld.y) === b && !(this.input.press && this.input.press.pan && this.input.press.moved);
+      if (b.noCut) continue;
+      const hover = this.hoverIso && this.renderer.buildingAtIso(this.hoverIso.x, this.hoverIso.y) === b && !(this.input.press && this.input.press.pan && this.input.press.moved);
       const target = this.xray || hover || (this.selected && this.selected.building === b) || (this.input.press && this.input.press.grabbed && this.hover && this.hover.building === b) ? 1 : 0;
       b.cut += (target - b.cut) * Math.min(1, rdt * 8);
     }
     if (this.follow && this.selected) {
-      const p = this.selected;
-      this.cam.x += (p.x - this.cam.x) * Math.min(1, rdt * 4);
-      this.cam.y += (p.y - 20 - this.cam.y) * Math.min(1, rdt * 4);
+      const s = IS.Iso.w2s(this.selected.x, this.selected.y);
+      this.cam.x += (s.x - this.cam.x) * Math.min(1, rdt * 4);
+      this.cam.y += (s.y - 20 - this.cam.y) * Math.min(1, rdt * 4);
     }
     this.renderer.draw(now, rdt);
     this.ui.frame(now);
@@ -178,7 +180,7 @@ IS.Sim = class {
     for (const b of this.world.buildings) {
       const cooking = this.people.some(p => p.building === b && p.action && p.action.phase === 'do' && ['cook', 'home', 'eat'].includes(p.action.def.id));
       const evening = (min > 17 * 60 || min < 8 * 60) && this.people.some(p => p.building === b && p.pose !== 'sleep');
-      if ((cooking || evening) && Math.random() < rdt * 2.5) this.fx.smoke(b.px + b.ext.w - 29, b.py + 2);
+      if (b.iso.chimney && (cooking || evening) && Math.random() < rdt * 2.5) this.fx.smoke(b.iso.ox + b.iso.chimney.x, b.iso.oy + b.iso.chimney.y);
     }
   }
 };

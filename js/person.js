@@ -246,7 +246,7 @@ IS.Person = class {
   update(dt, rdt, c) {
     this.decayNeeds(dt);
     this.moodMods = this.moodMods.filter(m => m.until > c.abs);
-    if (this.wetUntil > c.abs && Math.random() < rdt * 3) this.sim.fx.drip(this.x + IS.rand(-5, 5), this.y - 14);
+    if (this.wetUntil > c.abs && Math.random() < rdt * 3) this.sim.fx.drip(this.x + IS.rand(-5, 5), this.y, 14);
 
     switch (this.mode) {
       case 'carried': this.anim += rdt * 10; this.carriedTalk(rdt); break;
@@ -410,7 +410,7 @@ IS.Person = class {
   }
   dragTo(wx, wy, mvx) {
     this.x = IS.clamp(wx, 8, this.world.pxW - 8);
-    this.y = IS.clamp(wy + this.z + 22, 30, this.world.pxH - 4);
+    this.y = IS.clamp(wy, 30, this.world.pxH - 4);
     this.swing = IS.lerp(this.swing, IS.clamp(-mvx * 0.0012, -0.7, 0.7), 0.25);
   }
   release(vx, vy) {
@@ -448,7 +448,7 @@ IS.Person = class {
     this.swing = 0;
     this.pose = 'stand';
     if (this.isWaterHere()) {
-      this.sim.fx.splash(this.x, this.y - 4, 14);
+      this.sim.fx.splash(this.x, this.y, 14);
       this.mode = 'swim';
       const goal = this.world.findNear(this.tx, this.ty, (x, y) => this.world.walkable(x, y) && this.world.reach[this.world.idx(x, y)] === 1, 60);
       this.swimTarget = goal;
@@ -511,7 +511,7 @@ IS.Person = class {
       this.say(IS.pick(['Made it...', '*pant pant*', 'Land! Sweet land!']));
     } else {
       this.x += (dx / d) * step; this.y += (dy / d) * step;
-      if (Math.random() < dt * 0.8) this.sim.fx.ripple(this.x, this.y - 2);
+      if (Math.random() < dt * 0.8) this.sim.fx.ripple(this.x, this.y);
     }
   }
 };

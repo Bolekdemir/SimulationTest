@@ -5,6 +5,7 @@ IS.World = class {
   constructor() {
     this.W = 80;
     this.H = 60;
+    IS.Iso.setup(this);
     this.tiles = new Uint8Array(this.W * this.H);
     this.blocked = new Uint8Array(this.W * this.H);
     this.costExtra = new Float32Array(this.W * this.H);
@@ -119,6 +120,22 @@ IS.World = class {
     for (let x = 13; x <= 67; x++) if (this.tile(x, 32) !== TT.PLAZA) paint(x, 32, TT.PATH);
     for (const b of this.buildings) for (const d of b.doors) for (let y = d.y + 1; y < 32; y++) if (this.tile(d.x, y) !== TT.PLAZA) paint(d.x, y, TT.PATH);
 
+    // Decorative buildings fill out the village (not enterable)
+    const freeRect = (x0, y0, w, h) => {
+      for (let yy = y0 - 1; yy <= y0 + h; yy++) for (let xx = x0 - 1; xx <= x0 + w; xx++) {
+        const t = this.tile(xx, yy);
+        if (![TT.GRASS, TT.FOREST, TT.SAND].includes(t)) return false;
+      }
+      return true;
+    };
+    for (const d of [
+      { id: 'cafe', deco: 'cafe', x0: 30, y0: 18, w: 5, h: 4, doorCols: [2], roof: '#e8584a', wall: '#fff0d8' },
+      { id: 'boathouse', deco: 'boathouse', x0: 44, y0: 38, w: 4, h: 3, doorCols: [1], roof: '#3f6ad8', wall: '#e8dcc8' },
+      { id: 'greenhouse', deco: 'greenhouse', x0: 20, y0: 35, w: 4, h: 3, doorCols: [1], roof: '#9fe0e8', wall: '#dff6f8' },
+      { id: 'shed', deco: 'shed', x0: 55, y0: 35, w: 3, h: 3, doorCols: [1], roof: '#b06a3a', wall: '#d8b088' },
+      { id: 'store', deco: 'cafe', x0: 55, y0: 18, w: 5, h: 4, doorCols: [2], roof: '#5f4ab8', wall: '#fbe6cc' },
+    ]) if (freeRect(d.x0, d.y0, d.w, d.h)) this.addBuilding({ kind: 'deco', ...d });
+
     // Farm
     this.farm = { x0: 26, y0: 36, x1: 33, y1: 39 };
     for (let y = 36; y <= 39; y++) for (let x = 26; x <= 33; x++) paint(x, y, TT.FARM);
@@ -184,13 +201,14 @@ IS.World = class {
     // Lighthouse
     place('lighthouse', lh.x, lh.y, S.lighthouse, 20, 95, { footY: 22, protect: 1 });
     this.blocked[this.idx(lh.x - 1, lh.y)] = 1; this.blocked[this.idx(lh.x + 1, lh.y)] = 1;
-    this.lighthouseLight = { x: lh.x * T + 12, y: lh.y * T + 22 - 80 };
+    this.lighthouseLight = { x: lh.x * T + 12, y: lh.y * T + 18, h: 80 };
 
     // Plaza furniture
     place('well', 36, 33, S.well, 15, 35, { footY: 22 });
     place('board', 44, 33, S.noticeBoard, 13, 30, { footY: 21 });
     const benchAt = (x, yy, face, area) => {
-      place('bench', x, yy, S.bench, 14, 17, { block: false, footY: 18, sortBias: -6 });
+      const bp = IS.Iso.bench('x');
+      place('bench', x, yy, bp.canvas, bp.ax, bp.ay, { block: false, footY: 18 });
       this.addSpot('bench', x, yy, face, 'sit', { area });
     };
     benchAt(34, 31, 'down', 'plaza'); benchAt(45, 31, 'down', 'plaza');
@@ -199,16 +217,19 @@ IS.World = class {
     const lampAt = (x, yy) => {
       if (!this.walkable(x, yy) && this.tile(x, yy) !== TT.DOCK) return;
       place('lamp', x, yy, S.lamp, 6, 34, { footY: 20 });
-      this.lamps.push({ x: x * T + 12, y: yy * T + 20 - 28 });
+      this.lamps.push({ x: x * T + 12, y: yy * T + 18 });
     };
     [14, 21, 31, 57, 65].forEach(x => lampAt(x, 31));
     lampAt(33, 34); lampAt(46, 34); lampAt(36, dockEnd - 1); lampAt(43, dockEnd - 1);
     lampAt(49, 20); lampAt(47, 26);
     // Dock clutter
-    place('crate', 38, 35, S.crate, 8, 15, { footY: 20 });
-    place('barrel', 41, 35, S.barrel, 7, 17, { footY: 20 });
-    place('barrel', 47, 29, S.barrel, 7, 17, { footY: 20 });
-    place('crate', 34, 29, S.crate, 8, 15, { footY: 20 });
+    const isoProp = (kind, x, yy, p, opts = {}) => place(kind, x, yy, p.canvas, p.ax, p.ay, { footY: 18, ...opts });
+    this.isoProp = isoProp;
+    isoProp('crate', 38, 35, IS.Iso.crateStack());
+    isoProp('barrel', 41, 35, IS.Iso.barrel());
+    isoProp('barrel', 47, 29, IS.Iso.barrel());
+    isoProp('crate', 34, 29, IS.Iso.crate());
+    isoProp('crate', 42, 35, IS.Iso.crate());
     place('sign', 47, 33, S.signpost, 11, 29, { footY: 21 });
 
     // Bonfire on the beach
@@ -217,9 +238,34 @@ IS.World = class {
     this.bonfire = { x: bf.x, y: bf.y, lit: false };
     place('firepit', bf.x, bf.y, S.firepit, 15, 12, { footY: 16, protect: 2 });
     for (const [a, b, face] of [[-2, 0, 'right'], [2, 0, 'left'], [-1, -2, 'down'], [1, -2, 'down'], [-1, 2, 'up'], [1, 2, 'up']]) {
-      place('log', bf.x + a, bf.y + b, S.logSeat, 13, 8, { block: false, footY: 18, sortBias: -8 });
+      const lp = IS.Iso.logSeat(a !== 0 ? 'y' : 'x');
+      place('log', bf.x + a, bf.y + b, lp.canvas, lp.ax, lp.ay, { block: false, footY: 18 });
       this.addSpot('bonfireSeat', bf.x + a, bf.y + b, face, 'sit');
     }
+
+    // Market stalls and string lights over the plaza
+    const free = (x, yy) => this.walkable(x, yy) && ![TT.PATH, TT.DOCK, TT.FARM].includes(this.tile(x, yy));
+    if (free(36, 30)) isoProp('stall', 36, 30, IS.Iso.stall(3, '#e8584a'));
+    if (free(43, 30)) isoProp('stall', 43, 30, IS.Iso.stall(7, '#4a8ae8'));
+    this.stringLights = [
+      { a: { gx: 33.5, gy: 30.2 }, b: { gx: 46.5, gy: 30.2 }, h: 40 },
+      { a: { gx: 33.5, gy: 34.5 }, b: { gx: 46.5, gy: 34.5 }, h: 34 },
+      { a: { gx: 33.5, gy: 30.2 }, b: { gx: 33.5, gy: 34.5 }, h: 37 },
+      { a: { gx: 46.5, gy: 30.2 }, b: { gx: 46.5, gy: 34.5 }, h: 37 },
+    ];
+    for (const [x, yy] of [[33, 30], [46, 30]]) if (this.walkable(x, yy)) place('pole', x, yy, IS.Sprites.pole, 3, 44, { footY: 18 });
+    // Gardens in front of every house
+    for (const b of this.buildings.filter(b => b.kind === 'house')) {
+      const dx = b.x0 + 2;
+      for (const x of [dx - 1, dx + 1]) if (free(x, 31)) isoProp('flowers', x, 31, IS.Iso.flowerBed(x * 7, 'x'));
+      if (free(dx + 2, 31)) isoProp('mailbox', dx + 2, 31, IS.Iso.mailbox());
+    }
+    for (const [x, yy] of [[22, 31], [23, 31], [30, 31], [32, 31], [49, 31], [50, 31], [58, 31], [59, 31]]) if (free(x, yy)) isoProp('hedge', x, yy, IS.Iso.hedge(x * 13 + yy, 'x'));
+    // Fence around the farm with a gate on the path
+    for (let x = 25; x <= 34; x++) for (const yy of [35, 40]) if (!(yy === 35 && x === 29) && free(x, yy)) isoProp('fence', x, yy, IS.Iso.fence('x'));
+    for (let yy = 36; yy <= 39; yy++) for (const x of [25, 34]) if (free(x, yy)) isoProp('fence', x, yy, IS.Iso.fence('y'));
+    // Planters around the plaza
+    for (const [x, yy] of [[34, 34], [45, 34], [33, 32], [46, 32]]) if (free(x, yy)) isoProp('planter', x, yy, IS.Iso.planter(x));
 
     // Picnic meadow
     this.picnic = { x: 16, y: 40 };
@@ -227,6 +273,17 @@ IS.World = class {
       this.addSpot('picnicSeat', this.picnic.x + a, this.picnic.y + b, face, 'sit');
     }
     prot(this.picnic.x, this.picnic.y, 3);
+
+    // Beach umbrellas and loungers near the bonfire
+    let umb = 0;
+    for (const [a, b] of [[-5, 1], [-7, 2], [5, 1], [6, -1], [-9, 0]]) {
+      const x = bf.x + a, yy = bf.y + b;
+      if (this.tile(x, yy) === TT.SAND && this.walkable(x, yy) && this.tile(x + 1, yy) === TT.SAND && this.walkable(x + 1, yy)) {
+        isoProp('umbrella', x, yy, IS.Iso.umbrella(x, umb % 2 ? '#4ab0f0' : '#ff6a7a'));
+        isoProp('lounger', x + 1, yy, IS.Iso.lounger(), { block: false });
+        umb++;
+      }
+    }
 
     // Old Oak
     place('bigoak', oak.x, oak.y, IS.Sprites.makeOak(77), 23, 55, { footY: 22, protect: 1, big: true });
@@ -263,8 +320,8 @@ IS.World = class {
           this.decals.push({ sprite: IS.Sprites.makeTuft(seed), x: x * T + 6 + (h * 97 % 10), y: yy * T + 10 });
         }
       } else if (t === TT.GRASS) {
-        if (h < 0.035 && !near(x, yy, TT.PATH, 2)) place('tree', x, yy, IS.Sprites.makeOak(seed), 23, 55, { footY: 22, tree: true });
-        else if (h < 0.05) place('bush', x, yy, IS.Sprites.makeBush(seed, false), 14, 18, { footY: 20 });
+        if (h < 0.06 && !near(x, yy, TT.PATH, 1) && !near(x, yy, TT.PLAZA, 2)) place('tree', x, yy, IS.Sprites.makeOak(seed), 23, 55, { footY: 22, tree: true });
+        else if (h < 0.09) place('bush', x, yy, IS.Sprites.makeBush(seed, h < 0.075), 14, 18, { footY: 20 });
         else if (h < 0.06) place('rock', x, yy, IS.Sprites.makeRock(seed), 11, 15, { footY: 20 });
         else if (h < 0.16 || (Math.abs(x - this.picnic.x) < 6 && Math.abs(yy - this.picnic.y) < 5 && h < 0.4)) {
           this.decals.push({ sprite: IS.Sprites.makeFlowers(seed), x: x * T, y: yy * T });
@@ -346,6 +403,15 @@ IS.World = class {
 
   addBuilding(b) {
     const TT = IS.TT;
+    if (b.kind === 'deco') {
+      for (let y = b.y0; y < b.y0 + b.h; y++) for (let x = b.x0; x < b.x0 + b.w; x++) this.setT(x, y, TT.WALL);
+      b.doors = []; b.furniture = []; b.residents = []; b.noCut = true;
+      b.iso = IS.Iso.building(b);
+      b.depth = (b.x0 + b.w) + (b.y0 + b.h) - 0.5;
+      b.cut = 0;
+      this.buildings.push(b);
+      return;
+    }
     b.doors = b.doorCols.map(c => ({ x: b.x0 + c, y: b.y0 + b.h - 1 }));
     for (let y = b.y0; y < b.y0 + b.h; y++) for (let x = b.x0; x < b.x0 + b.w; x++) {
       const edge = x === b.x0 || x === b.x0 + b.w - 1 || y === b.y0 || y === b.y0 + b.h - 1;
@@ -395,24 +461,17 @@ IS.World = class {
       this.addSpot('shelter', b.x0 + 8, b.y0 + 4, 'left', 'stand', { building: b.id });
     }
     b.furniture = furniture;
-    const ext = IS.Sprites.makeBuilding({
-      w: b.w, h: b.h, roof: b.roof, wall: b.wall, doors: b.doorCols,
-      windows: b.kind === 'hall' ? [1, 2, 7, 8] : [1, 4],
-      chimney: true, bell: b.kind === 'hall', sign: b.kind === 'hall', flowerBoxes: b.kind === 'hall' || b.index % 2 === 0, stone: b.kind === 'hall',
-    });
-    b.ext = ext;
-    b.int = IS.Sprites.makeInterior(b, furniture);
-    b.px = b.x0 * IS.TILE - 4;
-    b.py = b.y0 * IS.TILE - 18;
-    b.sortY = (b.y0 + b.h) * IS.TILE;
+    b.flowerBoxes = b.kind === 'hall' || b.index % 2 === 0 || b.deco === 'cafe';
+    b.iso = IS.Iso.building(b);
+    b.depth = (b.x0 + b.w) + (b.y0 + b.h) - 0.5;
     b.cut = 0;        // 0 = roof on, 1 = cutaway
     b.occupants = 0;
     this.buildings.push(b);
   }
 
   buildingAt(tx, ty) {
-    return this.buildings.find(b => tx > b.x0 && tx < b.x0 + b.w - 1 && ty > b.y0 && ty < b.y0 + b.h - 1) ||
-      this.buildings.find(b => b.doors.some(d => d.x === tx && d.y === ty)) || null;
+    return this.buildings.find(b => !b.noCut && tx > b.x0 && tx < b.x0 + b.w - 1 && ty > b.y0 && ty < b.y0 + b.h - 1) ||
+      this.buildings.find(b => !b.noCut && b.doors.some(d => d.x === tx && d.y === ty)) || null;
   }
   buildingAtPx(x, y) {
     const T = IS.TILE;
@@ -491,196 +550,202 @@ IS.World = class {
   }
 
   // ------------------------------------------------------------------
-  // Ground pre-render: per-pixel terrain with organic, noise-displaced
-  // coastlines, baked decals and shadows.
+  // Isometric ground: every screen pixel is mapped back to the grid, so
+  // coastlines stay organic and stones, planks and furrows line up with the
+  // iso axes. Land is a raised slab; its south-facing edges get cliff faces.
   // ------------------------------------------------------------------
   renderGround() {
-    const TT = IS.TT, T = IS.TILE, W = this.W * T, H = this.H * T;
-    const SW = Math.ceil(W / 3), SH = Math.ceil(H / 3);
+    const TT = IS.TT, ISO = IS.Iso;
+    const W = ISO.W, H = ISO.H, GW = this.W, GH = this.H;
+    // Displacement field on an 1/8-tile grid
+    const R = 8, FW = GW * R, FH = GH * R;
     const nA = IS.makeNoise(11), nB = IS.makeNoise(23), nC = IS.makeNoise(37);
-    const dX = new Float32Array(SW * SH), dY = new Float32Array(SW * SH), patch = new Float32Array(SW * SH);
-    for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
-      const px = x * 3, py = y * 3, i = y * SW + x;
-      dX[i] = (nA(px / 16, py / 16) - 0.5) * 14 + (nA(px / 5 + 50, py / 5) - 0.5) * 3;
-      dY[i] = (nB(px / 16, py / 16) - 0.5) * 14 + (nB(px / 5, py / 5 + 50) - 0.5) * 3;
-      patch[i] = nC(px / 60, py / 60);
+    const dX = new Float32Array(FW * FH), dY = new Float32Array(FW * FH), patch = new Float32Array(FW * FH);
+    for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
+      const i = y * FW + x, gx = x / R, gy = y / R;
+      dX[i] = (nA(gx * 1.5, gy * 1.5) - 0.5) * 0.6 + (nA(gx * 5 + 50, gy * 5) - 0.5) * 0.12;
+      dY[i] = (nB(gx * 1.5, gy * 1.5) - 0.5) * 0.6 + (nB(gx * 5, gy * 5 + 50) - 0.5) * 0.12;
+      patch[i] = nC(gx * 0.4, gy * 0.4);
     }
-    const natural = t => t === TT.DEEP || t === TT.SHALLOW || t === TT.SAND || t === TT.GRASS || t === TT.FOREST || t === TT.FARM;
+    const natural = t => t === TT.DEEP || t === TT.SHALLOW || t === TT.SAND || t === TT.GRASS || t === TT.FOREST;
     const isWaterT = t => t === TT.DEEP || t === TT.SHALLOW;
+    const tileAt = (x, y) => {
+      if (x < 0 || y < 0 || x >= GW || y >= GH) return TT.DEEP;
+      const t = this.tiles[(y | 0) * GW + (x | 0)];
+      return t === TT.WALL || t === TT.FLOOR ? TT.GRASS : t;
+    };
     const mat = new Uint8Array(W * H);
-    for (let y = 0; y < H; y++) {
-      const ty = (y / T) | 0;
-      for (let x = 0; x < W; x++) {
-        const tx = (x / T) | 0;
-        let t = this.tiles[ty * this.W + tx];
-        if (t === TT.WALL || t === TT.FLOOR) t = TT.GRASS;
-        if (natural(t) && t !== TT.FARM) {
-          const si = ((y / 3) | 0) * SW + ((x / 3) | 0);
-          const dx = IS.clamp(((x + dX[si]) / T) | 0, 0, this.W - 1), dy = IS.clamp(((y + dY[si]) / T) | 0, 0, this.H - 1);
-          let t2 = this.tiles[dy * this.W + dx];
-          if (t2 === TT.WALL || t2 === TT.FLOOR) t2 = TT.GRASS;
-          if (natural(t2) && t2 !== TT.FARM) t = t2;
-        }
-        mat[y * W + x] = t;
+    const GX = new Float32Array(W * H), GY = new Float32Array(W * H);
+    for (let sy = 0; sy < H; sy++) for (let sx = 0; sx < W; sx++) {
+      const g = ISO.s2g(sx + 0.5, sy + 0.5);
+      const i = sy * W + sx;
+      GX[i] = g.gx; GY[i] = g.gy;
+      let t = tileAt(Math.floor(g.gx), Math.floor(g.gy));
+      if (natural(t)) {
+        const fi = IS.clamp(Math.floor(g.gy * R), 0, FH - 1) * FW + IS.clamp(Math.floor(g.gx * R), 0, FW - 1);
+        const t2 = tileAt(Math.floor(g.gx + dX[fi]), Math.floor(g.gy + dY[fi]));
+        if (natural(t2)) t = t2;
       }
+      mat[i] = t;
     }
 
     const land = IS.makeCanvas(W, H, false), water = IS.makeCanvas(W, H, false), foam = IS.makeCanvas(W, H, false);
-    const li = land.g.createImageData(W, H), wi = water.g.createImageData(W, H), fi = foam.g.createImageData(W, H);
-    const L = li.data, Wd = wi.data, F = fi.data;
+    const li = land.g.createImageData(W, H), wi = water.g.createImageData(W, H), fi2 = foam.g.createImageData(W, H);
+    const Ld = li.data, Wd = wi.data, Fd = fi2.data;
     const rgb = h => IS.hexToRgb(h);
     const C = {
-      g0: rgb('#5ab84d'), g1: rgb('#7acb58'), gd: rgb('#4aa647'), gl: rgb('#a3da68'), glip: rgb('#2f8a46'),
-      f0: rgb('#3a9a4e'), f1: rgb('#4aab52'), fd: rgb('#2e8448'),
-      s0: rgb('#fbdc8e'), s1: rgb('#ffe9ad'), sd: rgb('#f2c873'), swet: rgb('#e8b56c'),
-      p0: rgb('#e3a463'), p1: rgb('#d89a58'), pe: rgb('#bd7c46'), pp: rgb('#b0764a'), pl: rgb('#f4c88c'),
-      mort: rgb('#a88f74'), st: ['#ecd6b4', '#e2c9a2', '#f2dfc0', '#d8bd94'].map(rgb),
-      soil: rgb('#a0572f'), furrow: rgb('#7a3d24'), soilL: rgb('#b8683c'),
-      dk: ['#d08a48', '#c27c3c', '#da9a56'].map(rgb), seam: rgb('#7a4424'), dside: rgb('#8a5230'), dside2: rgb('#5e3420'),
+      g0: rgb('#62c04a'), g1: rgb('#92d84e'), gd: rgb('#4caa4a'), gl: rgb('#c6ec6c'),
+      f0: rgb('#3e9e52'), f1: rgb('#52b058'), fd: rgb('#2f8452'),
+      s0: rgb('#ffd88a'), s1: rgb('#ffe8ae'), sd: rgb('#f4c26e'), swet: rgb('#eeb072'),
+      p0: rgb('#eaa866'), p1: rgb('#dc9a5a'), pe: rgb('#c27e4a'), pp: rgb('#b8704a'), pl: rgb('#ffcf92'),
+      mort: rgb('#a888a8'), st: ['#e8c4a4', '#dfb494', '#eecdb0', '#d4a888'].map(rgb),
+      soil: rgb('#b4623a'), furrow: rgb('#843f2c'), soilL: rgb('#cc7a48'),
+      dk: ['#dc9a5a', '#cc8a4c', '#e6a866'].map(rgb), seam: rgb('#8a4a2c'),
+      cliffSand: rgb('#d99858'), cliffDirt: rgb('#9a5838'), cliffDirtD: rgb('#6a3a3a'), cliffStone: rgb('#a898b0'), cliffWood: rgb('#8a5030'),
+      lip: rgb('#3f9a4a'),
     };
     const set = (A, i, c, a = 255) => { A[i] = c[0]; A[i + 1] = c[1]; A[i + 2] = c[2]; A[i + 3] = a; };
     const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
     const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? TT.DEEP : mat[y * W + x];
-
-    const waterStops = [[0, rgb('#7ae8d8')], [1.0, rgb('#3ccfd0')], [2.4, rgb('#24acd2')], [4.2, rgb('#2389cc')], [7, rgb('#2a5cb4')]];
+    const waterStops = [[0, rgb('#6ff2e0')], [0.9, rgb('#33d4dc')], [2.2, rgb('#1fa8e4')], [4, rgb('#2878d8')], [7, rgb('#3448b8')]];
     const waterColor = d => {
-      for (let k = 1; k < waterStops.length; k++) {
-        if (d <= waterStops[k][0]) {
-          const [d0, c0] = waterStops[k - 1], [d1, c1] = waterStops[k];
-          return mixc(c0, c1, (d - d0) / (d1 - d0));
-        }
+      for (let k = 1; k < waterStops.length; k++) if (d <= waterStops[k][0]) {
+        const [d0, c0] = waterStops[k - 1], [d1, c1] = waterStops[k];
+        return mixc(c0, c1, (d - d0) / (d1 - d0));
       }
       return waterStops[waterStops.length - 1][1];
     };
-    const wdAt = (fx, fy) => {
-      const x0 = IS.clamp(Math.floor(fx), 0, this.W - 1), y0 = IS.clamp(Math.floor(fy), 0, this.H - 1);
-      const x1 = Math.min(x0 + 1, this.W - 1), y1 = Math.min(y0 + 1, this.H - 1);
-      const tx = fx - x0, ty = fy - y0;
+    const wd = (gx, gy) => {
+      const x0 = IS.clamp(Math.floor(gx - 0.5), 0, GW - 1), y0 = IS.clamp(Math.floor(gy - 0.5), 0, GH - 1);
+      const x1 = Math.min(x0 + 1, GW - 1), y1 = Math.min(y0 + 1, GH - 1);
+      const tx = IS.clamp(gx - 0.5 - x0, 0, 1), ty = IS.clamp(gy - 0.5 - y0, 0, 1);
       const v = i => Math.max(0, this.waterDist[i]);
-      return IS.lerp(IS.lerp(v(y0 * this.W + x0), v(y0 * this.W + x1), tx), IS.lerp(v(y1 * this.W + x0), v(y1 * this.W + x1), tx), ty);
+      return IS.lerp(IS.lerp(v(y0 * GW + x0), v(y0 * GW + x1), tx), IS.lerp(v(y1 * GW + x0), v(y1 * GW + x1), tx), ty);
     };
+    const CLIFF = 9, DOCKH = 5;
 
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = y * W + x, p = i * 4;
+    for (let sy = 0; sy < H; sy++) {
+      for (let sx = 0; sx < W; sx++) {
+        const i = sy * W + sx, p = i * 4;
         const t = mat[i];
-        const si = ((y / 3) | 0) * SW + ((x / 3) | 0);
-        const hb = IS.hash2(x >> 1, y >> 1, 3);
+        const gx = GX[i], gy = GY[i];
+        const fidx = IS.clamp(Math.floor(gy * R), 0, FH - 1) * FW + IS.clamp(Math.floor(gx * R), 0, FW - 1);
+        const hb = IS.hash2(sx >> 1, sy >> 1, 3);
         if (isWaterT(t)) {
-          const d = wdAt((x + dX[si] * 0.6) / T - 0.5, (y + dY[si] * 0.6) / T - 0.5);
-          const c = waterColor(d + (hb - 0.5) * 0.25);
-          set(Wd, p, c);
-          // dock side boards and pilings
-          let dockAbove = 0;
-          for (let k = 1; k <= 5; k++) if (at(x, y - k) === TT.DOCK) { dockAbove = k; break; }
-          if (dockAbove) {
-            set(L, p, dockAbove >= 4 ? C.dside2 : C.dside);
-          } else {
-            // foam: land within 2px = bright band, within 5px = faint band
-            let near1 = false, near2 = false;
-            for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]]) if (!isWaterT(at(x + a, y + b))) { near1 = true; break; }
-            if (!near1) for (const [a, b] of [[4, 0], [-4, 0], [0, 4], [0, -4], [3, 3], [-3, 3], [3, -3], [-3, -3], [5, 0], [-5, 0], [0, 5], [0, -5]]) if (!isWaterT(at(x + a, y + b))) { near2 = true; break; }
-            if (near1) set(F, p, [255, 255, 250], 230);
-            else if (near2 && hb > 0.35) set(F, p, [235, 250, 250], 110);
+          let c = waterColor(wd(gx, gy) + (hb - 0.5) * 0.2);
+          // Cliff faces hang below any land directly above this pixel
+          let k = 0, above = 0;
+          for (let j = 1; j <= CLIFF; j++) { const m = at(sx, sy - j); if (!isWaterT(m)) { k = j; above = m; break; } }
+          const faceH = above === TT.DOCK ? DOCKH : CLIFF;
+          if (k && k <= faceH) {
+            let cc;
+            if (above === TT.DOCK) cc = k >= DOCKH - 1 ? C.cliffDirtD : C.cliffWood;
+            else if (above === TT.SAND) cc = mixc(C.cliffSand, C.cliffDirtD, (k / CLIFF) * 0.7);
+            else if (above === TT.PATH || above === TT.PLAZA) cc = mixc(C.cliffStone, C.cliffDirtD, k / CLIFF * 0.6);
+            else cc = k <= 2 ? C.lip : mixc(C.cliffDirt, C.cliffDirtD, (k - 2) / CLIFF);
+            if (hb > 0.85) cc = mixc(cc, [255, 230, 200], 0.15);
+            set(Ld, p, cc);
+            set(Wd, p, c);
+            continue;
           }
+          if (k && k <= faceH + 3) c = mixc(c, [30, 40, 110], 0.28); // shadow at the foot of the cliff
+          set(Wd, p, c);
+          // Foam hugging the shoreline
+          let n1 = false, n2 = false;
+          for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [2, 0], [-2, 0], [0, -faceH - 1], [0, -faceH - 2]]) if (!isWaterT(at(sx + a, sy + b))) { n1 = true; break; }
+          if (!n1) for (const [a, b] of [[4, 0], [-4, 0], [0, 3], [5, 1], [-5, 1], [0, -faceH - 4], [0, -faceH - 5], [3, -faceH - 3], [-3, -faceH - 3]]) if (!isWaterT(at(sx + a, sy + b))) { n2 = true; break; }
+          if (n1) set(Fd, p, [255, 255, 248], 235);
+          else if (n2 && hb > 0.3) set(Fd, p, [230, 252, 255], 120);
           continue;
         }
         let c;
+        const wx = gx * IS.TILE, wy = gy * IS.TILE;
         switch (t) {
           case TT.GRASS: {
-            c = mixc(C.g0, C.g1, patch[si]);
-            if (hb < 0.18) c = mixc(c, C.gd, 0.6); else if (hb > 0.93) c = mixc(c, C.gl, 0.7);
-            const below1 = at(x, y + 1), below2 = at(x, y + 2), below3 = at(x, y + 3);
-            if ((below1 !== TT.GRASS && below1 !== TT.FOREST) || (below2 !== TT.GRASS && below2 !== TT.FOREST && below2 !== TT.PATH && below2 !== TT.PLAZA)) {
-              if (below1 === TT.SAND || isWaterT(below1) || below2 === TT.SAND || isWaterT(below2)) c = C.glip;
-            } else if (below3 === TT.SAND) c = mixc(c, C.glip, 0.4);
+            c = mixc(C.g0, C.g1, patch[fidx]);
+            if (hb < 0.16) c = mixc(c, C.gd, 0.65); else if (hb > 0.93) c = mixc(c, C.gl, 0.75);
             break;
           }
-          case TT.FOREST: {
-            c = mixc(C.f0, C.f1, patch[si]);
-            if (hb < 0.2) c = C.fd;
-            const b1 = at(x, y + 1), b2 = at(x, y + 2);
-            if (b1 === TT.SAND || b2 === TT.SAND || isWaterT(b1)) c = C.glip;
-            break;
-          }
+          case TT.FOREST: c = mixc(C.f0, C.f1, patch[fidx]); if (hb < 0.22) c = C.fd; break;
           case TT.SAND: {
-            c = mixc(C.s0, C.s1, patch[si]);
+            c = mixc(C.s0, C.s1, patch[fidx]);
             if (hb < 0.06) c = C.sd;
             let wet = false;
-            for (const [a, b] of [[0, 3], [0, 2], [3, 0], [-3, 0], [0, -3], [2, 2], [-2, 2]]) if (isWaterT(at(x + a, y + b))) { wet = true; break; }
-            if (wet) c = mixc(c, C.swet, 0.8);
+            for (const [a, b] of [[0, 3], [3, 0], [-3, 0], [0, -3], [0, CLIFF + 2]]) if (isWaterT(at(sx + a, sy + b)) && b !== CLIFF + 2) { wet = true; break; }
+            if (wet) c = mixc(c, C.swet, 0.7);
             break;
           }
           case TT.PATH: {
-            c = mixc(C.p0, C.p1, patch[si]);
-            const h1 = IS.hash2(x, y, 9);
-            if (h1 < 0.025) c = C.pp; else if (h1 > 0.985) c = C.pl;
-            let edge = false;
-            for (const [a, b] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) { const m = at(x + a, y + b); if (m !== TT.PATH && m !== TT.PLAZA && m !== TT.DOCK) { edge = true; break; } }
-            if (edge) c = mixc(c, C.pe, 0.7);
+            c = mixc(C.p0, C.p1, patch[fidx]);
+            const h1 = IS.hash2(sx, sy, 9);
+            if (h1 < 0.03) c = C.pp; else if (h1 > 0.985) c = C.pl;
+            for (const [a, b] of [[2, 0], [-2, 0], [0, 1], [0, -1]]) { const m = at(sx + a, sy + b); if (m !== TT.PATH && m !== TT.PLAZA && m !== TT.DOCK) { c = mixc(c, C.pe, 0.7); break; } }
             break;
           }
           case TT.PLAZA: {
-            const row = (y / 8) | 0, off = (row % 2) * 6;
-            const lx = (x + off) % 12, ly = y % 8;
-            if (lx === 0 || ly === 0) c = C.mort;
+            const row = Math.floor(wy / 8), off = (row % 2) * 6;
+            const lx = (((wx + off) % 12) + 12) % 12, ly = ((wy % 8) + 8) % 8;
+            if (lx < 1.1 || ly < 1.1) c = C.mort;
             else {
-              c = C.st[Math.floor(IS.hash2(((x + off) / 12) | 0, row, 4) * 4)];
-              if (ly === 1 || lx === 1) c = mixc(c, [255, 252, 240], 0.25);
-              if (ly === 7) c = mixc(c, C.mort, 0.4);
+              c = C.st[Math.floor(IS.hash2(Math.floor((wx + off) / 12), row, 4) * 4)];
+              if (ly < 2.2) c = mixc(c, [255, 248, 230], 0.3);
+              if (ly > 6.6) c = mixc(c, C.mort, 0.35);
             }
             break;
           }
-          case TT.FARM: {
-            c = (y % 12) < 3 ? C.furrow : C.soil;
-            if (hb > 0.92) c = C.soilL;
-            break;
-          }
+          case TT.FARM: c = ((wy % 12) + 12) % 12 < 3.5 ? C.furrow : C.soil; if (hb > 0.92) c = C.soilL; break;
           case TT.DOCK: {
-            const lx = x % 8, ly = y % 40;
-            if (lx === 0 || ly === 0) c = C.seam;
-            else {
-              c = C.dk[Math.floor(IS.hash2((x / 8) | 0, (y / 40) | 0, 6) * 3)];
-              if ((lx === 2 || lx === 6) && ly === 3) c = C.dside2;
-              if (lx === 1) c = mixc(c, [255, 240, 210], 0.2);
-            }
+            const lx = ((wx % 8) + 8) % 8, ly = ((wy % 40) + 40) % 40;
+            if (lx < 1 || ly < 1) c = C.seam;
+            else { c = C.dk[Math.floor(IS.hash2(Math.floor(wx / 8), Math.floor(wy / 40), 6) * 3)]; if (lx < 2) c = mixc(c, [255, 240, 210], 0.25); }
             break;
           }
           default: c = C.g0;
         }
-        set(L, p, c);
-        // a few water pixels show through the land canvas are already alpha 0
+        // Grass meeting sand gets a darker lip
+        if ((t === TT.GRASS || t === TT.FOREST)) { const m = at(sx, sy + 2); if (m === TT.SAND) c = mixc(c, C.lip, 0.7); }
+        set(Ld, p, c);
       }
     }
     land.g.putImageData(li, 0, 0);
     water.g.putImageData(wi, 0, 0);
-    foam.g.putImageData(fi, 0, 0);
+    foam.g.putImageData(fi2, 0, 0);
 
-    // Bake decals and soft shadows
     const g = land.g;
-    for (const d of this.decals) g.drawImage(d.sprite, Math.round(d.x), Math.round(d.y));
-    g.fillStyle = 'rgba(30, 40, 50, 0.22)';
-    for (const o of this.objects) {
-      if (o.kind === 'tree' || o.kind === 'bigoak') { this.shadowEllipse(g, o.x, o.y - 1, o.big ? 22 : 15, 5); }
-      else if (o.kind === 'lighthouse') this.shadowEllipse(g, o.x, o.y - 2, 18, 6);
-      else if (o.kind !== 'log' && o.kind !== 'bench') this.shadowEllipse(g, o.x, o.y - 1, 8, 3);
-    }
+    const P = (x, y) => ISO.w2s(x, y);
+    // Soft contact shadows: buildings, trees, props
+    g.fillStyle = 'rgba(50, 30, 110, 0.24)';
     for (const b of this.buildings) {
-      g.fillStyle = 'rgba(30, 40, 50, 0.22)';
-      g.fillRect(b.x0 * T + 6, (b.y0 + b.h) * T, b.w * T - 4, 5);
+      const pts = [ISO.g2s(b.x0 - 0.2, b.y0 - 0.2), ISO.g2s(b.x0 + b.w + 0.3, b.y0 - 0.2), ISO.g2s(b.x0 + b.w + 0.3, b.y0 + b.h + 0.3), ISO.g2s(b.x0 - 0.2, b.y0 + b.h + 0.3)];
+      IS.Iso.poly(g, pts, 'rgba(50, 30, 110, 0.24)');
     }
-    // Dock pilings
-    g.fillStyle = '#4a3220';
-    for (let y = this.dock.startY; y <= this.dock.endY; y++) {
-      if (this.tile(38, y) !== TT.DOCK) { g.fillRect(39 * T - 2, y * T + 8, 3, 8); g.fillRect(41 * T - 1, y * T + 8, 3, 8); }
+    for (const o of this.objects) {
+      const s = P(o.x, o.y);
+      const big = o.kind === 'tree' || o.kind === 'bigoak' || o.kind === 'lighthouse';
+      this.shadowEllipse(g, s.x, s.y, big ? (o.big ? 22 : 14) : 9, big ? 7 : 4);
+    }
+    // Decals: flowers and grass tufts, and fallen leaves under trees
+    for (const d of this.decals) { const s = P(d.x + 12, d.y + 12); g.drawImage(d.sprite, Math.round(s.x - 12), Math.round(s.y - 12)); }
+    const r = IS.mulberry32(99);
+    for (const o of this.objects) {
+      if (o.kind !== 'tree' && o.kind !== 'bigoak') continue;
+      const s = P(o.x, o.y);
+      for (let k = 0; k < 7; k++) {
+        g.fillStyle = ['#ffcf4a', '#f4a63a', '#ffe27a', '#e8843a'][k % 4];
+        g.fillRect(Math.round(s.x + (r() - 0.5) * 50), Math.round(s.y + (r() - 0.5) * 22), 2, 1);
+      }
     }
     // Picnic blanket
-    g.drawImage(IS.Sprites.blanket, this.picnic.x * T - 4, this.picnic.y * T - 8);
+    const pk = ISO.g2s(this.picnic.x, this.picnic.y);
+    IS.Iso.plane(g, ISO.g2s(this.picnic.x - 0.4, this.picnic.y - 0.3), ISO.g2s(this.picnic.x + 1.6, this.picnic.y - 0.3), ISO.g2s(this.picnic.x - 0.4, this.picnic.y + 1.4), f => {
+      for (let yy = 0; yy < 6; yy++) for (let xx = 0; xx < 6; xx++) { f.fillStyle = (xx + yy) % 2 ? '#fff4e6' : '#ec5a6a'; f.fillRect(xx / 6, yy / 6, 1 / 6 + 0.002, 1 / 6 + 0.002); }
+    });
+    void pk;
 
     this.landCanvas = land.c;
     this.waterCanvas = water.c;
     this.foamCanvas = foam.c;
-    this.pxW = W; this.pxH = H;
+    this.pxW = this.W * IS.TILE; this.pxH = this.H * IS.TILE;
   }
 
   shadowEllipse(g, cx, cy, rx, ry) {

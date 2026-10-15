@@ -434,6 +434,14 @@ IS.Sprites = (() => {
     return c;
   })();
 
+  S.pole = (() => {
+    const { c, g } = IS.makeCanvas(8, 46);
+    px(g, 3, 4, 2, 41, '#6a4030'); px(g, 3, 4, 1, 41, '#8a5a3a'); px(g, 1, 42, 6, 3, '#5a3a2a');
+    px(g, 2, 2, 4, 3, '#3b3346');
+    IS.outline(c, OUT);
+    return c;
+  })();
+
   S.bench = (() => {
     const { c, g } = IS.makeCanvas(28, 20);
     px(g, 2, 3, 24, 3, '#9a6a3c'); px(g, 2, 3, 24, 1, '#b8834f');
