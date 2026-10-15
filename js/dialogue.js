@@ -269,6 +269,8 @@ IS.Dialogue = (() => {
     return line;
   };
 
+  D.fresh = (pool, who) => fresh(pool, who);
+
   // The speaker for the next line() / response() call; set by social.js
   D.speaker = null;
   D.as = p => { D.speaker = p; return D; };

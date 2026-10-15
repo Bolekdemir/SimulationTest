@@ -50,6 +50,7 @@ IS.Person = class {
     this.bubble = null;
     this.emoteData = null;
     this.building = null;
+    IS.Mind.init(this);
     if (this.bedSpot) this.setTile(this.bedSpot.x, this.bedSpot.y);
     else this.setTile(40, 33);
   }
@@ -164,6 +165,7 @@ IS.Person = class {
       if (def.social && c.weather === 'storm') s *= 0.25;
       // Boredom pushes people toward the things they love
       if (def.love && this.loves.includes(def.love)) s += Math.pow((100 - this.needs.fun) / 100, 2) * 1.6;
+      s += IS.Mind.planBonus(this, def);
       if (this.history.slice(-2).includes(def.id) && !['sleep', 'eat', 'attend', 'cook'].includes(def.id)) s -= 0.3;
       s += Math.random() * 0.2;
       if (s > 0.05) opts.push({ def, s });
@@ -183,6 +185,17 @@ IS.Person = class {
   startAction(def, c) {
     const plan = def.plan ? def.plan(this, c) : {};
     if (!plan) { this.failUntil[def.id] = c.abs + 20; return false; }
+    // Joining a friend: take the free spot closest to theirs
+    if (this.joinNear) {
+      const jn = this.joinNear;
+      if (plan.spot) {
+        const near = (this.world.spots[plan.spot.kind] || []).filter(s => !s.takenBy && IS.dist(s.x, s.y, jn.x, jn.y) < 7).sort((a, b) => IS.dist(a.x, a.y, jn.x, jn.y) - IS.dist(b.x, b.y, jn.x, jn.y))[0];
+        if (near) plan.spot = near;
+      } else if (plan.tx !== undefined) {
+        const g = this.world.findNear(jn.x, jn.y, (x, y) => this.world.walkable(x, y) && !(x === jn.x && y === jn.y), 3);
+        if (g) { plan.tx = g.x; plan.ty = g.y; }
+      }
+    }
     const a = { def, ...plan, elapsed: 0, phase: 'travel', started: c.abs };
     if (plan.spot) {
       a.tx = plan.spot.x; a.ty = plan.spot.y;
@@ -203,6 +216,7 @@ IS.Person = class {
     if (plan.spot) plan.spot.takenBy = this;
     this.action = a;
     this.thought = def.thought ? def.thought(this, a, c) : def.label;
+    if (!this.joinNear) IS.Mind.onStart(this.sim, this, a);
     return true;
   }
 
@@ -216,6 +230,8 @@ IS.Person = class {
     if (!a) return 'Idle';
     const label = a.def.label2 ? a.def.label2(this, a) : a.def.label;
     if (a.phase === 'travel') return (a.follow ? `Heading to ${a.follow.name}` : `On the way: ${label.toLowerCase()}`);
+    if (a.date && a.with) return `On a date with ${a.with}`;
+    if (a.with) return `${label} with ${a.with}`;
     return label;
   }
 
@@ -226,6 +242,7 @@ IS.Person = class {
     const a = this.action;
     if (!a) return;
     if (a.def.finish) a.def.finish(this, a, c);
+    IS.Mind.onFinish(this, a);
     this.releaseSpot();
     this.history.push(a.def.id);
     if (this.history.length > 8) this.history.shift();
@@ -463,6 +480,7 @@ IS.Person = class {
       this.emote(t.brave > 0.7 ? 'note' : 'sweat', 2);
       this.remember('Got dropped in the sea by the Sky Hand', { tag: 'sea', mood: t.brave > 0.7 ? 6 : -12, news: true });
       this.sim.log(`${this.name} got dunked in the sea!`, 'sky', [this]);
+      IS.Mind.rally(this.sim, this);
       return;
     }
     if (!this.world.walkable(this.tx, this.ty)) {
@@ -491,6 +509,7 @@ IS.Person = class {
       this.say(IS.pick(t.brave > 0.65 ? ['Again! AGAIN!', 'That was AMAZING!', 'Ten out of ten.'] : ['Ow...', 'My everything hurts.', 'The world is spinning...']));
       this.skyOpinion = IS.clamp(this.skyOpinion + (t.brave > 0.65 ? 2 : -4), -100, 100);
       this.remember('Got thrown across the island by the Sky Hand', { tag: 'grabbed', mood: t.brave > 0.65 ? 8 : -10, news: true });
+      IS.Mind.rally(this.sim, this);
     } else {
       this.say(IS.pick(['...where am I?', 'Huh. That was weird.', 'Okay. Back to it, I guess.', 'Did that just happen?']));
       this.skyOpinion = IS.clamp(this.skyOpinion + 1, -100, 100);

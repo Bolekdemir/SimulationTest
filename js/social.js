@@ -247,6 +247,7 @@ IS.Social = (() => {
       const key = S.pairKey(a, b);
       const atEvent = a.action && a.action.def.id === 'attend';
       sim.chatCooldown[key] = sim.clock.abs + (atEvent ? 25 : IS.rand(80, 140));
+      IS.Mind.onChatEnd(a, b, aborted);
       if (aborted) return;
       if (this.lastTopic === 'argue') return;
       if (Math.abs(this.totalDelta) >= 6) {
@@ -332,9 +333,9 @@ IS.Social = (() => {
     add('complaint', t.grumpy * 1.5 + (sp.mood() < 40 ? 1 : 0));
     if (sp.needs.hunger < 35) add('hungry', 2);
     if (r.friendship > 45 && sim.clock.min > 1140) add('deep', 1.3);
-    if (sp.canFallFor(li.name) && r.romance > 25 && !r.partner && !sp.partner()) add('flirt', r.romance / 30 * (0.5 + S.attraction(sp, li)));
+    if (sp.canFallFor(li.name) && r.romance > 25 && !r.partner && !sp.partner()) add('flirt', r.romance / 30 * (0.5 + S.attraction(sp, li)) * (li.partner() ? 0.3 : 1));
     if (r.partner) add('flirt', 1.2);
-    if (sp.canFallFor(li.name) && r.romance > 70 && r.friendship > 40 && !r.partner && (sp.confessedTo || {})[li.name] === undefined) add('confess', 4);
+    if (sp.canFallFor(li.name) && r.romance > 70 && r.friendship > 40 && !r.partner && !sp.partner() && !li.partner() && (sp.confessedTo || {})[li.name] === undefined) add('confess', 4);
     if (r.friendship < -25 || (t.grumpy > 0.6 && sp.mood() < 35)) add('argue', 1.5 + t.grumpy + (r.friendship < -40 ? 1.5 : 0));
     else {
       // Personality friction: clashing or cranky people bicker now and then
@@ -343,6 +344,7 @@ IS.Social = (() => {
     }
     if (r.friendship < 0 && t.kind > 0.5) add('apology', 1.6);
     if ((sp.cfg.catchphrases || []).length) add('catchphrase', 0.6);
+    IS.Mind.topics(sim, sp, li, add, r);
     // Everyday small talk
     add('question', 0.9 + t.curious * 0.8);
     add('plans', 0.6);
@@ -365,6 +367,9 @@ IS.Social = (() => {
   S.topicFor = (sim, sp, li, topic, extra = {}) => {
     const D = IS.Dialogue;
     const ctx = S.ctx(sim, sp, li, extra.third ? { third: extra.third.name, thirdFav: extra.third.loves[0] || 'napping', thirdDoing: D.activityWord[extra.third.loves[0]] || 'napping' } : {});
+    // Taken people don't confess or flirt with someone new; couples just talk like couples
+    if ((topic === 'confess' || topic === 'flirt') && sp.relTo(li.name).partner) topic = 'couple';
+    else if (topic === 'confess' && (sp.partner() || li.partner())) topic = 'compliment';
     const tone = D.tone(sp, li);
     D.as(sp);
     let text;
@@ -388,7 +393,14 @@ IS.Social = (() => {
       case 'news:contest': text = extra.memory.text.includes('Won') ? 'I won the fishing contest! Did you hear?' : 'That fishing contest was rigged, I swear.'; break;
       case 'birthday': li.visitedBy.add('bday:' + sp.name); text = D.line('birthday'); break;
       case 'question': { const q = D.question(); extra.answer = q.a; text = q.q; break; }
+      case 'congrats': case 'congratsSour': {
+        if (!extra.news) extra.news = (sim.news || []).slice().reverse().find(n => sp.knows.has(n.id) && (n.kind === 'couple' || n.kind === 'won') && (n.a === li.name || n.b === li.name));
+        text = extra.news ? IS.Mind.lineFor(sim, sp, li, topic, extra, ctx) : D.line('compliment');
+        if (!extra.news) topic = 'compliment';
+        break;
+      }
       default:
+        if (IS.Mind.TOPICS.has(topic)) { text = IS.Mind.lineFor(sim, sp, li, topic, extra, ctx) || D.line('weather', null, sim.weather); break; }
         if (topic.startsWith('news:')) text = D.line(topic.slice(5));
         else text = D.line(topic, tone);
     }
@@ -397,8 +409,22 @@ IS.Social = (() => {
 
   // How does the listener take it? Returns relationship deltas + reply.
   S.react = (sim, sp, li, t) => {
+    const out = S.reactCore(sim, sp, li, t);
+    IS.Mind.afterTopic(sim, sp, li, t, out);
+    return out;
+  };
+
+  S.reactCore = (sim, sp, li, t) => {
     const D = IS.Dialogue;
     D.as(li);
+    if (IS.Mind.TOPICS.has(t.topic)) {
+      const m = IS.Mind.react(sim, sp, li, t) || { v: 0.3, text: 'Huh.' };
+      const v = m.v + (li.mood() - 60) / 120 + IS.rand(-0.3, 0.3);
+      let df = v > 0.6 ? IS.rand(1, 2.5) * (m.v >= 2 ? 2 : 1) : v < -0.2 ? -IS.rand(1.5, 3.5) : 0.3;
+      if (df > 0) df *= Math.max(0.15, 1 - Math.max(0, li.relTo(sp.name).friendship) / 115);
+      li.changeRel(sp.name, df); sp.changeRel(li.name, df * 0.6);
+      return { df, dr: 0, text: m.text, emote: m.emote || (df > 1.5 ? 'heart' : df < 0 ? 'sweat' : null) };
+    }
     const lt = li.traits;
     const rel = li.relTo(sp.name);
     const base = {
@@ -427,7 +453,7 @@ IS.Social = (() => {
 
     if (t.topic === 'confess') {
       sp.confessedTo = sp.confessedTo || {};
-      const accept = rel.romance >= 50 && rel.friendship > 30;
+      const accept = rel.romance >= 50 && rel.friendship > 30 && !li.partner() && !sp.partner();
       sp.confessedTo[li.name] = accept;
       if (accept) {
         sp.relTo(li.name).partner = true; li.relTo(sp.name).partner = true;

@@ -21,6 +21,14 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 - **Romance with taste**: everyone has a type (`into` in config: looks, smarts, funny, kind, drive, confidence). Forest falls for looks almost on sight; Lynn wants kindness and brains. Crushes, flirting, confessions, rejections and couples follow from it.
 - **Noticing each other**: islanders spot people they like across the island and walk over to chat, wave in passing, and pause their work when a friend drops by.
 - **Conversations that don't loop**: about 5x more lines, each islander has their own voice, nobody repeats what was said recently, and they ask each other real questions, tease each other about crushes, comment on what others are doing, and bring up recent fights or favours.
+- **Inner lives** (`js/mind.js`):
+  - **Daily plans**: 2-3 goals every morning ("Restock the woodpile", "Talk to Lynn (act normal)", "Hang out with the bros"), shown as a checklist on their page.
+  - **Grudges and gratitude**: they remember fights, roasts, soup and favours, forgive at their own personality's pace, and bring it up later.
+  - **Group life**: they invite friends along, the bros hang out as a trio, and couples go on evening dates.
+  - **Emotions that change behaviour**: jealous, heartbroken, sulking, proud, giddy, lonely.
+  - **Gossip**: news spreads person to person and shifts opinions; everyone has an island reputation.
+  - **Reactions**: friends rush over when someone gets dunked, congratulate new couples, comfort the heartbroken. Couples can break up.
+- **Start menu and saving**: a title journal with Continue / New island / Meet the islanders / How to play. The island autosaves every in-game hour to this browser. Esc or the menu key pauses.
 - **Whispers from the sky**: type an order into the selected islander's page ("go fishing", "flirt with Lynn", "apologize to Beach", "roast Egg", "stop"). They always obey, with an opinion about it.
 - **Weekly calendar**: Tue fishing contest, Wed supply boat, Thu story night, Fri community dinner, Sat beach bonfire, Sun picnic, plus birthday parties.
 - **Random life**: weather (sun, clouds, rain, storms, fog), dolphins, shooting stars, messages in bottles, colds (friends bring soup), food spoilage, firewood running out.
@@ -41,6 +49,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | Look inside buildings | Hover them, or press R |
 | Speed | Space pauses, 1-5 sets speed |
 | Next islander / follow | Tab / F |
+| Pause menu | Esc, or the menu key |
 | Give an order | Select an islander, type in the box on their page |
 | Fullscreen | The Fullscreen button. If the viewer blocks real fullscreen, it hides the HUD instead (H toggles that too) |
 
@@ -57,6 +66,8 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | `js/cat.js` | The island cat |
 | `js/social.js` | Conversations, attraction, noticing, relationship changes |
 | `js/command.js` | Parses typed orders into activities and conversations |
+| `js/mind.js` | Plans, grudges, emotions, invitations, gossip, reactions |
+| `js/save.js`, `js/menu.js` | Autosave and the title / pause menu |
 | `js/dialogue.js` | Line pools, per-islander voices, questions with real answers, no-repeat picking |
 | `js/events.js` | Calendar, weather, random events, supply boat |
 | `js/render.js` | Drawing, lighting, weather, particles |

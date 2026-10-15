@@ -192,7 +192,7 @@ IS.Events = class {
     if (min === 5 * 60) this.rollWeather(true);
     if (min === 13 * 60 && Math.random() < 0.3) this.rollWeather(false);
     if (min === 9 * 60 + 30 && sim.weather === 'fog') this.setWeather(Math.random() < 0.6 ? 'sunny' : 'cloudy');
-    if (min === 6 * 60) this.morningChecks();
+    if (min === 6 * 60) { this.morningChecks(); IS.Mind.morning(sim); }
 
     for (const ev of this.list) {
       if (ev.day !== day) continue;
@@ -230,11 +230,12 @@ IS.Events = class {
       for (const [name, r] of Object.entries(p.rel)) {
         const o = sim.byName(name);
         if (!o) continue;
-        const baseline = (IS.Social.compat(p, o) - 0.6) * 100;
+        const baseline = (IS.Social.compat(p, o) - 0.6) * 100 + IS.Mind.baselineShift(p, o);
         r.friendship += (baseline - r.friendship) * 0.04;
         if (!r.partner) r.romance = Math.max(0, r.romance - 1.5);
       }
     }
+    IS.Mind.newDay(sim);
     if (sim.world.food > 25) {
       const spoiled = Math.floor((sim.world.food - 25) * 0.2);
       sim.world.food -= spoiled;
@@ -317,6 +318,8 @@ IS.Events = class {
           w.remember(`Won the Fishing Contest with ${wscore} fish`, { tag: 'contest', mood: 15, news: true, moodDuration: 1440 });
           w.say('I WON! Bow before the champion!');
           w.emote('sparkle', 3);
+          IS.Mind.news(sim, 'won', w);
+          IS.Mind.feel(w, 'proud', null, 10);
         }
         for (const p of went) if (p !== w) p.remember(`Lost the Fishing Contest to ${wname}`, { tag: 'contest', mood: p.traits.grumpy > 0.5 ? -6 : 0, news: true });
         sim.log(`${wname} won the Fishing Contest with ${wscore} fish!`, 'event', [w]);

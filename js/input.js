@@ -125,6 +125,8 @@ IS.Input = class {
     if (isDown) this.keys.add(k); else this.keys.delete(k);
     if (!isDown) return;
     const sim = this.sim;
+    if (sim.menu && sim.menu.isOpen) { if (k === 'escape' && sim.menu.mode === 'pause') sim.menu.primary(); return; }
+    if (k === 'escape' && !sim.selected) { sim.menu && sim.menu.open('pause'); return; }
     if (k === ' ') { e.preventDefault(); sim.setSpeed(sim.speedIdx === 0 ? (sim.lastSpeed || 1) : 0); }
     if (k >= '1' && k <= '5') sim.setSpeed(+k - 1);
     if (k === 'r') { sim.xray = !sim.xray; sim.ui.syncToggles(); }

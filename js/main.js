@@ -12,7 +12,9 @@ IS.Sim = class {
     this.logEntries = [];
     this.people = IS.ISLANDERS.map((cfg, i) => new IS.Person(cfg, i, this));
     IS.Social.seedRomance(this);
+    this.news = [];
     this.events = new IS.Events(this);
+    IS.Mind.morning(this);
     const catLover = this.people.find(p => p.loves.includes('cats'));
     this.cat = new IS.Cat(this, IS.CONFIG.catName || 'Biscuit', catLover ? catLover.homeId : 'house1');
     this.speedIdx = 1;
@@ -144,7 +146,7 @@ IS.Sim = class {
       for (const p of this.people) p.update(dt, rdt / steps, this.ctx());
       this.cat.update(dt);
       for (const cv of this.conversations.slice()) cv.update(dt);
-      if (dt > 0) IS.Social.update(this, dt);
+      if (dt > 0) { IS.Social.update(this, dt); IS.Mind.tick(this, dt); }
       this.cropGrowth(dt);
     }
     this.fx.update(rdt);
@@ -157,6 +159,13 @@ IS.Sim = class {
       const target = this.xray || hover || (this.selected && this.selected.building === b) || (this.input.press && this.input.press.grabbed && this.hover && this.hover.building === b) ? 1 : 0;
       b.cut += (target - b.cut) * Math.min(1, rdt * 8);
     }
+    // Autosave every in-game hour once the journal is open
+    if (this.started && dt > 0) {
+      const hour = Math.floor(this.clock.abs / 60);
+      if (hour !== this.lastSaveHour) { this.lastSaveHour = hour; IS.Save.save(this); }
+    }
+    // The title screen drifts slowly over the island
+    if (this.menuOpen) { this.cam.x += rdt * 7; this.cam.y += Math.sin(now / 9000) * rdt * 3; }
     if (this.follow && this.selected) {
       const s = IS.Iso.w2s(this.selected.x, this.selected.y);
       this.cam.x += (s.x - this.cam.x) * Math.min(1, rdt * 4);
@@ -190,9 +199,15 @@ IS.Sim = class {
 window.addEventListener('DOMContentLoaded', () => {
   // Let the loading card paint before the island is generated (takes a moment)
   requestAnimationFrame(() => setTimeout(() => {
+    // "New island" reloads with this flag so it skips the title screen
+    let fresh = false;
+    try { fresh = sessionStorage.getItem('tw-new') === '1'; sessionStorage.removeItem('tw-new'); } catch (e) { /* storage blocked */ }
+    const save = fresh ? null : IS.Save.load();
     const sim = new IS.Sim();
+    if (save) IS.Save.apply(sim, save);
     window.sim = sim;
     sim.boot();
+    sim.menu = new IS.Menu(sim, { save, autoStart: fresh });
     document.getElementById('loading').hidden = true;
   }, 30));
 });

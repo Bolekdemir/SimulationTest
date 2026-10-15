@@ -46,7 +46,7 @@
     --edge-b: max(14px, env(safe-area-inset-bottom, 0px));
     color-scheme: light;
   }
-  html, body { margin: 0; height: 100%; background: var(--night); color: var(--ink); font-family: var(--ui); overflow: hidden; -webkit-font-smoothing: none; }
+  html, body { margin: 0; height: 100%; background: var(--night); color: var(--ink); font-family: var(--ui); overflow: hidden; overflow: clip; -webkit-font-smoothing: none; }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   ::selection { background: var(--ribbon); color: var(--on-ribbon); }
@@ -55,7 +55,7 @@
   :focus-visible { outline: 2px solid var(--ribbon); outline-offset: 3px; }
   img.px, canvas.px { image-rendering: pixelated; }
 
-  #stage { position: fixed; inset: 0; overflow: hidden; background: var(--night); touch-action: none; }
+  #stage { position: fixed; inset: 0; overflow: hidden; overflow: clip; background: var(--night); touch-action: none; }
   #game { position: absolute; left: 0; top: 0; image-rendering: pixelated; image-rendering: crisp-edges; }
   #overlay { position: absolute; inset: 0; pointer-events: none; }
 
@@ -214,6 +214,18 @@
   #insp-body { display: flex; flex-direction: column; gap: 18px; font-size: 14px; }
   #insp-body section { display: flex; flex-direction: column; gap: 8px; }
   #insp-body h4 { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+  .todo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .todo li { display: grid; grid-template-columns: 14px 1fr; gap: 9px; align-items: start; line-height: 1.3; color: var(--ink); }
+  .todo li i { width: 12px; height: 12px; margin-top: 2px; background: var(--page); box-shadow: var(--frame-px); position: relative; }
+  .todo li.done { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--ribbon); text-decoration-thickness: 2px; }
+  .todo li.done i::after { content: ""; position: absolute; left: 2px; top: 2px; width: 8px; height: 8px; background: var(--ribbon); }
+  .todo li.gaveup { text-decoration-color: var(--ink-3); }
+  .todo li.gaveup i::after { background: var(--page-3); }
+  .feeling { margin: 0; padding: 7px 10px 8px; font-weight: 700; color: var(--ink); background: var(--page-2); }
+  .feel-heartbroken, .feel-lonely { background: #e3ebf5; }
+  .feel-jealous, .feel-sulking { background: #f8ddd6; }
+  .feel-giddy { background: #f9dfe9; }
+  .feel-proud { background: #fbefc9; }
   .meters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 76px 1fr; gap: 9px 12px; align-items: center; }
   .meters span { color: var(--ink-2); }
   .pips { display: flex; gap: 2px; }
@@ -282,6 +294,34 @@
   body.dusk .page { filter: var(--lift) brightness(0.88) sepia(0.1); }
   body.dusk .toast { filter: var(--lift) brightness(0.92); }
 
+  /* ---------- Title / pause menu: a closed journal over the island ---------- */
+  #menu { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; padding: 24px 16px 48px; overflow-y: auto; background: radial-gradient(ellipse at center, rgba(27, 20, 38, 0.1), rgba(27, 20, 38, 0.62)); }
+  #menu-book { width: min(400px, 100%); padding: 34px 28px 34px; display: flex; flex-direction: column; align-items: stretch; gap: 22px; animation: rise 320ms var(--out); }
+  #menu-book::after { content: ""; position: absolute; right: 48px; bottom: -34px; width: 14px; height: 48px; background: var(--ribbon); box-shadow: inset -3px 0 0 0 var(--ribbon-lo); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); }
+  @keyframes rise { from { transform: translateY(16px); opacity: 0; } }
+  .plate { position: relative; padding: 18px 20px 16px; text-align: center; background: var(--page); box-shadow: var(--frame-px), inset 0 -3px 0 0 var(--page-3); }
+  .plate h1 { margin: 0; font-size: 40px; font-weight: 700; line-height: 0.95; text-wrap: balance; color: var(--ink); }
+  .plate p { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); }
+  .menu-list { display: flex; flex-direction: column; gap: 12px; }
+  .tag { display: grid; gap: 3px; text-align: left; padding: 9px 14px 11px; background: var(--page); color: var(--ink); box-shadow: var(--frame-px), inset 0 -3px 0 0 var(--page-3); transition: transform 140ms var(--out), background-color 120ms ease; }
+  .tag b { font-size: 19px; font-weight: 700; line-height: 1; }
+  .tag small { font-size: 13px; color: var(--ink-3); line-height: 1.2; }
+  .tag.primary { background: var(--ribbon); color: var(--on-ribbon); box-shadow: var(--frame-px), inset 0 2px 0 0 var(--ribbon-hi), inset 0 -3px 0 0 var(--ribbon-lo); }
+  .tag.primary small { color: #ffe1d8; }
+  @media (hover: hover) and (pointer: fine) { .tag:hover { transform: translateX(4px); background: var(--page-2); } .tag.primary:hover { background: var(--ribbon-hi); } }
+  .tag:active { transform: translateY(2px); }
+  #cast { width: min(900px, 100%); max-height: calc(100vh - 64px); padding: 10px 10px 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; animation: rise 320ms var(--out); }
+  #cast .spread { width: 100%; min-height: 0; overflow: hidden; }
+  #cast .leaf-l, #cast .leaf-r { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+  #cast h2 { margin: 0; font-size: 26px; font-weight: 700; }
+  .cast-card { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: start; }
+  .cast-card .face { width: 64px; height: 64px; }
+  .cast-card h3 { margin: 0 0 3px; font-size: 19px; font-weight: 700; }
+  .cast-card .bio { font-size: 14px; }
+  .cast-type { margin: 6px 0 8px; font-size: 13px; color: var(--berry); }
+  #cast-close { min-height: 32px; }
+  body.menu-open #hud-tl, body.menu-open #hud-tr, body.menu-open #roster, body.menu-open #inspector, body.menu-open #toasts { display: none !important; }
+
   body.focus #hud-tl, body.focus #roster, body.focus #inspector, body.focus #hud-tr > *:not(#btn-full) { display: none !important; }
   /* Narrower screens: the book closes to one page with the tabs on top */
   @media (max-width: 1100px) {
@@ -343,6 +383,8 @@
   </div>
 
   <div id="hud-tr" class="leather">
+    <button class="key icon" id="btn-menu" title="Menu (Esc)" aria-label="Menu"><img data-icon="menu" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
+    <span class="gap"></span>
     <button class="key icon" id="zoom-out" title="Zoom out (-)" aria-label="Zoom out"><img data-icon="minus" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
     <button class="key icon" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in"><img data-icon="plus" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
     <span class="gap"></span>
@@ -374,7 +416,7 @@
       </section>
       <section class="leaf-r">
         <div id="insp-tabs" role="tablist">
-          <button data-tab="now" role="tab">Needs</button>
+          <button data-tab="now" role="tab">Today</button>
           <button data-tab="bonds" role="tab">Bonds</button>
           <button data-tab="about" role="tab">About</button>
         </div>
@@ -385,6 +427,28 @@
 
   <div id="roster" class="leather"></div>
   <div id="toasts"></div>
+
+  <div id="menu" hidden>
+    <div id="menu-book" class="leather">
+      <div class="plate">
+        <h1>Tidewhistle Isle</h1>
+        <p>An island journal, designed by Mav</p>
+      </div>
+      <nav class="menu-list" aria-label="Main menu">
+        <button class="tag primary" id="m-primary"><b>Begin</b><small id="m-primary-meta"></small></button>
+        <button class="tag" id="m-new"><b>New island</b><small id="m-new-meta">Start the journal over</small></button>
+        <button class="tag" id="m-cast"><b>Meet the islanders</b><small>Who's who, and who they fall for</small></button>
+        <button class="tag" id="m-help"><b>How to play</b><small>Grabbing, throwing, whispering</small></button>
+      </nav>
+    </div>
+    <div id="cast" class="leather" hidden>
+      <div class="spread">
+        <section class="leaf-l" id="cast-left"></section>
+        <section class="leaf-r" id="cast-right"></section>
+      </div>
+      <button class="key" id="cast-close">Close the book</button>
+    </div>
+  </div>
 
   <div id="help" hidden>
     <div class="leather"><div class="inner">
@@ -424,10 +488,13 @@
 <script src="js/cat.js"></script>
 <script src="js/social.js"></script>
 <script src="js/command.js"></script>
+<script src="js/mind.js"></script>
+<script src="js/save.js"></script>
 <script src="js/events.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/input.js"></script>
+<script src="js/menu.js"></script>
 <script src="js/main.js"></script>
 <script>
   // Fullscreen where the browser allows it. Inside some viewers it is blocked,

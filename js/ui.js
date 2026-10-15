@@ -32,6 +32,7 @@ IS.UI = class {
       full: grid(['kkk..kkk', 'k......k', 'k......k', '........', '........', 'k......k', 'k......k', 'kkk..kkk'], K),
       help: grid(['..kkkk..', '.kk..kk.', '.....kk.', '....kk..', '...kk...', '........', '...kk...', '...kk...'], K),
       heart: grid(['........', '.rr.rr..', 'rrrrrrr.', 'rrrrrrr.', '.rrrrr..', '..rrr...', '...r....', '........'], { r: '#c94a73' }),
+      menu: grid(['........', 'kkkkkkkk', 'kkkkkkkk', '........', 'kkkkkkkk', '........', 'kkkkkkkk', '........'], K),
       friend: grid(['...kk...', '..kkkk..', '..kkkk..', '...kk...', '.kkkkkk.', 'kkkkkkkk', 'kkkkkkkk', '........'], { k: '#8f7565' }),
     };
     this.$('ico-food').src = this.icons.food;
@@ -302,7 +303,11 @@ IS.UI = class {
 
   tabNow(p) {
     const n = p.needs;
+    const feel = IS.Mind.feelingLabel(p);
+    const plans = (p.plans || []).map(pl => `<li class="${pl.done ? 'done' : ''}${pl.gaveUp ? ' gaveup' : ''}"><i></i>${this.esc(pl.text)}</li>`).join('') || '<li class="muted">No plans. Just vibes.</li>';
     return `
+      ${feel ? `<section><p class="feeling feel-${p.emotion.type}">${this.esc(feel)}</p></section>` : ''}
+      <section><h4>Today's plans</h4><ul class="todo">${plans}</ul></section>
       <section><h4>How they're doing</h4><div class="meters">
         <span>Fullness</span>${this.needPips(n.hunger)}
         <span>Energy</span>${this.needPips(n.energy)}
@@ -319,7 +324,7 @@ IS.UI = class {
       const f = r.friendship;
       const hearts = p.canFallFor(o.name) ? `<div class="fmeter" title="Romance ${Math.round(r.romance)}"><img src="${this.icons.heart}" alt="Romance">${this.pips(r.romance, 10, 'love')}</div>` : '';
       return `<li class="bond" data-person="${o.name}"><span class="face"><img src="${o.portrait}" alt=""></span>
-        <div class="bond-top"><b>${o.name}</b><em>${p.relLabel(o.name)}${r.label ? ', ' + this.esc(r.label) : ''}</em></div>
+        <div class="bond-top"><b>${o.name}</b><em>${p.relLabel(o.name)}${r.label ? ', ' + this.esc(r.label) : ''}${this.ledgerNote(p, o)}</em></div>
         <div class="fmeter" title="Friendship ${Math.round(f)}"><img src="${this.icons.friend}" alt="Friendship">${this.pips(Math.abs(f), 10, f < 0 ? 'neg' : '')}</div>${hearts}</li>`;
     }).join('');
     const sky = p.skyOpinion;
@@ -339,10 +344,20 @@ IS.UI = class {
     const chips = (list, cls) => list.map(x => `<span class="chip ${cls}">${x}</span>`).join('');
     return `
       ${p.cfg.bio ? `<section><p class="bio">${this.esc(p.cfg.bio)}</p></section>` : ''}
+      <section><h4>Island reputation</h4><p class="bio">${IS.Mind.reputation(this.sim, p).word}</p></section>
       ${p.cfg.into ? `<section><h4>Type</h4><p class="bio">${this.esc(this.typeLine(p))}</p></section>` : ''}
       <section><h4>Loves and hates</h4><div class="chips">${chips(p.loves, '')}${chips(p.hates, 'no')}</div></section>
       <section><h4>Personality</h4><div class="meters">${traits}</div></section>
       <section><h4>Recent memories</h4><ul class="mems">${mems}</ul></section>`;
+  }
+
+  ledgerNote(p, o) {
+    const g = p.ledger && p.ledger[o.name];
+    const e = IS.Mind.feeling(p);
+    if (e && e.type === 'jealous' && e.about === o.name) return ', jealous';
+    if (g && g.grudge > 12) return ', holds a grudge';
+    if (g && g.thanks > 10) return ', grateful';
+    return '';
   }
 
   typeLine(p) {

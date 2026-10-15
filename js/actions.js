@@ -87,6 +87,7 @@ IS.Actions = (() => {
           if (Math.random() < 0.05) {
             p.world.food += 2;
             p.remember('Caught a HUGE fish', { tag: 'bigfish', mood: 12, news: true });
+            IS.Mind.feel(p, 'proud', null, 4);
             p.say(IS.pick(['WHOA! Look at the size of this thing!', 'Biggest fish ever. EVER.', 'Someone get a ruler!']));
             p.sim.log(`${p.name} reeled in an enormous fish!`, 'good', [p]);
           }
