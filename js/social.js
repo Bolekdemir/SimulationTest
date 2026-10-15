@@ -213,7 +213,7 @@ IS.Social = (() => {
       }
       if (item.topic === 'greet' || item.topic === 'greetBack') {
         const tone = IS.Dialogue.tone(sp, li);
-        sp.say(IS.Dialogue.fill(IS.Dialogue.line('greet', tone), S.ctx(sim, sp, li)));
+        sp.say(IS.Dialogue.fill(IS.Dialogue.as(sp).line('greet', tone), S.ctx(sim, sp, li)));
         sp.needs.social = Math.min(100, sp.needs.social + 2);
         return;
       }
@@ -274,8 +274,22 @@ IS.Social = (() => {
       thirdDoing: third ? (IS.Dialogue.activityWord[third.loves[0]] || 'napping') : 'squawking',
       needword: { hunger: 'hungry', energy: 'tired', social: 'lonely', fun: 'bored' }[lowest],
       pantryWord: sim.world.food < 5 ? 'pretty empty' : sim.world.food < 12 ? 'a little thin' : 'well stocked',
+      thirdNow: third ? S.nowWord(third) : 'squawking', ThirdNow: third ? cap(S.nowWord(third)) : 'Squawking',
+      cat: sim.cat ? sim.cat.name : 'the cat',
       ...extra,
     };
+  };
+
+  const cap = t => t[0].toUpperCase() + t.slice(1);
+  // What someone is up to, in words that fit inside a sentence
+  S.nowWord = p => {
+    if (p.mode === 'carried' || p.mode === 'air') return 'flying through the air';
+    if (p.chat) return `chatting with ${p.chat.other(p).name}`;
+    if (p.pose === 'sleep') return 'asleep';
+    const a = p.action;
+    if (!a) return 'standing around';
+    const l = (a.def.label2 ? a.def.label2(p, a) : a.def.label).toLowerCase();
+    return a.phase === 'travel' && !a.follow ? `off ${l}` : l;
   };
 
   // Pick a topic based on personality, memories, relationship and context.
@@ -328,7 +342,21 @@ IS.Social = (() => {
       if (friction > 0 && r.friendship < 45 && !r.partner) add('argue', friction * 0.8);
     }
     if (r.friendship < 0 && t.kind > 0.5) add('apology', 1.6);
-    if ((sp.cfg.catchphrases || []).length) add('catchphrase', 0.7);
+    if ((sp.cfg.catchphrases || []).length) add('catchphrase', 0.6);
+    // Everyday small talk
+    add('question', 0.9 + t.curious * 0.8);
+    add('plans', 0.6);
+    add('island', 0.5 + t.curious * 0.4);
+    add('food', 0.4 + (sp.needs.hunger < 50 ? 0.6 : 0) + ((sp.cfg.quirks || []).includes('greedy') ? 0.6 : 0));
+    if (others.length) {
+      const seen = others.filter(o => o.mode === 'normal' && IS.dist(o.x, o.y, sp.x, sp.y) < IS.TILE * 14 && !(o.chat && o.chat.other(o) === sp));
+      if (seen.length) add('observe', 0.9 + t.curious * 0.5, { third: IS.pick(seen) });
+    }
+    const crush = IS.Dialogue.crushOf(li);
+    if (crush && crush !== sp && r.friendship > 25) add('tease', 1 + t.energetic * 0.6 + (sp.cfg.humor === 'roast' ? 0.8 : 0), { crush });
+    if (r.partner) add('couple', 2.2);
+    const mem = sp.memories.find(m => m.about === li.name && sim.clock.abs - m.t < 2880 && sim.clock.abs - m.t > 30 && ['chat', 'argue', 'care'].includes(m.tag) && !m.toldTo.has(li.name));
+    if (mem) add(mem.tag === 'argue' ? 'memoryBad' : mem.tag === 'care' ? 'memoryCare' : 'memoryGood', mem.tag === 'argue' ? 1.2 + t.kind : 0.9, { memory: mem });
 
     const pick = IS.weightedPick(cands.length ? cands : [{ topic: 'weather', w: 1 }]);
     return S.topicFor(sim, sp, li, pick.topic, pick.extra || {});
@@ -338,8 +366,11 @@ IS.Social = (() => {
     const D = IS.Dialogue;
     const ctx = S.ctx(sim, sp, li, extra.third ? { third: extra.third.name, thirdFav: extra.third.loves[0] || 'napping', thirdDoing: D.activityWord[extra.third.loves[0]] || 'napping' } : {});
     const tone = D.tone(sp, li);
+    D.as(sp);
     let text;
     if (extra.memory) extra.memory.toldTo.add(li.name);
+    if (extra.crush) ctx.crush = extra.crush.name;
+    if (extra.third) { ctx.thirdNow = S.nowWord(extra.third); ctx.ThirdNow = cap(ctx.thirdNow); }
     switch (topic) {
       case 'weather': text = tone === 'grumpy' && Math.random() < 0.5 ? D.line('weather', null, 'grumpy') : D.line('weather', null, sim.weather); break;
       case 'eventSoon': {
@@ -356,6 +387,7 @@ IS.Social = (() => {
       case 'news:find': text = `I found ${extra.memory.detail} in the forest!`; break;
       case 'news:contest': text = extra.memory.text.includes('Won') ? 'I won the fishing contest! Did you hear?' : 'That fishing contest was rigged, I swear.'; break;
       case 'birthday': li.visitedBy.add('bday:' + sp.name); text = D.line('birthday'); break;
+      case 'question': { const q = D.question(); extra.answer = q.a; text = q.q; break; }
       default:
         if (topic.startsWith('news:')) text = D.line(topic.slice(5));
         else text = D.line(topic, tone);
@@ -366,6 +398,7 @@ IS.Social = (() => {
   // How does the listener take it? Returns relationship deltas + reply.
   S.react = (sim, sp, li, t) => {
     const D = IS.Dialogue;
+    D.as(li);
     const lt = li.traits;
     const rel = li.relTo(sp.name);
     const base = {
@@ -377,6 +410,8 @@ IS.Social = (() => {
       brag: li.cfg.humor === 'brag' ? 0.8 : -0.1 - lt.kind * 0.3 - lt.grumpy * 0.6,
       cocky: li.cfg.humor === 'cocky' || li.cfg.humor === 'brag' ? 0.7 : -0.2,
       cat: li.loves.includes('cats') ? 1.8 : 0.5,
+      question: 0.9, plans: 0.6, island: 0.5, food: 0.5, observe: 0.5, couple: 2, memoryGood: 1.4, memoryCare: 2, memoryBad: 1.6,
+      tease: rel.friendship > 40 ? 0.6 : -0.4,
     };
     let b = base[t.topic];
     if (t.topic === 'gossipBad') b = li.relTo(t.extra.third ? t.extra.third.name : '').friendship < 0 ? 0.9 : -0.7;
@@ -454,6 +489,14 @@ IS.Social = (() => {
     if (t.topic === 'roast') special = valence === 'neg' ? 'roastNeg' : 'roastPos';
     if (t.topic === 'brag' || t.topic === 'cocky') special = valence === 'pos' ? 'bragPos' : 'brag';
     if (t.topic === 'cat') special = 'cat';
+    if (t.topic === 'flirt' && valence === 'neg') special = 'flirtNo';
+    if (t.topic === 'tease') special = (t.extra.crush && li.relTo(t.extra.crush.name).romance > 35) ? 'teased' : 'teasedNo';
+    if (t.topic === 'couple') special = 'couple';
+    if (t.topic === 'memoryBad') special = 'memoryBad';
+    // Questions and plans get a real answer instead of a stock reaction
+    let custom = null;
+    if (t.topic === 'question' && t.extra.answer) custom = t.extra.answer(li, sim, sp);
+    if (t.topic === 'plans') custom = D.plansAnswer(li);
     if (valence === 'pos') emote = dr > 0 ? 'heart' : df > 3 ? 'heart' : IS.pick(['note', 'note', 'sparkle']);
     if (valence === 'neg') emote = lt.grumpy > 0.5 ? 'anger' : 'sweat';
     if (special === 'skyhand' || special === 'skyhandSea') emote = 'exclaim';
@@ -464,7 +507,8 @@ IS.Social = (() => {
       const m = t.extra.memory;
       li.remember(`Heard from ${sp.name}: ${m.text.toLowerCase()}`, { tag: 'heard', about: sp.name });
     }
-    const reply = D.fill(D.response(valence, ltone, special), { other: sp.name, cat: sim.cat ? sim.cat.name : 'the cat' });
+    const reply = custom || D.fill(D.response(valence, ltone, special), { other: sp.name, cat: sim.cat ? sim.cat.name : 'the cat' });
+    if (special === 'teased') emote = 'sweat';
     return { df, dr, text: reply, emote, endsChat };
   };
 

@@ -3,27 +3,32 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jersey+10&family=Pixelify+Sans:wght@400;500;600;700&display=swap">
 <style>
-  /* The HUD is made of things that exist on the island: journal paper, ink,
-     and wooden keys, edged with crisp pixel frames (notched 2px corners, no
-     rounded rectangles, no glass). One look day and night, so one palette.
-     Type: Pixelify Sans for all text, Jersey 10 for numerals (clock, counts). */
+  /* The HUD is the island's journal. Green leather cover = every outline and
+     container. White pages = all content. The red ribbon bookmark = the one
+     accent (what's active or selected). The character page is the open book;
+     everything else is a loose page: a taped index card, a ruled notebook
+     page, polaroids, sticky notes. Crisp 2px pixel frames, no rounded corners.
+     Type: Pixelify Sans for text, Jersey 10 for numerals. */
   :root {
-    --paper: #f4e8cc;
-    --paper-hi: #fffaee;
-    --paper-2: #e9d8b2;
-    --paper-3: #d6bf91;
-    --ink: #3a2830;
-    --ink-2: #6b4636;
-    --ink-3: #7e5a48;
-    --frame: #2d1f29;
-    --wood: #c88b53;
-    --wood-hi: #e7b37b;
-    --wood-lo: #8e5b34;
-    --wood-ink: #2e1a10;
-    --tomato: #d4563c;
-    --tomato-hi: #ee7a58;
-    --tomato-lo: #9e3a28;
-    --on-tomato: #fff4e2;
+    --page: #fffdf6;
+    --page-2: #f4eee1;
+    --page-3: #e6dccb;
+    --rule: #dde6f0;
+    --margin: #f0b0a6;
+    --ink: #2c2836;
+    --ink-2: #554a5c;
+    --ink-3: #75677c;
+    --frame: #211a24;
+    --cover: #2f5a44;
+    --cover-hi: #437a5c;
+    --cover-lo: #1e3b2d;
+    --thread: #d6c189;
+    --ribbon: #d23b3b;
+    --ribbon-hi: #ee665a;
+    --ribbon-lo: #982424;
+    --on-ribbon: #fff6ee;
+    --tape: rgba(240, 160, 150, 0.72);
+    --note: #fff2a6;
     --leaf: #6f9a35;
     --sun: #e9a63a;
     --berry: #c94a73;
@@ -32,7 +37,8 @@
     --num: 'Jersey 10', 'Pixelify Sans', ui-monospace, monospace;
     --ui: 'Pixelify Sans', 'Trebuchet MS', system-ui, sans-serif;
     --frame-px: -2px 0 0 0 var(--frame), 2px 0 0 0 var(--frame), 0 -2px 0 0 var(--frame), 0 2px 0 0 var(--frame);
-    --lift: drop-shadow(0 6px 10px rgba(22, 10, 28, 0.38));
+    --ribbon-px: -2px 0 0 0 var(--ribbon-lo), 2px 0 0 0 var(--ribbon-lo), 0 -2px 0 0 var(--ribbon-lo), 0 2px 0 0 var(--ribbon-lo);
+    --lift: drop-shadow(0 8px 12px rgba(22, 10, 28, 0.35));
     --out: cubic-bezier(0.23, 1, 0.32, 1);
     --edge-t: max(14px, env(safe-area-inset-top, 0px));
     --edge-l: max(14px, env(safe-area-inset-left, 0px));
@@ -43,10 +49,10 @@
   html, body { margin: 0; height: 100%; background: var(--night); color: var(--ink); font-family: var(--ui); overflow: hidden; -webkit-font-smoothing: none; }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  ::selection { background: var(--tomato); color: var(--on-tomato); }
+  ::selection { background: var(--ribbon); color: var(--on-ribbon); }
   button, input { font: inherit; color: inherit; }
   button { background: none; border: 0; padding: 0; cursor: pointer; }
-  :focus-visible { outline: 2px solid var(--tomato); outline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--ribbon); outline-offset: 3px; }
   img.px, canvas.px { image-rendering: pixelated; }
 
   #stage { position: fixed; inset: 0; overflow: hidden; background: var(--night); touch-action: none; }
@@ -54,154 +60,185 @@
   #overlay { position: absolute; inset: 0; pointer-events: none; }
 
   /* ---------- Materials ---------- */
-  .paper {
-    background: var(--paper);
-    box-shadow: var(--frame-px), inset 0 2px 0 0 var(--paper-hi), inset 0 -2px 0 0 var(--paper-2);
+  .page {
+    background: var(--page);
+    box-shadow: var(--frame-px), inset 0 -3px 0 0 var(--page-3);
     filter: var(--lift);
   }
-  .plank {
-    background: var(--wood-lo);
-    box-shadow: var(--frame-px), inset 0 2px 0 0 var(--wood);
+  /* Leather with a stitched edge */
+  .leather {
+    position: relative;
+    background: var(--cover);
+    box-shadow: var(--frame-px), inset 0 2px 0 0 var(--cover-hi), inset 0 -3px 0 0 var(--cover-lo);
     filter: var(--lift);
   }
-  .well { background: var(--paper-2); box-shadow: inset 0 2px 0 0 var(--paper-3); }
+  .leather::before { content: ""; position: absolute; inset: 3px; border: 1px dashed var(--thread); opacity: 0.55; pointer-events: none; }
+  /* Washi tape holding a loose page down */
+  .taped { position: relative; }
+  .taped::before { content: ""; position: absolute; top: -8px; left: 50%; width: 64px; height: 14px; margin-left: -32px; background: var(--tape); box-shadow: inset 0 0 0 1px rgba(150, 60, 50, 0.18); }
 
+  /* Keys are little paper tags; the active one gets the red ribbon */
   .key {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     min-height: 30px; padding: 0 10px 2px;
-    background: var(--wood); color: var(--wood-ink);
+    background: var(--page); color: var(--ink);
     font-size: 15px; font-weight: 600; white-space: nowrap; line-height: 1;
-    box-shadow: var(--frame-px), inset 0 2px 0 0 var(--wood-hi), inset 0 -3px 0 0 var(--wood-lo);
+    box-shadow: var(--frame-px), inset 0 -3px 0 0 var(--page-3);
     transition: transform 100ms var(--out), background-color 120ms ease;
   }
   .key img { width: 16px; height: 16px; image-rendering: pixelated; flex: none; }
-  @media (hover: hover) and (pointer: fine) { .key:hover { background: var(--wood-hi); } }
-  .key:active { transform: translateY(2px); box-shadow: var(--frame-px), inset 0 2px 0 0 var(--wood-lo); }
-  /* Toggles sink into the plank; the running speed is the one red key */
-  .key[aria-pressed="true"] { background: var(--wood-lo); color: var(--paper-hi); transform: translateY(1px); box-shadow: var(--frame-px), inset 0 3px 0 0 #6a3f22; }
-  .key[aria-pressed="true"] img { filter: brightness(0) invert(0.96); }
-  .key[data-speed][aria-pressed="true"] { background: var(--tomato); color: var(--on-tomato); transform: none; box-shadow: var(--frame-px), inset 0 2px 0 0 var(--tomato-hi), inset 0 -3px 0 0 var(--tomato-lo); }
+  @media (hover: hover) and (pointer: fine) { .key:hover { background: var(--page-2); } }
+  .key:active { transform: translateY(2px); box-shadow: var(--frame-px), inset 0 2px 0 0 var(--page-3); }
+  /* Toggles that are on get a little ribbon tucked into them; the running speed is solid red */
+  .key[aria-pressed="true"] { background: var(--page-2); transform: translateY(1px); box-shadow: var(--frame-px), inset 0 3px 0 0 var(--page-3); }
+  .key[aria-pressed="true"]::after { content: ""; position: absolute; top: -2px; right: 4px; width: 7px; height: 14px; background: var(--ribbon); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%); }
+  .key.icon[aria-pressed="true"]::after { right: 2px; }
+  .key[data-speed][aria-pressed="true"] { background: var(--ribbon); color: var(--on-ribbon); transform: none; box-shadow: var(--frame-px), inset 0 2px 0 0 var(--ribbon-hi), inset 0 -3px 0 0 var(--ribbon-lo); }
+  .key[data-speed][aria-pressed="true"]::after { display: none; }
+  .key[data-speed][aria-pressed="true"] img { filter: brightness(0) invert(0.97); }
   .key.icon { width: 32px; padding: 0 0 2px; }
 
-  /* ---------- Clock card ---------- */
-  #hud-tl { position: absolute; top: calc(var(--edge-t) + 2px); left: calc(var(--edge-l) + 2px); bottom: 136px; width: min(288px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 14px; pointer-events: none; }
+  /* ---------- Clock: a taped index card ---------- */
+  #hud-tl { position: absolute; top: calc(var(--edge-t) + 10px); left: calc(var(--edge-l) + 2px); bottom: 140px; width: min(288px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 14px; pointer-events: none; }
   #hud-tl > * { pointer-events: auto; }
-  #clock { padding: 12px 14px 12px; display: grid; grid-template-columns: auto 1fr; gap: 0 14px; align-items: center; }
+  #clock { padding: 14px 14px 12px; display: grid; grid-template-columns: auto 1fr; gap: 0 14px; align-items: center; }
   #dial { width: 96px; height: 48px; grid-row: span 2; box-shadow: var(--frame-px); }
-  #clock-time { font-family: var(--num); font-size: 46px; line-height: 0.8; color: var(--ink); font-variant-numeric: tabular-nums; }
+  #clock-time { font-family: var(--num); font-size: 48px; line-height: 0.8; color: var(--ink); font-variant-numeric: tabular-nums; }
   #clock-sub { display: flex; flex-direction: column; font-size: 14px; line-height: 1.25; color: var(--ink-2); margin-top: 6px; }
   #clock-sub b { color: var(--ink); font-weight: 600; }
   #stock { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 12px; }
-  #stock > span { flex: 1; display: flex; align-items: center; gap: 8px; padding: 5px 9px 6px; font-size: 14px; color: var(--ink-2); }
+  #stock > span { flex: 1; display: flex; align-items: center; gap: 8px; padding: 5px 9px 6px; font-size: 14px; color: var(--ink-2); background: var(--page-2); }
   #stock img { width: 16px; height: 16px; }
   #stock b { margin-left: auto; font-family: var(--num); font-size: 26px; line-height: 0.7; font-weight: 400; color: var(--ink); font-variant-numeric: tabular-nums; }
-  #stock .low b { color: var(--tomato); }
-  #next-event { grid-column: 1 / -1; margin-top: 12px; padding-top: 10px; border-top: 2px dashed var(--paper-3); font-size: 14px; line-height: 1.3; color: var(--ink-2); }
-  #next-event b { display: block; font-size: 16px; font-weight: 700; color: var(--tomato-lo); margin-bottom: 1px; }
+  #stock .low b { color: var(--ribbon); }
+  #next-event { position: relative; grid-column: 1 / -1; margin: 12px -14px 0; padding: 9px 14px 2px 30px; border-top: 2px dashed var(--page-3); font-size: 14px; line-height: 1.3; color: var(--ink-2); }
+  #next-event::before { content: ""; position: absolute; left: 12px; top: 0; width: 10px; height: 22px; background: var(--ribbon); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%); }
+  #next-event b { display: block; font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 1px; }
   #next-event:empty { display: none; }
 
-  #speed { display: flex; align-items: center; gap: 6px; padding: 6px; align-self: flex-start; }
+  #speed { display: flex; align-items: center; gap: 6px; padding: 7px; align-self: flex-start; }
   #speed .key { min-width: 38px; font-family: var(--num); font-size: 21px; font-weight: 400; padding: 0 8px 3px; }
-  #ff { font-size: 14px; color: var(--paper); padding: 0 6px; white-space: nowrap; }
+  #ff { font-size: 14px; color: var(--page); padding: 0 6px; white-space: nowrap; position: relative; }
 
-  /* ---------- Journal ---------- */
-  #log { min-height: 0; flex: 0 1 auto; display: flex; flex-direction: column; overflow: hidden; }
-  #log-head { padding: 10px 14px 4px; }
-  #log-head h3, .h { margin: 0; font-size: 17px; font-weight: 700; color: var(--ink); }
-  #log-list { list-style: none; margin: 0; padding: 2px 12px 10px 14px; overflow-y: auto; display: flex; flex-direction: column; font-size: 14px; line-height: 1.35; color: var(--ink-2); scrollbar-width: thin; scrollbar-color: var(--wood) var(--paper-2); }
-  #log-list li { display: grid; grid-template-columns: 8px 1fr; gap: 0 9px; padding: 7px 0 8px; border-bottom: 2px dotted var(--paper-3); }
-  #log-list li::before { content: ""; width: 8px; height: 8px; margin-top: 4px; background: var(--ink-3); box-shadow: 0 0 0 1px var(--frame); grid-row: span 2; }
+  /* ---------- Journal: a ruled notebook page ---------- */
+  #log { min-height: 0; flex: 0 1 auto; display: flex; flex-direction: column; overflow: hidden; background-color: var(--page); }
+  #log-head { padding: 10px 14px 6px 38px; border-bottom: 2px solid var(--rule); }
+  #log-head h3 { margin: 0; font-size: 17px; font-weight: 700; color: var(--ink); }
+  #log-list {
+    list-style: none; margin: 0; padding: 0 12px 6px 38px; overflow-y: auto;
+    font-size: 14px; line-height: 24px; color: var(--ink-2);
+    background: linear-gradient(to right, transparent 28px, var(--margin) 28px 30px, transparent 30px), repeating-linear-gradient(to bottom, transparent 0 22px, var(--rule) 22px 24px);
+    background-attachment: local;
+    scrollbar-width: thin; scrollbar-color: var(--page-3) transparent;
+  }
+  #log-list li { position: relative; padding: 0; }
+  #log-list li::before { content: ""; position: absolute; left: -22px; top: 8px; width: 8px; height: 8px; background: var(--ink-3); box-shadow: 0 0 0 1px var(--frame); }
   #log-list li[data-who] { cursor: pointer; }
   @media (hover: hover) and (pointer: fine) { #log-list li[data-who]:hover span { color: var(--ink); } }
-  #log-list time { font-family: var(--num); font-size: 17px; line-height: 0.9; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  #log-list time { font-family: var(--num); font-size: 18px; color: var(--ink-3); font-variant-numeric: tabular-nums; margin-right: 6px; }
   .log-event::before { background: var(--sun) !important; }
   .log-good::before { background: var(--leaf) !important; }
-  .log-warn::before { background: var(--tomato) !important; }
+  .log-warn::before { background: var(--ribbon) !important; }
   .log-social::before { background: var(--sea) !important; }
   .log-love::before { background: var(--berry) !important; }
-  .log-sky::before { background: var(--paper-hi) !important; }
+  .log-sky::before { background: var(--page) !important; }
 
-  /* ---------- Tools ---------- */
-  #hud-tr { position: absolute; top: calc(var(--edge-t) + 2px); right: calc(var(--edge-r) + 2px); display: flex; align-items: center; gap: 6px; padding: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  /* ---------- Tools: a leather strip of paper tags ---------- */
+  #hud-tr { position: absolute; top: calc(var(--edge-t) + 2px); right: calc(var(--edge-r) + 2px); display: flex; align-items: center; gap: 6px; padding: 7px; flex-wrap: wrap; justify-content: flex-end; }
   #hud-tr .gap { width: 6px; }
 
-  /* ---------- Portrait dock ---------- */
-  #roster { position: absolute; bottom: calc(var(--edge-b) + 2px); left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 8px; max-width: calc(100vw - 32px); overflow-x: auto; scrollbar-width: none; }
-  .token { display: grid; justify-items: center; gap: 3px; width: 88px; padding: 6px 4px 5px; background: var(--paper); box-shadow: var(--frame-px), inset 0 2px 0 0 var(--paper-hi), inset 0 -3px 0 0 var(--paper-2); transition: transform 160ms var(--out); }
+  /* ---------- Roster: polaroids on a leather strip ---------- */
+  #roster { position: absolute; bottom: calc(var(--edge-b) + 2px); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 9px 10px 8px; max-width: calc(100vw - 32px); overflow-x: auto; scrollbar-width: none; }
+  .token { position: relative; display: grid; justify-items: center; gap: 3px; width: 86px; padding: 5px 5px 6px; background: var(--page); box-shadow: var(--frame-px), inset 0 -3px 0 0 var(--page-3); transition: transform 160ms var(--out); }
   @media (hover: hover) and (pointer: fine) { .token:hover { transform: translateY(-3px); } }
   .token:active { transform: translateY(1px); }
-  .token.active { transform: translateY(-6px); background: var(--paper-hi); box-shadow: -2px 0 0 0 var(--tomato), 2px 0 0 0 var(--tomato), 0 -2px 0 0 var(--tomato), 0 2px 0 0 var(--tomato), inset 0 -3px 0 0 var(--paper-2); }
-  .face { width: 48px; height: 48px; background: var(--paper-2); box-shadow: var(--frame-px); overflow: hidden; }
+  .token.active { transform: translateY(-6px); }
+  .token.active::after { content: ""; position: absolute; top: -2px; right: 8px; width: 10px; height: 26px; background: var(--ribbon); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+  .face { width: 52px; height: 52px; background: #cfe3ee; box-shadow: var(--frame-px); overflow: hidden; }
+  .token .face { width: 76px; height: 56px; display: grid; place-items: center; }
+  .token .face img { width: 56px; height: 56px; }
   .face img { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
-  .mood { --m: 3; display: flex; gap: 2px; width: 48px; }
-  .mood i { flex: 1; height: 4px; background: var(--paper-3); }
+  .mood { display: flex; gap: 2px; width: 48px; }
+  .mood i { flex: 1; height: 4px; background: var(--page-3); }
   .mood[data-tone="good"] i.on { background: var(--leaf); }
   .mood[data-tone="ok"] i.on { background: var(--sun); }
-  .mood[data-tone="bad"] i.on { background: var(--tomato); }
-  .token b { font-size: 15px; font-weight: 700; line-height: 1; color: var(--ink); margin-top: 2px; }
-  .token small { font-size: 12px; color: var(--ink-3); max-width: 82px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+  .mood[data-tone="bad"] i.on { background: var(--ribbon); }
+  .token b { font-size: 15px; font-weight: 700; line-height: 1; color: var(--ink); margin-top: 3px; }
+  .token small { font-size: 12px; color: var(--ink-3); max-width: 78px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+  .token .mood { width: 60px; }
 
-  /* ---------- Character page ---------- */
-  #inspector { position: absolute; right: calc(var(--edge-r) + 2px); top: calc(var(--edge-t) + 62px); width: 350px; max-height: calc(100% - 200px); display: flex; flex-direction: column; overflow: hidden; animation: open 220ms var(--out); }
-  @keyframes open { from { transform: translateX(12px); opacity: 0; } }
-  #insp-head { display: flex; gap: 12px; align-items: center; padding: 14px 14px 10px; }
-  #insp-head .face { width: 60px; height: 60px; flex: none; }
-  #insp-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-  #insp-name { margin: 0; font-size: 26px; font-weight: 700; line-height: 0.95; }
+  /* ---------- The open book (character page) ---------- */
+  #inspector { position: absolute; right: calc(var(--edge-r) + 2px); top: calc(var(--edge-t) + 66px); width: min(600px, calc(100vw - 340px)); max-height: calc(100% - 214px); display: flex; padding: 10px 10px 12px; animation: open 240ms var(--out); }
+  @keyframes open { from { transform: translateY(10px) scale(0.98); opacity: 0; } }
+  .spread { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; background: var(--page); box-shadow: 0 0 0 2px var(--cover-lo); }
+  /* Spine shading and the ribbon bookmark that hangs out the bottom */
+  .spread::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 28px; margin-left: -14px; background: linear-gradient(to right, transparent, rgba(80, 60, 50, 0.13) 45%, rgba(80, 60, 50, 0.22) 50%, rgba(80, 60, 50, 0.13) 55%, transparent); pointer-events: none; z-index: 1; }
+  .spread::after { content: ""; position: absolute; left: calc(50% + 10px); bottom: -30px; width: 12px; height: 40px; background: var(--ribbon); box-shadow: inset -3px 0 0 0 var(--ribbon-lo); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); z-index: 2; }
+  .leaf-l, .leaf-r { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--page-3) transparent; }
+  .leaf-l { padding: 14px 20px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .leaf-r { position: relative; padding: 46px 16px 16px 22px; }
+
+  #insp-head { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+  #insp-head .face { width: 64px; height: 64px; }
+  #insp-title { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  #insp-name { margin: 0; font-size: 28px; font-weight: 700; line-height: 0.95; }
   #insp-sub { font-size: 14px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
   #insp-sub .mood { width: 40px; }
-  #insp-actions { display: flex; flex-direction: column; gap: 8px; }
+  #insp-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
   #insp-actions .key { min-height: 26px; font-size: 14px; padding: 0 9px 2px; }
+  #insp-now { display: flex; flex-direction: column; gap: 8px; }
+  .doing { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.15; }
+  .thought { position: relative; margin: 4px 0 0 2px; padding: 8px 11px 9px; background: var(--page-2); color: var(--ink-2); line-height: 1.35; }
+  .thought::before { content: ""; position: absolute; top: -6px; left: 14px; width: 6px; height: 6px; background: var(--page-2); }
 
-  #cmd { margin: 2px 14px 12px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  #cmd { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 2px dashed var(--page-3); }
+  #cmd label { font-size: 15px; font-weight: 700; color: var(--ink); }
   #cmd-row { display: flex; gap: 8px; }
-  #cmd-in { flex: 1; min-width: 0; height: 32px; padding: 0 9px; border: 0; background: var(--paper-hi); color: var(--ink); font-size: 15px; box-shadow: var(--frame-px), inset 0 2px 0 0 var(--paper-2); }
+  #cmd-in { flex: 1; min-width: 0; height: 32px; padding: 0 9px; border: 0; background: var(--page); color: var(--ink); font-size: 15px; box-shadow: var(--frame-px), inset 0 2px 0 0 var(--page-2); }
   #cmd-in::placeholder { color: var(--ink-3); }
-  #cmd-in:focus { outline: none; box-shadow: -2px 0 0 0 var(--tomato), 2px 0 0 0 var(--tomato), 0 -2px 0 0 var(--tomato), 0 2px 0 0 var(--tomato), inset 0 2px 0 0 var(--paper-2); }
+  #cmd-in:focus { outline: none; box-shadow: var(--ribbon-px), inset 0 2px 0 0 var(--page-2); }
   #cmd .key { min-height: 32px; }
   #cmd-ideas { display: flex; flex-wrap: wrap; gap: 6px; }
-  .idea { padding: 2px 7px 3px; font-size: 13px; color: var(--ink-2); background: var(--paper); box-shadow: var(--frame-px); transition: transform 100ms var(--out); }
-  @media (hover: hover) and (pointer: fine) { .idea:hover { color: var(--ink); background: var(--paper-hi); } }
+  .idea { padding: 2px 7px 3px; font-size: 13px; color: var(--ink-2); background: var(--page-2); transition: transform 100ms var(--out); }
+  @media (hover: hover) and (pointer: fine) { .idea:hover { color: var(--ink); background: var(--page-3); } }
   .idea:active { transform: translateY(1px); }
   #cmd-out { margin: 0; font-size: 13px; line-height: 1.35; color: var(--ink-2); }
-  #cmd-out.err { color: var(--tomato-lo); }
+  #cmd-out.err { color: var(--ribbon-lo); }
   #cmd-out:empty { display: none; }
 
-  #insp-tabs { display: flex; gap: 18px; padding: 0 16px; border-bottom: 2px solid var(--paper-3); }
-  #insp-tabs button { padding: 2px 0 7px; margin-bottom: -2px; font-size: 15px; font-weight: 600; color: var(--ink-3); border-bottom: 3px solid transparent; transition: color 120ms ease; }
-  @media (hover: hover) and (pointer: fine) { #insp-tabs button:hover { color: var(--ink); } }
-  #insp-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--tomato); }
-  #insp-body { overflow-y: auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 18px; font-size: 14px; scrollbar-width: thin; scrollbar-color: var(--wood) var(--paper-2); }
+  /* Tabs are bookmark ribbons hanging from the top of the right page */
+  #insp-tabs { position: absolute; top: 0; left: 22px; right: 16px; display: flex; gap: 8px; z-index: 2; }
+  #insp-tabs button { position: relative; padding: 6px 10px 13px; font-size: 14px; font-weight: 700; color: var(--ink-2); background: var(--page-3); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 7px), 0 100%); transition: padding 160ms var(--out), background-color 120ms ease; }
+  @media (hover: hover) and (pointer: fine) { #insp-tabs button:hover { padding-bottom: 16px; color: var(--ink); } }
+  #insp-tabs button[aria-selected="true"] { background: var(--ribbon); color: var(--on-ribbon); padding-bottom: 19px; }
+  #insp-body { display: flex; flex-direction: column; gap: 18px; font-size: 14px; }
   #insp-body section { display: flex; flex-direction: column; gap: 8px; }
   #insp-body h4 { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
-  .doing { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.15; }
-  .thought { position: relative; margin: 6px 0 0 2px; padding: 8px 11px 9px; background: var(--paper-hi); color: var(--ink-2); line-height: 1.35; box-shadow: var(--frame-px); }
-  .thought::before { content: ""; position: absolute; top: -8px; left: 16px; width: 6px; height: 6px; background: var(--paper-hi); box-shadow: var(--frame-px); }
-  .meters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 76px 1fr; gap: 8px 12px; align-items: center; }
+  .meters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 76px 1fr; gap: 9px 12px; align-items: center; }
   .meters span { color: var(--ink-2); }
   .pips { display: flex; gap: 2px; }
-  .pips i { flex: 1; height: 9px; max-width: 20px; background: var(--paper-3); }
-  .pips i.on { background: var(--leaf); box-shadow: inset 0 2px 0 0 rgba(255, 255, 255, 0.25); }
+  .pips i { flex: 1; height: 9px; max-width: 20px; background: var(--page-3); }
+  .pips i.on { background: var(--leaf); }
   .pips.warm i.on { background: var(--sun); }
   .pips.trait i.on { background: var(--sea); }
-  .pips.low i.on { background: var(--tomato); }
+  .pips.low i.on { background: var(--ribbon); }
   .pips.mid i.on { background: var(--sun); }
   .pips.love i.on { background: var(--berry); }
-  .bonds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .bonds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
   .bond { display: grid; grid-template-columns: 34px 1fr; gap: 4px 10px; align-items: center; cursor: pointer; padding: 5px 6px; margin: 0 -6px; }
-  @media (hover: hover) and (pointer: fine) { .bond:hover { background: var(--paper-2); } }
+  @media (hover: hover) and (pointer: fine) { .bond:hover { background: var(--page-2); } }
   .bond .face { width: 34px; height: 34px; grid-row: span 3; }
   .bond-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .bond-top b { font-size: 15px; font-weight: 700; }
   .bond-top em { font-style: normal; color: var(--ink-3); font-size: 13px; text-align: right; }
   .fmeter { display: grid; grid-template-columns: 16px 1fr; gap: 6px; align-items: center; }
   .fmeter img { width: 12px; height: 12px; image-rendering: pixelated; }
-  .fmeter .pips.neg i.on { background: var(--tomato); }
-  .sky { margin: 0; padding: 9px 11px; background: var(--paper-2); line-height: 1.4; color: var(--ink-2); }
+  .fmeter .pips.neg i.on { background: var(--ribbon); }
+  .sky { margin: 0; padding: 9px 11px; background: var(--page-2); line-height: 1.4; color: var(--ink-2); }
   .sky b { color: var(--ink); font-size: 15px; display: block; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { padding: 2px 7px 3px; font-size: 13px; background: #dfe8c3; color: #3d5a1c; box-shadow: var(--frame-px); }
-  .chip.no { background: #f3d2c5; color: var(--tomato-lo); }
+  .chip { padding: 2px 7px 3px; font-size: 13px; background: #e4efcf; color: #3d5a1c; }
+  .chip.no { background: #f9dcd5; color: var(--ribbon-lo); }
   .mems { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; color: var(--ink-2); line-height: 1.35; }
   .mems time { display: block; font-family: var(--num); font-size: 16px; line-height: 0.9; color: var(--ink-3); }
   .bio { margin: 0; color: var(--ink-2); line-height: 1.45; }
@@ -210,51 +247,67 @@
   /* ---------- Speech bubbles and name tags ---------- */
   .bubble {
     position: absolute; left: 0; top: 0; max-width: 220px; width: max-content;
-    background: var(--paper-hi); color: var(--ink); padding: 5px 9px 6px;
+    background: var(--page); color: var(--ink); padding: 5px 9px 6px;
     font-size: 15px; font-weight: 500; line-height: 1.2; text-align: center;
-    box-shadow: var(--frame-px), inset 0 -2px 0 0 var(--paper-2);
+    box-shadow: var(--frame-px), inset 0 -2px 0 0 var(--page-2);
     filter: drop-shadow(0 3px 0 rgba(22, 10, 28, 0.25));
   }
-  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 6px; height: 4px; margin-left: -3px; background: var(--paper-2); box-shadow: -2px 0 0 0 var(--frame), 2px 0 0 0 var(--frame), 0 2px 0 0 var(--frame); }
-  .nametag { position: absolute; left: 0; top: 0; font-size: 13px; font-weight: 600; color: var(--paper-hi); white-space: nowrap; padding: 0 5px 1px; background: rgba(45, 31, 41, 0.72); }
-  .nametag.sel { background: var(--tomato); color: var(--on-tomato); }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 6px; height: 4px; margin-left: -3px; background: var(--page-2); box-shadow: -2px 0 0 0 var(--frame), 2px 0 0 0 var(--frame), 0 2px 0 0 var(--frame); }
+  .nametag { position: absolute; left: 0; top: 0; font-size: 13px; font-weight: 600; color: var(--page); white-space: nowrap; padding: 0 5px 1px; background: rgba(33, 26, 36, 0.72); }
+  .nametag.sel { background: var(--ribbon); color: var(--on-ribbon); }
 
-  /* ---------- Toasts ---------- */
-  #toasts { position: absolute; top: calc(var(--edge-t) + 66px); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none; width: max-content; max-width: min(440px, calc(100vw - 32px)); }
-  .toast { display: flex; align-items: center; gap: 10px; padding: 7px 14px 8px 10px; background: var(--paper); box-shadow: var(--frame-px), inset 0 -2px 0 0 var(--paper-2); filter: var(--lift); font-size: 16px; font-weight: 500; color: var(--ink); transition: opacity 200ms ease, transform 200ms var(--out); }
+  /* ---------- Toasts: sticky notes ---------- */
+  #toasts { position: absolute; bottom: calc(var(--edge-b) + 136px); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none; width: max-content; max-width: min(440px, calc(100vw - 32px)); }
+  .toast { display: flex; align-items: center; gap: 10px; padding: 8px 14px 9px 10px; background: var(--note); box-shadow: inset 0 -3px 0 0 #ecd77a; filter: var(--lift); font-size: 16px; font-weight: 500; color: var(--ink); transition: opacity 200ms ease, transform 200ms var(--out); }
   @starting-style { .toast { opacity: 0; transform: translateY(-10px); } }
   .toast img { width: 20px; height: 20px; image-rendering: pixelated; }
   .toast.out { opacity: 0; transform: translateY(-6px); }
 
   /* ---------- Help and loading ---------- */
   #help { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 10, 26, 0.55); padding: 16px; }
-  #help .paper { max-width: 560px; width: 100%; max-height: 100%; overflow-y: auto; padding: 22px 24px; }
+  #help .leather { max-width: 600px; width: 100%; max-height: 100%; display: flex; padding: 10px; }
+  #help .inner { flex: 1; overflow-y: auto; padding: 22px 26px; background: var(--page); box-shadow: 0 0 0 2px var(--cover-lo); }
   #help h2 { margin: 0 0 6px; font-size: 30px; font-weight: 700; text-wrap: balance; }
-  #help h3 { margin: 20px 0 8px; font-size: 18px; font-weight: 700; color: var(--tomato-lo); }
+  #help h3 { margin: 20px 0 8px; font-size: 18px; font-weight: 700; color: var(--ribbon-lo); }
   #help p, #help li { font-size: 15px; line-height: 1.5; color: var(--ink-2); }
   #help li b { color: var(--ink); }
   #help ul { margin: 0; padding-left: 18px; }
-  #help kbd { font-family: var(--ui); font-size: 13px; padding: 0 5px 1px; background: var(--paper-hi); box-shadow: var(--frame-px); color: var(--ink); margin: 0 2px; }
+  #help kbd { font-family: var(--ui); font-size: 13px; padding: 0 5px 1px; background: var(--page-2); box-shadow: var(--frame-px); color: var(--ink); margin: 0 2px; }
   #help-close { margin-top: 18px; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--night); z-index: 5; }
-  #loading .paper { padding: 14px 22px; font-size: 18px; }
+  #loading .page { padding: 14px 22px; font-size: 18px; }
 
-  /* After dark the paper is lamp-lit, not screen-bright */
-  body.dusk .paper, body.dusk .token { filter: var(--lift) brightness(0.86) sepia(0.12); }
-  body.dusk .toast { filter: var(--lift) brightness(0.9); }
+  /* After dark the pages are lamp-lit, not screen-bright */
+  body.dusk .page, body.dusk .spread, body.dusk .token, body.dusk .key { filter: brightness(0.88) sepia(0.1); }
+  body.dusk .page { filter: var(--lift) brightness(0.88) sepia(0.1); }
+  body.dusk .toast { filter: var(--lift) brightness(0.92); }
+
   body.focus #hud-tl, body.focus #roster, body.focus #inspector, body.focus #hud-tr > *:not(#btn-full) { display: none !important; }
+  /* Narrower screens: the book closes to one page with the tabs on top */
+  @media (max-width: 1100px) {
+    #inspector { width: 360px; }
+    .spread { grid-template-columns: 1fr; overflow-y: auto; }
+    .spread::before { display: none; }
+    .spread::after { left: auto; right: 24px; }
+    .leaf-l, .leaf-r { overflow: visible; min-height: auto; }
+    .spread { grid-template-rows: auto auto; align-content: start; }
+    .leaf-l { padding-bottom: 6px; }
+    #cmd { margin-top: 0; }
+  }
   @media (max-width: 760px) {
     #hud-tl { bottom: auto; width: min(220px, calc(100vw - 168px)); }
-    #clock { grid-template-columns: 1fr; padding: 10px 12px; }
+    #clock { grid-template-columns: 1fr; padding: 12px 12px 10px; }
     #dial { display: none; }
     #clock-time { font-size: 36px; }
     #stock { flex-direction: column; gap: 6px; }
     #hud-tr { max-width: 140px; }
     #hud-tr .gap, #hud-tr .lbl { display: none; }
-    #log { position: fixed; left: calc(var(--edge-l) + 2px); right: calc(var(--edge-r) + 2px); bottom: 112px; max-height: 26vh; }
-    #toasts { top: auto; bottom: 116px; }
-    #inspector { left: calc(var(--edge-l) + 2px); right: calc(var(--edge-r) + 2px); width: auto; top: auto; bottom: 108px; max-height: 58%; }
-    .token { width: 66px; }
+    #log { position: fixed; left: calc(var(--edge-l) + 2px); right: calc(var(--edge-r) + 2px); bottom: 118px; max-height: 26vh; }
+    #toasts { top: calc(var(--edge-t) + 4px); bottom: auto; }
+    #inspector { left: calc(var(--edge-l) + 2px); right: calc(var(--edge-r) + 2px); width: auto; top: auto; bottom: 112px; max-height: 60%; }
+    .token { width: 64px; }
+    .token .face { width: 54px; height: 46px; }
+    .token .face img { width: 46px; height: 46px; }
     .token small { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -264,69 +317,77 @@
 
 <div id="stage">
   <canvas id="game" aria-label="Island simulation view"></canvas>
-  <div id="loading"><div class="paper">Washing ashore on Tidewhistle Isle…</div></div>
+  <div id="loading"><div class="page">Washing ashore on Tidewhistle Isle…</div></div>
   <div id="overlay"></div>
 
   <div id="hud-tl">
-    <div id="clock" class="paper">
+    <div id="clock" class="page taped">
       <canvas id="dial" class="px" width="48" height="24" aria-hidden="true"></canvas>
       <span id="clock-time">06:30</span>
       <div id="clock-sub"><b id="clock-date">Fri, Spring 1</b> <span id="clock-weather">Sunny</span></div>
-      <div id="stock"><span id="stock-food-wrap" class="well"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" id="ico-food" class="px" alt="">Pantry <b id="stock-food">0</b></span><span id="stock-wood-wrap" class="well"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" id="ico-wood" class="px" alt="">Wood <b id="stock-wood">0</b></span></div>
+      <div id="stock"><span id="stock-food-wrap"><img id="ico-food" class="px" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">Pantry <b id="stock-food">0</b></span><span id="stock-wood-wrap"><img id="ico-wood" class="px" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">Wood <b id="stock-wood">0</b></span></div>
       <div id="next-event"></div>
     </div>
-    <div id="speed" class="plank" role="group" aria-label="Simulation speed">
-      <button class="key icon" data-speed="0" title="Pause (Space)" aria-label="Pause"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" id="ico-pause" alt=""></button>
+    <div id="speed" class="leather" role="group" aria-label="Simulation speed">
+      <button class="key icon" data-speed="0" title="Pause (Space)" aria-label="Pause"><img id="ico-pause" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
       <button class="key" data-speed="1" title="Normal speed (2)">1×</button>
       <button class="key" data-speed="2" title="Double speed (3)">2×</button>
       <button class="key" data-speed="3" title="Five times (4)">5×</button>
       <button class="key" data-speed="4" title="Fifteen times (5)">15×</button>
       <span id="ff" hidden>Night skip</span>
     </div>
-    <aside id="log" class="paper">
+    <aside id="log" class="page">
       <div id="log-head"><h3>Island journal</h3></div>
       <ul id="log-list"></ul>
     </aside>
   </div>
 
-  <div id="hud-tr" class="plank">
-    <button class="key icon" id="zoom-out" title="Zoom out (-)" aria-label="Zoom out"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="minus" alt=""></button>
-    <button class="key icon" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="plus" alt=""></button>
+  <div id="hud-tr" class="leather">
+    <button class="key icon" id="zoom-out" title="Zoom out (-)" aria-label="Zoom out"><img data-icon="minus" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
+    <button class="key icon" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in"><img data-icon="plus" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
     <span class="gap"></span>
-    <button class="key" id="btn-roofs" title="See inside buildings (R)"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="roof" alt=""><span class="lbl">Roofs</span></button>
-    <button class="key" id="btn-names" title="Name tags (N)"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="tag" alt=""><span class="lbl">Names</span></button>
-    <button class="key" id="btn-log" title="Island journal (L)"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="book" alt=""><span class="lbl">Journal</span></button>
-    <button class="key" id="btn-full" title="Fullscreen, or hide the HUD where fullscreen is blocked (H)"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="full" alt=""><span class="lbl" id="btn-full-lbl">Fullscreen</span></button>
-    <button class="key icon" id="btn-help" title="How to play" aria-label="How to play"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-icon="help" alt=""></button>
+    <button class="key" id="btn-roofs" title="See inside buildings (R)"><img data-icon="roof" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Roofs</span></button>
+    <button class="key" id="btn-names" title="Name tags (N)"><img data-icon="tag" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Names</span></button>
+    <button class="key" id="btn-log" title="Island journal (L)"><img data-icon="book" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Journal</span></button>
+    <button class="key" id="btn-full" title="Fullscreen, or hide the HUD where fullscreen is blocked (H)"><img data-icon="full" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl" id="btn-full-lbl">Fullscreen</span></button>
+    <button class="key icon" id="btn-help" title="How to play" aria-label="How to play"><img data-icon="help" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
   </div>
 
-  <aside id="inspector" class="paper" hidden>
-    <div id="insp-head">
-      <div class="face"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" id="insp-portrait" alt=""></div>
-      <div id="insp-title"><h2 id="insp-name">Name</h2><div id="insp-sub"><span class="mood" id="insp-mood"></span><span id="insp-mood-word"></span></div></div>
-      <div id="insp-actions"><button class="key" id="insp-follow">Follow</button><button class="key" id="insp-close">Close</button></div>
+  <aside id="inspector" class="leather" hidden>
+    <div class="spread">
+      <section class="leaf-l">
+        <div id="insp-head">
+          <div class="face"><img id="insp-portrait" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></div>
+          <div id="insp-title"><h2 id="insp-name">Name</h2><div id="insp-sub"><span class="mood" id="insp-mood"></span><span id="insp-mood-word"></span></div></div>
+          <div id="insp-actions"><button class="key" id="insp-follow">Follow</button><button class="key" id="insp-close">Close</button></div>
+        </div>
+        <div id="insp-now"></div>
+        <form id="cmd" autocomplete="off">
+          <label for="cmd-in" id="cmd-label">Whisper from the sky</label>
+          <div id="cmd-row">
+            <input id="cmd-in" type="text" maxlength="80" placeholder="Tell them what to do…">
+            <button class="key" type="submit">Say it</button>
+          </div>
+          <div id="cmd-ideas"></div>
+          <p id="cmd-out" role="status"></p>
+        </form>
+      </section>
+      <section class="leaf-r">
+        <div id="insp-tabs" role="tablist">
+          <button data-tab="now" role="tab">Needs</button>
+          <button data-tab="bonds" role="tab">Bonds</button>
+          <button data-tab="about" role="tab">About</button>
+        </div>
+        <div id="insp-body"></div>
+      </section>
     </div>
-    <form id="cmd" class="well" autocomplete="off">
-      <div id="cmd-row">
-        <input id="cmd-in" type="text" maxlength="80" aria-label="Tell this islander what to do" placeholder="Tell them what to do…">
-        <button class="key" type="submit">Say it</button>
-      </div>
-      <div id="cmd-ideas"></div>
-      <p id="cmd-out" role="status"></p>
-    </form>
-    <div id="insp-tabs" role="tablist">
-      <button data-tab="now" role="tab">Now</button>
-      <button data-tab="bonds" role="tab">Bonds</button>
-      <button data-tab="about" role="tab">About</button>
-    </div>
-    <div id="insp-body"></div>
   </aside>
 
-  <div id="roster" class="plank"></div>
+  <div id="roster" class="leather"></div>
   <div id="toasts"></div>
 
   <div id="help" hidden>
-    <div class="paper">
+    <div class="leather"><div class="inner">
       <h2>Tidewhistle Isle</h2>
       <p>Six islanders and one cat live here, each with their own personality, needs, crushes and grudges. You are the Sky Hand. Watch over them, or meddle.</p>
       <h3>Controls</h3>
@@ -348,7 +409,7 @@
       </ul>
       <p>Plus birthdays, storms, dolphins, shooting stars, messages in bottles, and the occasional cold.</p>
       <button class="key" id="help-close">Back to the island</button>
-    </div>
+    </div></div>
   </div>
 </div>
 

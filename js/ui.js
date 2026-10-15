@@ -86,6 +86,7 @@ IS.UI = class {
     if (!force && this.ideasFor === p) return;
     this.ideasFor = p;
     this.$('cmd-in').placeholder = `Tell ${p.name} what to do…`;
+    this.$('cmd-label').textContent = `Whisper to ${p.name}`;
     if (!force) this.$('cmd-out').textContent = '';
     this.$('cmd-ideas').innerHTML = IS.Command.suggestions(p).map(t => `<button type="button" class="idea">${this.esc(t)}</button>`).join('');
   }
@@ -289,18 +290,20 @@ IS.UI = class {
     this.$('insp-mood-word').textContent = `${p.moodWord()}${p.cfg.age ? ', ' + p.cfg.age : ''}${p.sick ? ', has a cold' : ''}`;
     this.ideas(p);
     const body = this.$('insp-body');
-    const scroll = body.scrollTop;
+    const scroller = body.parentElement;
+    const scroll = scroller.scrollTop;
+    const nowHtml = `<div class="doing">${this.esc(p.actionLabel())}</div><div class="thought">${this.esc(p.thought)}</div>`;
+    if (this.$('insp-now').innerHTML !== nowHtml) this.$('insp-now').innerHTML = nowHtml;
     if (this.tab === 'now') body.innerHTML = this.tabNow(p);
     else if (this.tab === 'bonds') body.innerHTML = this.tabBonds(p);
     else body.innerHTML = this.tabAbout(p);
-    body.scrollTop = scroll;
+    scroller.scrollTop = scroll;
   }
 
   tabNow(p) {
     const n = p.needs;
     return `
-      <section><div class="doing">${this.esc(p.actionLabel())}</div><div class="thought">${this.esc(p.thought)}</div></section>
-      <section><h4>Needs</h4><div class="meters">
+      <section><h4>How they're doing</h4><div class="meters">
         <span>Fullness</span>${this.needPips(n.hunger)}
         <span>Energy</span>${this.needPips(n.energy)}
         <span>Social</span>${this.needPips(n.social)}

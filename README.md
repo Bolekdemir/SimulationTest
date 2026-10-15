@@ -18,6 +18,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 - **Relationships** drift toward what their personalities naturally support.
 - **Romance with taste**: everyone has a type (`into` in config: looks, smarts, funny, kind, drive, confidence). Forest falls for looks almost on sight; Lynn wants kindness and brains. Crushes, flirting, confessions, rejections and couples follow from it.
 - **Noticing each other**: islanders spot people they like across the island and walk over to chat, wave in passing, and pause their work when a friend drops by.
+- **Conversations that don't loop**: about 5x more lines, each islander has their own voice, nobody repeats what was said recently, and they ask each other real questions, tease each other about crushes, comment on what others are doing, and bring up recent fights or favours.
 - **Whispers from the sky**: type an order into the selected islander's page ("go fishing", "flirt with Lynn", "apologize to Beach", "roast Egg", "stop"). They always obey, with an opinion about it.
 - **Weekly calendar**: Tue fishing contest, Wed supply boat, Thu story night, Fri community dinner, Sat beach bonfire, Sun picnic, plus birthday parties.
 - **Random life**: weather (sun, clouds, rain, storms, fog), dolphins, shooting stars, messages in bottles, colds (friends bring soup), food spoilage, firewood running out.
@@ -54,7 +55,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | `js/cat.js` | The island cat |
 | `js/social.js` | Conversations, attraction, noticing, relationship changes |
 | `js/command.js` | Parses typed orders into activities and conversations |
-| `js/dialogue.js` | Line pools |
+| `js/dialogue.js` | Line pools, per-islander voices, questions with real answers, no-repeat picking |
 | `js/events.js` | Calendar, weather, random events, supply boat |
 | `js/render.js` | Drawing, lighting, weather, particles |
 | `js/ui.js`, `js/input.js`, `js/main.js` | HUD, controls, main loop |
