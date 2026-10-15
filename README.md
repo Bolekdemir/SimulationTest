@@ -56,11 +56,25 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | Give an order | Select an islander, type in the box on their page |
 | Fullscreen | The Fullscreen button. If the viewer blocks real fullscreen, it hides the HUD instead (H toggles that too) |
 
+## Training the brains
+
+The islanders' behaviour is hand-written, but its key numbers (how chatty they are, how often they notice each other, how much plans matter, how likely each conversation topic is) live in `js/tune.js` and are trained:
+
+- `tools/critic.js` is the judge. It watches a simulation and scores it: it penalises nonsense (talking about yourself in the third person, gossiping about someone to their face, congratulating your own couple, sleeping people talking, greeting the wrong person, "good morning" at night, ignored questions, repeated lines and topics) and bad behaviour (starving with food in the pantry, exhaustion, idling, getting stuck), and rewards variety, finished plans, mood, doing what you love, and a healthy amount of drama.
+- `tools/train.js` runs islands four at a time in headless browsers with seeded randomness, and evolves the settings: each generation's best brains survive, breed and mutate.
+
+```
+node tools/train.js eval --sims 8 --days 3     # score the current brains
+node tools/train.js train --gens 25 --pop 10   # evolve new settings (writes tools/out/best.json)
+```
+
 ## Code map
 
 | File | What it does |
 | --- | --- |
 | `js/config.js` | Islanders and tuning |
+| `js/tune.js` | Trained brain settings |
+| `tools/critic.js`, `tools/train.js` | The judge and the trainer |
 | `js/world.js` | Island generation, buildings, activity spots, A* pathfinding, isometric terrain pre-render |
 | `js/iso.js` | Isometric projection and procedural iso art (buildings, interiors, props) |
 | `js/sprites.js` | All pixel art, drawn procedurally |

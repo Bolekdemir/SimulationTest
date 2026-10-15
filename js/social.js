@@ -65,7 +65,7 @@ IS.Social = (() => {
           a.pose !== 'sleep' && b.pose !== 'sleep' && (sim.greetCooldown[key] || 0) < now &&
           a.action && b.action && a.action.phase === 'travel' && b.action.phase === 'travel' && !a.isAvoiding(b)) {
         sim.greetCooldown[key] = now + 240;
-        if (Math.random() < 0.7) S.passBy(sim, a, b);
+        if (Math.random() < IS.Tune.passByChance) S.passBy(sim, a, b);
       }
       if (!a.canChat() || !b.canChat()) continue;
       if (a.isAvoiding(b) || b.isAvoiding(a)) continue;
@@ -76,9 +76,9 @@ IS.Social = (() => {
       const rel = (a.relTo(b.name).friendship + b.relTo(a.name).friendship) / 2;
       const relF = IS.clamp(1 + rel / 80, 0.25, 2);
       const travelling = (a.action && a.action.phase === 'travel') || (b.action && b.action.phase === 'travel');
-      let p = 0.1 * ((a.traits.sociable + b.traits.sociable) / 2 + 0.25) * (0.6 + social * 1.4) * relF;
-      if (atEvent) p *= 3;
-      if (travelling) p *= 0.35;
+      let p = IS.Tune.chatRate * ((a.traits.sociable + b.traits.sociable) / 2 + 0.25) * (0.6 + social * 1.4) * relF;
+      if (atEvent) p *= IS.Tune.chatEventMult;
+      if (travelling) p *= IS.Tune.chatTravelMult;
       if (Math.random() < p * dt) S.start(sim, a, b, { atEvent });
     }
     // Noticing: someone free spots a person they like and walks over
@@ -96,8 +96,8 @@ IS.Social = (() => {
         if (a.mood() < 30) want -= a.traits.grumpy * 0.6;
         if (a.action && a.action.phase === 'do' && ['garden', 'fish', 'forage'].includes(a.action.def.id)) want -= a.traits.hardworking * 0.4;
         if (r.partner) want += 0.5;
-        if (want <= 0.2) continue;
-        if (Math.random() < 0.02 * (want - 0.2) * dt * (IS.TILE * 10 - d) / (IS.TILE * 10)) {
+        if (want <= IS.Tune.noticeMin) continue;
+        if (Math.random() < IS.Tune.noticeRate * (want - IS.Tune.noticeMin) * dt * (IS.TILE * 10 - d) / (IS.TILE * 10)) {
           a.noticeUntil = now + 60;
           S.approach(sim, a, b);
           break;
@@ -105,7 +105,7 @@ IS.Social = (() => {
       }
       // Looking is free: people who care about looks catch feelings from afar
       const into = a.cfg.into || {};
-      if ((into.looks || 0) >= 0.4 && Math.random() < 0.015 * dt) {
+      if ((into.looks || 0) >= 0.4 && Math.random() < IS.Tune.glanceRate * dt) {
         const seen = ppl.find(b => b !== a && a.canFallFor(b.name) && (a.building || null) === (b.building || null) && IS.dist(a.x, a.y, b.x, b.y) < IS.TILE * 6);
         if (seen) {
           const gain = into.looks * (seen.cfg.looks ?? 0.5) * 1.2;
@@ -181,7 +181,7 @@ IS.Social = (() => {
       else if (!pend) segs.push({ kind: 'auto', sp: a, li: b });
       // Chatty pairs drift onto a second topic, led by the other person
       const soc = (a.traits.sociable + b.traits.sociable) / 2;
-      const second = !['argue', 'confess'].includes(opts.topic) && Math.random() < (opts.atEvent ? 0.35 : 0.2 + soc * 0.45);
+      const second = !['argue', 'confess'].includes(opts.topic) && Math.random() < (opts.atEvent ? 0.35 : IS.Tune.secondBase + soc * IS.Tune.secondSoc);
       if (second) segs.push({ kind: 'segue', sp: b }, { kind: 'auto', sp: b, li: a });
       if (!opts.atEvent) segs.push({ kind: 'bye' });
       return segs;
@@ -215,6 +215,8 @@ IS.Social = (() => {
           const l = IS.Talk.step(this, seg.run);
           if (l) return l;
           if (seg.run.endsAfter) { this.segIdx = this.segs.length; return null; }
+          // Someone nearby overheard and can't help themselves
+          if (!seg.chimed) { seg.chimed = true; const c = IS.Talk.chimeIn(this, seg.run); if (c) return c; }
         }
         if (seg.legacyEnds) { this.segIdx = this.segs.length; return null; }
         this.segIdx++;
@@ -226,10 +228,7 @@ IS.Social = (() => {
       const { sim, a, b } = this;
       const D = IS.Dialogue;
       switch (seg.kind) {
-        case 'greet': {
-          seg.lines = [a, b].map(p => ({ sp: p, text: D.fill(D.as(p).line('greet', D.tone(p, this.other(p))), S.ctx(sim, p, this.other(p))) }));
-          return true;
-        }
+        case 'greet': seg.lines = IS.Talk.greetLines(sim, a, b); if (seg.lines.askedDoing) { this.used.add('activity'); this.used.add('observe'); } return true;
         case 'resume': {
           const pd = seg.pend;
           for (const p of [a, b]) if (p.pending) delete p.pending[this.other(p).name];
@@ -331,6 +330,7 @@ IS.Social = (() => {
       const atEvent = a.action && a.action.def.id === 'attend';
       sim.chatCooldown[key] = sim.clock.abs + (atEvent ? 25 : IS.rand(80, 140));
       IS.Mind.onChatEnd(a, b, aborted);
+      for (const [p, o] of [[a, b], [b, a]]) (p.lastTalked = p.lastTalked || {})[o.name] = sim.clock.abs;
       if (aborted) return;
       if (this.lastTopic === 'argue') return;
       if (Math.abs(this.totalDelta) >= 4) {
@@ -366,14 +366,18 @@ IS.Social = (() => {
 
   const cap = t => t[0].toUpperCase() + t.slice(1);
   // What someone is up to, in words that fit inside a sentence
+  const NOW = { fish: 'fishing', garden: 'gardening', chop: 'chopping wood', read: 'reading', beach: 'lying on the beach', swim: 'swimming', wander: 'wandering around', forage: 'foraging', stargaze: 'stargazing', plaza: 'people-watching at the plaza', petCat: 'petting the cat', eat: 'eating', home: 'pottering around at home', cook: 'cooking', care: 'looking after a sick friend', watchDolphins: 'watching the dolphins', greetBoat: 'waiting for the boat', pickBottle: 'poking at a bottle on the beach', socialize: 'looking for someone to talk to' };
+  const GOING = { fish: 'on the way to fish', garden: 'heading to the garden', chop: 'off to chop wood', read: 'off to read somewhere', beach: 'heading to the beach', swim: 'off for a swim', wander: 'out for a walk', forage: 'heading into the woods', stargaze: 'off to look at the stars', plaza: 'heading to the plaza', petCat: 'looking for the cat', sleep: 'heading to bed', eat: 'off to eat', home: 'heading home', cook: 'off to cook', attend: 'heading to the event' };
   S.nowWord = p => {
     if (p.mode === 'carried' || p.mode === 'air') return 'flying through the air';
     if (p.chat) return `chatting with ${p.chat.other(p).name}`;
     if (p.pose === 'sleep') return 'asleep';
     const a = p.action;
     if (!a) return 'standing around';
-    const l = (a.def.label2 ? a.def.label2(p, a) : a.def.label).toLowerCase();
-    return a.phase === 'travel' && !a.follow ? `off ${l}` : l;
+    if (a.def.id === 'approach' && a.follow) return `going to see ${a.follow.name}`;
+    if (a.phase === 'travel') return GOING[a.def.id] || 'wandering off somewhere';
+    if (a.def.id === 'attend') return `at the ${a.event ? a.event.name : 'event'}`;
+    return NOW[a.def.id] || 'doing their thing';
   };
 
   // Pick a topic based on personality, memories, relationship and context.
@@ -381,7 +385,7 @@ IS.Social = (() => {
     const r = sp.relTo(li.name);
     const t = sp.traits;
     const cands = [];
-    const add = (topic, w, extra) => { if (w > 0 && !used.has(topic)) cands.push({ topic, w, extra }); };
+    const add = (topic, w, extra) => { w *= IS.Tune.topic[topic] ?? 1; if (w > 0 && !used.has(topic)) cands.push({ topic, w, extra }); };
 
     if (li.cfg.birthday && sim.isBirthday(li) && !li.visitedBy.has('bday:' + sp.name)) add('birthday', 30);
     for (const tag of ['sea', 'grabbed']) {
@@ -428,6 +432,7 @@ IS.Social = (() => {
     if (r.friendship < 0 && t.kind > 0.5) add('apology', 1.6);
     if ((sp.cfg.catchphrases || []).length) add('catchphrase', 0.6);
     IS.Mind.topics(sim, sp, li, add, r);
+    IS.Talk.topics(sim, sp, li, add, r);
     // Everyday small talk
     add('question', 0.9 + t.curious * 0.8);
     add('plans', 0.6);
@@ -443,6 +448,10 @@ IS.Social = (() => {
     const mem = sp.memories.find(m => m.about === li.name && sim.clock.abs - m.t < 2880 && sim.clock.abs - m.t > 30 && ['chat', 'argue', 'care'].includes(m.tag) && !m.toldTo.has(li.name));
     if (mem) add(mem.tag === 'argue' ? 'memoryBad' : mem.tag === 'care' ? 'memoryCare' : 'memoryGood', mem.tag === 'argue' ? 1.2 + t.kind : 0.9, { memory: mem });
 
+    // Feelings steer topics: nobody jokes or flirts while heartbroken or sulking
+    const feel = IS.Mind.feeling(sp);
+    if (feel && (feel.type === 'heartbroken' || feel.type === 'sulking')) for (const c of cands) if (['joke', 'roast', 'flirt', 'tease', 'catchphrase', 'cocky', 'brag'].includes(c.topic)) c.w *= 0.08;
+    if (feel && feel.type === 'giddy') for (const c of cands) if (['compliment', 'deep', 'joke'].includes(c.topic)) c.w *= 1.6;
     if (listOnly) return cands;
     const pick = IS.weightedPick(cands.length ? cands : [{ topic: 'weather', w: 1 }]);
     return S.topicFor(sim, sp, li, pick.topic, pick.extra || {});
@@ -465,7 +474,7 @@ IS.Social = (() => {
       case 'eventSoon': {
         const ev = extra.event;
         const when = ev.day === sim.clock.day ? (ev.start > sim.clock.min ? 'tonight' : 'today') : 'tomorrow';
-        ctx.event = ev.name; ctx.when = ev.start < 17 * 60 && ev.day === sim.clock.day ? 'today' : when;
+        ctx.event = ev.birthday === sp.name ? 'my birthday party' : ev.birthday === li.name ? 'your birthday party' : ev.name; ctx.when = ev.start < 17 * 60 && ev.day === sim.clock.day ? 'today' : when;
         text = D.line('eventSoon');
         break;
       }

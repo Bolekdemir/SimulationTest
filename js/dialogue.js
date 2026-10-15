@@ -124,7 +124,7 @@ IS.Dialogue = (() => {
       neg: ['Wow. Okay. Didn\'t ask.', 'That\'s a you problem.', 'Bold of you.'],
     },
     Forest: {
-      greet: ['{other}.', 'Hey. Walk with me, I\'m busy.', 'Morning. You\'re up late.', 'Hey. You train today?'],
+      greet: ['{other}.', 'Hey. Walk with me, I\'m busy.', 'You\'re up late.', 'Hey. You train today?'],
       activity: ['Chopped a full cord this morning.', 'Garden\'s ahead of schedule. Good.', 'Swam the bay twice. Could do three.'],
       deep: ['I push hard because standing still scares me a little.', 'I\'m not great at saying it, but I\'m glad you\'re here.', 'Sometimes I think I should slow down. Then I don\'t.'],
       island: ['The fence on the farm needs fixing. I\'ll do it.', 'Woodpile\'s low again. Nobody else notices.'],

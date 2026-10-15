@@ -88,7 +88,12 @@ IS.Mind = (() => {
   // Something the speaker knows that the listener doesn't (and isn't about them)
   M.unknownNews = (sim, sp, li) => {
     const now = sim.clock.abs;
-    return (sim.news || []).slice().reverse().find(n => sp.knows.has(n.id) && !li.knows.has(n.id) && n.a !== li.name && n.b !== li.name && now - n.t < 2880 && RUMOR[n.kind]);
+    return (sim.news || []).slice().reverse().find(n => sp.knows.has(n.id) && !li.knows.has(n.id) && n.a !== li.name && n.b !== li.name && n.a !== sp.name && n.b !== sp.name && now - n.t < 2880 && RUMOR[n.kind]);
+  };
+  // The speaker's own news that the listener hasn't heard yet (told in first person)
+  M.ownNews = (sim, sp, li) => {
+    const now = sim.clock.abs;
+    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
   };
   const RUMOR = {
     fight: ['Did you hear {a} and {b} got into it?', '{a} and {b} had a HUGE fight earlier.', 'So... {a} and {b} aren\'t talking right now.'],
@@ -158,7 +163,7 @@ IS.Mind = (() => {
     let b = 0;
     for (const pl of p.plans || []) {
       if (pl.done) continue;
-      if (pl.kind === 'do' && pl.def === def.id) b += 0.9 + p.traits.hardworking * 0.4;
+      if (pl.kind === 'do' && pl.def === def.id) b += IS.Tune.planWeight + p.traits.hardworking * 0.4;
     }
     const e = M.feeling(p);
     if (e) {
@@ -183,6 +188,7 @@ IS.Mind = (() => {
   };
 
   M.onChatEnd = (a, b, aborted) => {
+    for (const p of [a, b]) if (p.afterChat) { const f = p.afterChat; p.afterChat = null; if (!aborted) f(); }
     if (aborted) return;
     a.lastChatAt = b.lastChatAt = a.sim.clock.abs;
     for (const [p, o] of [[a, b], [b, a]]) {
@@ -210,7 +216,7 @@ IS.Mind = (() => {
     const partner = p.partner();
     const plan = (p.plans || []).find(pl => !pl.done && ((pl.kind === 'do' && pl.def === def.id && pl.invite) || pl.kind === 'bros' || (pl.kind === 'date' && DATE.has(def.id) && min >= 17 * 60)));
     const dateTime = partner && DATE.has(def.id) && min >= 17.5 * 60 && min < 22 * 60;
-    let chance = (0.08 + p.traits.sociable * 0.3) * INVITE[def.id];
+    let chance = (IS.Tune.inviteBase + p.traits.sociable * IS.Tune.inviteSoc) * INVITE[def.id];
     if (plan) chance += 0.45;
     if (dateTime) chance += 0.4;
     if (Math.random() > chance) return;
@@ -294,7 +300,9 @@ IS.Mind = (() => {
     const g = M.led(sp, li.name);
     if (g.grudge > 14 && t.kind < 0.8) add('grudge', g.grudge / 14 + t.grumpy);
     if (g.thanks > 8) add('thanks', 1 + g.thanks / 20);
-    const known = (sim.news || []).filter(x => sp.knows.has(x.id) && (x.a === li.name || x.b === li.name) && sim.clock.abs - x.t < 1440 * 2);
+    const own = M.ownNews(sim, sp, li);
+    if (own) add('myNews', 2.6 + t.sociable, { news: own });
+    const known = (sim.news || []).filter(x => sp.knows.has(x.id) && (x.a === li.name || x.b === li.name) && x.a !== sp.name && x.b !== sp.name && sim.clock.abs - x.t < 1440 * 2);
     const congrats = known.find(x => (x.kind === 'couple' || x.kind === 'won') && !(sp.congratulated || new Set()).has(x.id));
     if (congrats) {
       const e = M.feeling(sp);
@@ -431,6 +439,7 @@ IS.Mind = (() => {
         if (w.relTo(li.name).romance > 40 || w.relTo(li.name).partner) { M.feel(w, 'jealous', sp.name, w.relTo(li.name).partner ? 10 : 6); w.thought = `Why is ${sp.name} flirting with ${li.name}?!`; M.led(w, sp.name).grudge += w.relTo(li.name).partner ? 8 : 3; M.led(w, sp.name).why = `flirting with ${li.name}`; }
       }
     }
+    if (topic === 'myNews' && t.extra && t.extra.news) M.learn(sim, li, t.extra.news, sp);
     if (topic === 'sickVisit') { const g = M.led(li, sp.name); g.thanks += 12; g.favor = 'the soup when I was sick'; }
     if (topic === 'roast' && out.df < 0) { const g = M.led(li, sp.name); g.grudge += 3; g.why = 'that roast'; }
     if ((topic === 'compliment' || topic === 'deep') && out.df > 1) M.led(li, sp.name).thanks += 1;
@@ -459,7 +468,7 @@ IS.Mind = (() => {
       const e = M.feeling(p);
       if (p.emotion && !e) p.emotion = null;
       // Loneliness
-      if (!e && p.needs.social < 14 && now - (p.lastChatAt || 0) > 240 && p.pose !== 'sleep') M.feel(p, 'lonely', null, 3);
+      if (!e && p.needs.social < IS.Tune.lonelyAt && now - (p.lastChatAt || 0) > 240 && p.pose !== 'sleep') M.feel(p, 'lonely', null, 3);
       // Feelings leak into thoughts now and then
       if (e && p.action && Math.random() < 0.004 * dt) p.thought = M.thoughtFor(p, e);
       if (p.action && p.action.date && p.action.phase === 'do' && Math.random() < 0.05 * dt) p.emote('heart', 1.4);
@@ -470,7 +479,7 @@ IS.Mind = (() => {
       if (!pl) continue;
       const o = sim.byName(pl.who);
       if (!o || o.chat || !o.canBeVisited(p)) continue;
-      if (Math.random() < 0.035 * dt * (0.5 + p.traits.sociable)) {
+      if (Math.random() < IS.Tune.planSocialRate * dt * (0.5 + p.traits.sociable)) {
         pl.tries++; pl.nextTry = now + 90;
         if (pl.tries > 4) { pl.done = true; pl.gaveUp = true; continue; }
         if (pl.topic === 'confess' && p.relTo(o.name).romance < 70) pl.topic = 'flirt';

@@ -149,6 +149,15 @@ IS.Person = class {
 
   // ---------------------------------------------------------------- brain
   decide(c) {
+    // Never plan from somewhere you can't walk: swim to shore or hop clear first
+    if (!this.world.walkable(this.tx, this.ty)) {
+      if (this.isWaterHere()) {
+        const goal = this.world.findNear(this.tx, this.ty, (x, y) => this.world.walkable(x, y) && this.world.reach[this.world.idx(x, y)] === 1, 60);
+        if (goal) { this.mode = 'swim'; this.swimTarget = goal; return; }
+      }
+      const g = this.world.nearestWalkable(this.tx, this.ty);
+      if (g) { this.mode = 'hop'; this.hop = { fx: this.x, fy: this.y, tx: g.x * IS.TILE + 12, ty: g.y * IS.TILE + 18, t: 0 }; return; }
+    }
     const opts = [];
     const outdoorNight = c.min >= 21.5 * 60 || c.min < 5.5 * 60;
     for (const def of IS.Actions.list) {
@@ -332,7 +341,7 @@ IS.Person = class {
     const ok = a.care ? (o.sick && o.mode === 'normal') : o.canBeVisited(this);
     if (!ok) { this.cancelAction(); this.idleUntil = c.abs + 2; return; }
     const d = IS.dist(this.x, this.y, o.x, o.y);
-    if (d <= IS.TILE * (a.near ? 3.2 : 1.6)) {
+    if (d <= IS.TILE * (a.near ? 3.2 : 1.6) && (this.building || null) === (o.building || null)) {
       this.faceToward(o.x, o.y);
       const started = IS.Social.start(this.sim, this, o, a.care ? { topic: 'sickVisit', stationaryB: true } : a.topic ? { topic: a.topic, forced: true } : { forced: true });
       if (started) { this.finishAction(c); return; }
