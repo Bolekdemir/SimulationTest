@@ -268,7 +268,7 @@ IS.Sprites = (() => {
     const r = IS.mulberry32(seed);
     const { c, g } = IS.makeCanvas(46, 58);
     const hue = r();
-    const D = IS.mix('#2f6b35', '#3d6e2a', hue), M = IS.mix('#4f9a45', '#5f9f3c', hue), L = IS.mix('#7cc35c', '#97c95a', hue);
+    const D = IS.mix('#237a3c', '#2f7d2c', hue), M = IS.mix('#42ad48', '#58b23c', hue), L = IS.mix('#93dc5a', '#bfe25a', hue);
     // trunk
     px(g, 19, 38, 8, 17, '#7a5232'); px(g, 19, 38, 2, 17, '#5e3d24'); px(g, 24, 40, 2, 15, '#946540');
     px(g, 17, 53, 12, 2, '#6a4529');
@@ -289,7 +289,7 @@ IS.Sprites = (() => {
   S.makePine = seed => {
     const r = IS.mulberry32(seed);
     const { c, g } = IS.makeCanvas(36, 62);
-    const D = IS.mix('#1f5a3e', '#25603a', r()), M = '#2f7a4a', L = '#4f9e5e';
+    const D = IS.mix('#17664a', '#1d6c40', r()), M = '#26935a', L = '#5ec06c';
     px(g, 16, 48, 4, 12, '#6b4428'); px(g, 16, 48, 1, 12, '#4f311c');
     const layers = [[46, 16, 15], [36, 14, 13], [26, 12, 11], [16, 9, 9]];
     for (const [base, h, half] of layers) {
@@ -324,7 +324,7 @@ IS.Sprites = (() => {
         const t = i / len;
         const x = tx + Math.cos(ang) * i;
         const y = ty + Math.sin(ang) * i + t * t * 10;
-        px(g, Math.round(x), Math.round(y), 2, 2, '#3f8f45');
+        px(g, Math.round(x), Math.round(y), 2, 2, '#3aa84a');
         if (i % 2 === 0) px(g, Math.round(x), Math.round(y) + 2, 1, 2, '#2f6f3a');
         if (i % 3 === 0) px(g, Math.round(x) + 1, Math.round(y) - 1, 1, 1, '#7cc35c');
       }

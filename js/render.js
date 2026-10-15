@@ -116,9 +116,9 @@ IS.Renderer = class {
   // Ambient tint by time of day, as [r, g, b, alpha]
   ambient(min) {
     const K = [
-      [0, [10, 14, 46, 0.72]], [300, [10, 14, 46, 0.7]], [360, [70, 50, 100, 0.38]], [420, [255, 170, 120, 0.1]],
-      [480, [255, 220, 180, 0]], [1020, [255, 200, 150, 0]], [1110, [255, 140, 60, 0.16]], [1170, [130, 60, 110, 0.32]],
-      [1230, [22, 24, 70, 0.58]], [1320, [10, 14, 46, 0.72]], [1440, [10, 14, 46, 0.72]],
+      [0, [18, 10, 58, 0.72]], [300, [18, 10, 58, 0.7]], [360, [70, 50, 100, 0.38]], [420, [255, 170, 120, 0.1]],
+      [480, [255, 220, 180, 0]], [1020, [255, 200, 150, 0]], [1110, [255, 120, 50, 0.2]], [1170, [150, 50, 120, 0.34]],
+      [1230, [40, 22, 90, 0.58]], [1320, [18, 10, 58, 0.72]], [1440, [18, 10, 58, 0.72]],
     ];
     let i = 1;
     while (i < K.length - 1 && K[i][0] <= min) i++;
@@ -245,6 +245,12 @@ IS.Renderer = class {
     }
     sim.fx.draw(ctx, ox, oy);
     this.drawGulls(ctx, ox, oy, rdt, t);
+
+    // Cozy colour grade: a warm soft-light wash adds saturation and depth
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.fillStyle = 'rgba(255, 186, 120, 0.2)';
+    ctx.fillRect(0, 0, vw, vh);
+    ctx.globalCompositeOperation = 'source-over';
 
     // Lighting
     const amb = this.ambient(sim.clock.min);
@@ -460,15 +466,20 @@ IS.Renderer = class {
     L.fillRect(0, 0, vw, vh);
     const lights = [];
     if (dark > 0) {
-      for (const l of w.lamps) lights.push({ x: l.x, y: l.y + 6, r: 46, s: 0.9 * dark, warm: 0.35 });
+      for (const l of w.lamps) lights.push({ x: l.x, y: l.y + 6, r: 56, s: 0.95 * dark, warm: 0.55 });
       const min = sim.clock.min;
       const evening = min >= 17.5 * 60 || min < 7.5 * 60;
       for (const bld of w.buildings) {
         const inside = sim.people.some(p => p.building === bld && p.pose !== 'sleep');
         const hallEv = bld.kind === 'hall' && sim.events.list.some(e => e.state === 'active' && e.seat === 'hallSeat');
+        if (bld.kind === 'hall' && bld.cut > 0.3 && !(evening && (inside || hallEv))) {
+          lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 60, s: dark * bld.cut * 0.8, warm: 0.6 });
+          continue;
+        }
         if (!(evening && (inside || hallEv))) continue;
         bld.lit = true;
         for (const win of bld.ext.windows) lights.push({ x: bld.px + win.x + 7, y: bld.py + win.y + 6, r: 30, s: 0.8 * dark, warm: 0.5, win: { x: bld.px + win.x, y: bld.py + win.y, w: win.w, h: win.h }, cut: bld.cut });
+        if (bld.kind === 'hall' && bld.cut > 0.3) lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 70, s: dark * bld.cut, warm: 0.7 });
         if (bld.cut > 0.3) lights.push({ x: (bld.x0 + bld.w / 2) * T, y: (bld.y0 + bld.h / 2) * T, r: bld.w * 14, s: 0.8 * dark * bld.cut, warm: 0.3 });
       }
       if (w.bonfire.lit) {
@@ -526,7 +537,7 @@ IS.Renderer = class {
         }
         if (!l.warm) continue;
         const gr = ctx.createRadialGradient(x, y, 0, x, y, l.r * 0.8);
-        gr.addColorStop(0, `rgba(255, 170, 70, ${l.warm * 0.35 * l.s})`);
+        gr.addColorStop(0, `rgba(255, 165, 60, ${l.warm * 0.5 * l.s})`);
         gr.addColorStop(1, 'rgba(255, 170, 70, 0)');
         ctx.fillStyle = gr;
         ctx.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);

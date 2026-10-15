@@ -25,7 +25,7 @@ IS.Sim = class {
 
   defaultZoom() {
     const w = window.innerWidth;
-    return IS.clamp(Math.round(w / (30 * IS.TILE)), 2, 5);
+    return IS.clamp(Math.round(w / (19 * IS.TILE)), 2, 6);
   }
 
   boot() {

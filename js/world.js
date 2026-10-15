@@ -99,13 +99,13 @@ IS.World = class {
     }
 
     // 4. Buildings
-    const roofs = ['#c95a4a', '#4f7fb8', '#5f9a5a', '#9a6ab8'];
-    const walls = ['#f2e2c4', '#e9dcc9', '#f4e8d0', '#efdcc8'];
+    const roofs = ['#e2523f', '#3f86dc', '#3fae5a', '#a95fd6'];
+    const walls = ['#fde9c4', '#f9e4cf', '#fff0d2', '#fbe0c8'];
     const houseX = [15, 24, 51, 60];
     for (let i = 0; i < 4; i++) {
       this.addBuilding({ id: 'house' + i, kind: 'house', x0: houseX[i], y0: 26, w: 6, h: 5, doorCols: [2], roof: roofs[i], wall: walls[i], index: i });
     }
-    this.addBuilding({ id: 'hall', kind: 'hall', x0: 35, y0: 23, w: 10, h: 7, doorCols: [4, 5], roof: '#b8603c', wall: '#e8d0a8' });
+    this.addBuilding({ id: 'hall', kind: 'hall', x0: 35, y0: 23, w: 10, h: 7, doorCols: [4, 5], roof: '#e0703a', wall: '#f6dcae' });
 
     // 5. Village ground: plaza, road, connectors
     const paint = (x, y, t, onlyLand = true) => {
@@ -530,19 +530,19 @@ IS.World = class {
     const L = li.data, Wd = wi.data, F = fi.data;
     const rgb = h => IS.hexToRgb(h);
     const C = {
-      g0: rgb('#72ba5b'), g1: rgb('#86c867'), gd: rgb('#64ab50'), gl: rgb('#94d072'), glip: rgb('#4f8c41'),
-      f0: rgb('#4a8746'), f1: rgb('#58974e'), fd: rgb('#3f793c'),
-      s0: rgb('#f0dba0'), s1: rgb('#f7e7b8'), sd: rgb('#e3cb8d'), swet: rgb('#d8bf84'),
-      p0: rgb('#cfa772'), p1: rgb('#c69d68'), pe: rgb('#b08856'), pp: rgb('#a8865a'), pl: rgb('#e2c08e'),
-      mort: rgb('#9b9384'), st: ['#d3ccbb', '#c9c1af', '#dcd5c6', '#c2baa7'].map(rgb),
-      soil: rgb('#8e5c3b'), furrow: rgb('#6f4530'), soilL: rgb('#a06a46'),
-      dk: ['#b98250', '#ad7645', '#c08a57'].map(rgb), seam: rgb('#6e4a2c'), dside: rgb('#7a5232'), dside2: rgb('#5c3d24'),
+      g0: rgb('#5ab84d'), g1: rgb('#7acb58'), gd: rgb('#4aa647'), gl: rgb('#a3da68'), glip: rgb('#2f8a46'),
+      f0: rgb('#3a9a4e'), f1: rgb('#4aab52'), fd: rgb('#2e8448'),
+      s0: rgb('#fbdc8e'), s1: rgb('#ffe9ad'), sd: rgb('#f2c873'), swet: rgb('#e8b56c'),
+      p0: rgb('#e3a463'), p1: rgb('#d89a58'), pe: rgb('#bd7c46'), pp: rgb('#b0764a'), pl: rgb('#f4c88c'),
+      mort: rgb('#a88f74'), st: ['#ecd6b4', '#e2c9a2', '#f2dfc0', '#d8bd94'].map(rgb),
+      soil: rgb('#a0572f'), furrow: rgb('#7a3d24'), soilL: rgb('#b8683c'),
+      dk: ['#d08a48', '#c27c3c', '#da9a56'].map(rgb), seam: rgb('#7a4424'), dside: rgb('#8a5230'), dside2: rgb('#5e3420'),
     };
     const set = (A, i, c, a = 255) => { A[i] = c[0]; A[i + 1] = c[1]; A[i + 2] = c[2]; A[i + 3] = a; };
     const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
     const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? TT.DEEP : mat[y * W + x];
 
-    const waterStops = [[0, rgb('#8fe0d8')], [1.0, rgb('#62c8d4')], [2.4, rgb('#45a6cf')], [4.2, rgb('#3884c2')], [7, rgb('#2d66a6')]];
+    const waterStops = [[0, rgb('#7ae8d8')], [1.0, rgb('#3ccfd0')], [2.4, rgb('#24acd2')], [4.2, rgb('#2389cc')], [7, rgb('#2a5cb4')]];
     const waterColor = d => {
       for (let k = 1; k < waterStops.length; k++) {
         if (d <= waterStops[k][0]) {
