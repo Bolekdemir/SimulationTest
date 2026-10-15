@@ -130,7 +130,7 @@ IS.Sim = class {
 
   // ---------------------------------------------------------------- loop
   frame(now) {
-    const rdt = Math.min(0.05, (now - this.last) / 1000);
+    const rdt = IS.clamp((now - this.last) / 1000, 0, 0.05); // the first frame can be stamped slightly in the past
     this.last = now;
     // Fast-forward the night while everyone is asleep
     const sleeping = this.people.every(p => p.pose === 'sleep' || p.sick);

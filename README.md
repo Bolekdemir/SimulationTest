@@ -22,6 +22,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 - **Relationships** drift toward what their personalities naturally support.
 - **Romance with taste**: everyone has a type (`into` in config: looks, smarts, funny, kind, drive, confidence). Forest falls for looks almost on sight; Lynn wants kindness and brains. Crushes, flirting, confessions, rejections and couples follow from it.
 - **Noticing each other**: islanders spot people they like across the island and walk over to chat, wave in passing, and pause their work when a friend drops by.
+- **Conversations with flow** (`js/talk.js`): a chat is an opening, one or two topic threads that play out over several back-and-forth lines (each reply depends on how the last one landed), a segue, and a goodbye. Each islander has their own bits (Iroh's terrible plans, Forest's grind speeches, Egg's nap philosophy, Jude's deals, Beach's WiFi rants, Lynn's "have you eaten?"). Interrupted threads get picked back up next time, plans become island lore that others ask about, and the selected islander's page shows the conversation as it happens.
 - **Conversations that don't loop**: about 5x more lines, each islander has their own voice, nobody repeats what was said recently, and they ask each other real questions, tease each other about crushes, comment on what others are doing, and bring up recent fights or favours.
 - **Inner lives** (`js/mind.js`):
   - **Daily plans**: 2-3 goals every morning ("Restock the woodpile", "Talk to Lynn (act normal)", "Hang out with the bros"), shown as a checklist on their page.
@@ -72,6 +73,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | `js/save.js`, `js/menu.js` | Autosave, settings, install prompt, title / pause menu |
 | `manifest.webmanifest`, `sw.js`, `icons/` | App install: name, icon, fullscreen, offline cache |
 | `tools/build-artifact.py` | Builds the fragment version used for the Claude artifact |
+| `js/talk.js` | Conversation threads, branching, resuming, segues and goodbyes |
 | `js/dialogue.js` | Line pools, per-islander voices, questions with real answers, no-repeat picking |
 | `js/events.js` | Calendar, weather, random events, supply boat |
 | `js/render.js` | Drawing, lighting, weather, particles |

@@ -293,7 +293,11 @@ IS.UI = class {
     const body = this.$('insp-body');
     const scroller = body.parentElement;
     const scroll = scroller.scrollTop;
-    const nowHtml = `<div class="doing">${this.esc(p.actionLabel())}</div><div class="thought">${this.esc(p.thought)}</div>`;
+    // While they're talking, the left page shows the conversation as it happens
+    const tr = p.chat ? p.chat.transcript.slice(-6) : null;
+    const nowHtml = `<div class="doing">${this.esc(p.actionLabel())}</div>` + (tr && tr.length
+      ? `<ol class="transcript">${tr.map(l => `<li class="${l.who === p.name ? 'me' : ''}"><b>${this.esc(l.who)}</b>${this.esc(l.text)}</li>`).join('')}</ol>`
+      : `<div class="thought">${this.esc(p.thought)}</div>`);
     if (this.$('insp-now').innerHTML !== nowHtml) this.$('insp-now').innerHTML = nowHtml;
     if (this.tab === 'now') body.innerHTML = this.tabNow(p);
     else if (this.tab === 'bonds') body.innerHTML = this.tabBonds(p);

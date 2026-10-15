@@ -148,91 +148,163 @@ IS.Social = (() => {
     return true;
   };
 
+  // A conversation is a short script: opening, a topic thread or two (see
+  // talk.js), and a goodbye. Lines come out one at a time, and threads branch
+  // on how each line landed.
   S.Conversation = class {
     constructor(sim, a, b, opts) {
       this.sim = sim;
       this.a = a; this.b = b;
       this.opts = opts;
-      this.step = 0;
       this.timer = 0;
       this.lineMin = 3.2;
-      this.exchanges = opts.topic ? 1 : 1 + Math.round(IS.rand(1, 2.5) * ((a.traits.sociable + b.traits.sociable) / 2 + 0.4));
-      this.queue = [];
-      this.topicsUsed = new Set();
+      this.used = new Set();
       this.totalDelta = 0;
+      this.transcript = [];
       a.chat = this; b.chat = this;
       for (const p of [a, b]) if (p.pose === 'walk') p.pose = 'stand';
       if (a.pose !== 'sit') a.faceToward(b.x, b.y);
       if (b.pose !== 'sit' && b.pose !== 'sleep') b.faceToward(a.x, a.y);
       sim.conversations.push(this);
-      this.plan();
+      this.segs = this.compose();
+      this.segIdx = 0;
     }
     other(p) { return p === this.a ? this.b : this.a; }
 
-    plan() {
-      const { a, b } = this;
-      if (this.opts.topic) {
-        // A sky-ordered topic still opens with a hello and keeps going after
-        if (this.opts.forced && this.opts.topic !== 'sickVisit') {
-          this.queue.push({ speaker: a, listener: b, topic: 'greet' }, { speaker: b, listener: a, topic: 'greetBack' });
-          this.queueTopic(a, b, this.opts.topic);
-          if (!['argue', 'confess'].includes(this.opts.topic)) this.queue.push({ speaker: b, listener: a, topic: null });
-          return;
-        }
-        this.queueTopic(a, b, this.opts.topic);
-        return;
-      }
-      // Greeting, then a few topic exchanges, alternating who leads.
-      this.queue.push({ speaker: a, listener: b, topic: 'greet' });
-      this.queue.push({ speaker: b, listener: a, topic: 'greetBack' });
-      for (let i = 0; i < this.exchanges; i++) {
-        const sp = i % 2 === 0 ? a : b;
-        this.queue.push({ speaker: sp, listener: this.other(sp), topic: null });
-      }
+    compose() {
+      const { a, b, opts } = this;
+      if (opts.topic === 'sickVisit') return [{ kind: 'topic', topic: 'sickVisit', sp: a, li: b }];
+      const segs = [{ kind: 'greet' }];
+      const pend = this.pendingFor();
+      if (pend) segs.push({ kind: 'resume', pend });
+      if (opts.topic) segs.push({ kind: 'topic', topic: opts.topic, sp: a, li: b });
+      else if (!pend) segs.push({ kind: 'auto', sp: a, li: b });
+      // Chatty pairs drift onto a second topic, led by the other person
+      const soc = (a.traits.sociable + b.traits.sociable) / 2;
+      const second = !['argue', 'confess'].includes(opts.topic) && Math.random() < (opts.atEvent ? 0.35 : 0.2 + soc * 0.45);
+      if (second) segs.push({ kind: 'segue', sp: b }, { kind: 'auto', sp: b, li: a });
+      if (!opts.atEvent) segs.push({ kind: 'bye' });
+      return segs;
     }
 
-    queueTopic(sp, li, topic) { this.queue.push({ speaker: sp, listener: li, topic }); }
+    // A thread that got cut off last time between these two
+    pendingFor() {
+      const now = this.sim.clock.abs;
+      for (const p of [this.a, this.b]) {
+        const pd = p.pending && p.pending[this.other(p).name];
+        if (pd && now - pd.t < 1440) return pd;
+      }
+      return null;
+    }
 
     update(dt) {
       this.timer -= dt;
       if (this.timer > 0) return;
-      const item = this.queue.shift();
-      if (!item) { this.end(); return; }
+      const line = this.next();
+      if (!line) { this.end(); return; }
       this.timer = this.lineMin;
-      this.run(item);
+      this.say(line);
     }
 
-    run(item) {
-      const sim = this.sim;
-      const { speaker: sp, listener: li } = item;
-      li.bubble = null;
-      if (item.response) {
-        sp.say(item.text);
-        if (item.emote) sp.emote(item.emote, 1.6);
-        return;
+    next() {
+      while (this.segIdx < this.segs.length) {
+        const seg = this.segs[this.segIdx];
+        if (!seg.ready) { seg.ready = true; if (!this.prepare(seg)) { this.segIdx++; continue; } }
+        if (seg.lines && seg.lines.length) return seg.lines.shift();
+        if (seg.run) {
+          const l = IS.Talk.step(this, seg.run);
+          if (l) return l;
+          if (seg.run.endsAfter) { this.segIdx = this.segs.length; return null; }
+        }
+        if (seg.legacyEnds) { this.segIdx = this.segs.length; return null; }
+        this.segIdx++;
       }
-      if (item.topic === 'greet' || item.topic === 'greetBack') {
-        const tone = IS.Dialogue.tone(sp, li);
-        sp.say(IS.Dialogue.fill(IS.Dialogue.as(sp).line('greet', tone), S.ctx(sim, sp, li)));
-        sp.needs.social = Math.min(100, sp.needs.social + 2);
-        return;
+      return null;
+    }
+
+    prepare(seg) {
+      const { sim, a, b } = this;
+      const D = IS.Dialogue;
+      switch (seg.kind) {
+        case 'greet': {
+          seg.lines = [a, b].map(p => ({ sp: p, text: D.fill(D.as(p).line('greet', D.tone(p, this.other(p))), S.ctx(sim, p, this.other(p))) }));
+          return true;
+        }
+        case 'resume': {
+          const pd = seg.pend;
+          for (const p of [a, b]) if (p.pending) delete p.pending[this.other(p).name];
+          const lead = sim.byName(pd.lead), other = lead === a ? b : a;
+          const th = IS.Talk.threadFor(sim, lead, other, pd.key, pd.extra || {});
+          if (!th) return false;
+          if (pd.ctx) Object.assign(th.ctx, pd.ctx);
+          th.beat = 0;
+          seg.run = th;
+          const leaver = pd.leaver ? sim.byName(pd.leaver) : null;
+          seg.lines = [];
+          if (leaver) {
+            const stayer = leaver === a ? b : a;
+            seg.lines.push({ sp: stayer, text: IS.pick([`So. You just FLOATED AWAY mid-sentence earlier.`, `Are we going to talk about how you got yanked into the sky?`, `You okay? Last time we talked you got... airlifted.`]) });
+            seg.lines.push({ sp: leaver, text: IS.pick(['Don\'t. I don\'t want to talk about it.', 'The sky and I have an understanding. Mostly.', 'Long story. I\'m fine. I think.']) });
+          }
+          seg.lines.push({ sp: lead, text: IS.pick(['Anyway, as I was saying before—', 'Okay, where was I? Oh right.', 'So, back to what I was saying.']) });
+          return true;
+        }
+        case 'topic': {
+          const run = IS.Talk.threadFor(sim, seg.sp, seg.li, seg.topic, {});
+          if (run) { seg.run = run; this.lastTopic = seg.topic; this.used.add(seg.topic); return true; }
+          return this.legacy(seg, seg.topic);
+        }
+        case 'auto': {
+          const run = IS.Talk.pickThread(sim, seg.sp, seg.li, this.used);
+          if (run) { seg.run = run; this.lastTopic = run.th.key; this.used.add(run.th.key); return true; }
+          return this.legacy(seg, null);
+        }
+        case 'segue': {
+          // Whoever didn't just talk changes the subject and leads the next topic
+          const sp = this.lastSpeaker ? this.other(this.lastSpeaker) : seg.sp;
+          seg.lines = [{ sp, text: IS.Talk.segue(this, sp) }];
+          const nxt = this.segs[this.segIdx + 1];
+          if (nxt && nxt.kind === 'auto') { nxt.sp = sp; nxt.li = this.other(sp); }
+          return true;
+        }
+        case 'bye': { const first = this.lastSpeaker ? this.other(this.lastSpeaker) : a; seg.lines = IS.Talk.bye(this, first, this.other(first)); return true; }
       }
-      const t = item.topic ? S.topicFor(sim, sp, li, item.topic) : S.chooseTopic(sim, sp, li, this.topicsUsed);
-      this.topicsUsed.add(t.topic);
-      sp.say(t.text);
-      const outcome = S.react(sim, sp, li, t);
-      this.totalDelta += outcome.df;
-      if (outcome.text) this.queue.unshift({ speaker: li, listener: sp, response: true, text: outcome.text, emote: outcome.emote });
-      if (outcome.endsChat) this.queue = this.queue.filter(q => q.response);
-      for (const p of [sp, li]) {
-        p.needs.social = Math.min(100, p.needs.social + 2.5 * (0.5 + p.traits.sociable));
-        p.needs.fun = Math.min(100, p.needs.fun + (p.loves.includes('chatting') ? 1.2 : 0.5) * (0.4 + p.traits.sociable));
-      }
+      return false;
+    }
+
+    // Topics without a thread: one line and a reaction
+    legacy(seg, topic) {
+      const { sim } = this;
+      const sp = seg.sp, li = seg.li;
+      const t = topic ? S.topicFor(sim, sp, li, topic) : S.chooseTopic(sim, sp, li, this.used);
+      this.used.add(t.topic);
       this.lastTopic = t.topic;
+      const out = S.react(sim, sp, li, t);
+      this.totalDelta += out.df || 0;
+      seg.lines = [{ sp, text: t.text }];
+      if (out.text) seg.lines.push({ sp: li, text: out.text, emote: out.emote });
+      if (out.endsChat) seg.legacyEnds = true;
+      return true;
+    }
+
+    say(line) {
+      const sp = line.sp, li = this.other(sp);
+      li.bubble = null;
+      this.lastSpeaker = sp;
+      sp.say(line.text);
+      if (line.emote) sp.emote(line.emote, 1.6);
+      this.transcript.push({ who: sp.name, text: line.text });
+      if (this.transcript.length > 12) this.transcript.shift();
+      for (const p of [sp, li]) {
+        p.needs.social = Math.min(100, p.needs.social + 1.3 * (0.5 + p.traits.sociable));
+        p.needs.fun = Math.min(100, p.needs.fun + (p.loves.includes('chatting') ? 0.6 : 0.25) * (0.4 + p.traits.sociable));
+      }
     }
 
     abort(byWhom) {
       const o = this.other(byWhom);
+      this.remember(byWhom);
+      this.aborting = true;
       if (o.mode === 'normal' && o.pose !== 'sleep') {
         o.emote('exclaim', 1.5);
         o.say(IS.pick([`${byWhom.name}?! Where are you going?!`, `Uh... ${byWhom.name} just floated away.`, 'Hey, I was talking to you!']));
@@ -240,8 +312,19 @@ IS.Social = (() => {
       this.end(true);
     }
 
+    // Keep a cut-off thread so they can pick it back up next time
+    remember(leaver) {
+      const seg = this.segs[this.segIdx];
+      const run = seg && seg.run;
+      if (!run || run.beat < 1 || run.beat > run.th.beats.length - 2) return;
+      const { a, b, sim, third, v, ...rest } = run.ctx;
+      const pd = { key: run.th.key, lead: run.ctx.a.name, beat: run.beat, t: this.sim.clock.abs, leaver: leaver ? leaver.name : null, ctx: { ...rest, v }, extra: { third: run.ctx.third, crush: run.ctx.vars.crush ? this.sim.byName(run.ctx.vars.crush) : null, news: run.ctx.news, lore: run.ctx.lore } };
+      for (const p of [this.a, this.b]) { p.pending = p.pending || {}; p.pending[this.other(p).name] = pd; }
+    }
+
     end(aborted) {
       const { a, b, sim } = this;
+      if (aborted && !this.aborting) { this.aborting = true; this.remember(null); }
       a.chat = null; b.chat = null;
       sim.conversations = sim.conversations.filter(c => c !== this);
       const key = S.pairKey(a, b);
@@ -250,7 +333,7 @@ IS.Social = (() => {
       IS.Mind.onChatEnd(a, b, aborted);
       if (aborted) return;
       if (this.lastTopic === 'argue') return;
-      if (Math.abs(this.totalDelta) >= 6) {
+      if (Math.abs(this.totalDelta) >= 4) {
         const good = this.totalDelta > 0;
         for (const [p, o] of [[a, b], [b, a]]) p.remember(good ? `Had a lovely chat with ${o.name}` : `Had an unpleasant talk with ${o.name}`, { tag: 'chat', about: o.name, mood: good ? 4 : -4, moodDuration: 180 });
         if (Math.random() < 0.4) sim.log(good ? `${a.name} and ${b.name} had a great chat.` : `${a.name} and ${b.name} had an awkward conversation.`, good ? 'social' : 'warn', [a, b]);
@@ -294,7 +377,7 @@ IS.Social = (() => {
   };
 
   // Pick a topic based on personality, memories, relationship and context.
-  S.chooseTopic = (sim, sp, li, used) => {
+  S.chooseTopic = (sim, sp, li, used, listOnly) => {
     const r = sp.relTo(li.name);
     const t = sp.traits;
     const cands = [];
@@ -360,6 +443,7 @@ IS.Social = (() => {
     const mem = sp.memories.find(m => m.about === li.name && sim.clock.abs - m.t < 2880 && sim.clock.abs - m.t > 30 && ['chat', 'argue', 'care'].includes(m.tag) && !m.toldTo.has(li.name));
     if (mem) add(mem.tag === 'argue' ? 'memoryBad' : mem.tag === 'care' ? 'memoryCare' : 'memoryGood', mem.tag === 'argue' ? 1.2 + t.kind : 0.9, { memory: mem });
 
+    if (listOnly) return cands;
     const pick = IS.weightedPick(cands.length ? cands : [{ topic: 'weather', w: 1 }]);
     return S.topicFor(sim, sp, li, pick.topic, pick.extra || {});
   };
