@@ -202,6 +202,7 @@
     <button class="tbtn" id="btn-roofs" title="See inside buildings (R)">Roofs off</button>
     <button class="tbtn" id="btn-names" title="Name tags (N)">Names</button>
     <button class="tbtn" id="btn-log" title="Island log (L)">Log</button>
+    <button class="tbtn" id="btn-full" title="Fullscreen (F11 style)">Fullscreen</button>
     <button class="tbtn" id="btn-help" title="How to play">?</button>
   </div>
 
@@ -258,3 +259,19 @@
 <script src="js/ui.js"></script>
 <script src="js/input.js"></script>
 <script src="js/main.js"></script>
+<script>
+  // Fullscreen works from a click in desktop browsers; hide the button where it can't
+  (() => {
+    const btn = document.getElementById('btn-full');
+    const root = document.documentElement;
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (!req || document.fullscreenEnabled === false) { btn.hidden = true; return; }
+    const sync = () => { const on = !!(document.fullscreenElement || document.webkitFullscreenElement); btn.textContent = on ? 'Exit fullscreen' : 'Fullscreen'; btn.setAttribute('aria-pressed', on); if (window.sim && sim.renderer) sim.renderer.resize(); };
+    btn.addEventListener('click', () => {
+      if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else Promise.resolve(req.call(root)).catch(() => { btn.hidden = true; });
+    });
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+  })();
+</script>
