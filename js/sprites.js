@@ -149,6 +149,12 @@ IS.Sprites = (() => {
         if (style === 'curly') { P(2, -1, 16, 12, hr); for (let i = 0; i < 7; i++) P(3 + i * 2, -2, 1, 1, hr); for (const [x, y] of [[4, 1], [9, 0], [14, 2], [6, 5], [12, 5], [3, 8], [9, 8], [15, 8]]) { P(x, y, 2, 1, hrD); P(x, y - 1, 1, 1, hrL); } for (let i = 0; i < 8; i++) P(2 + i * 2, 11, 1, 1, hr); }
         if (style === 'spiky') { for (let i = 0; i < 5; i++) P(5 + i * 2, -2, 1, 2, hr); }
         if (style === 'bun') { P(7, -3, 6, 4, hr); P(8, -3, 2, 1, hrL); }
+        if (style === 'fringe') { P(5, -1, 1, 1, hr); P(8, -1, 2, 1, hr); P(12, -1, 1, 1, hr); P(6, 3, 1, 4, hrD); P(12, 2, 1, 4, hrD); }
+        if (style === 'curlyshort') {
+          for (const x of [4, 7, 10, 13]) P(x, -1, 2, 1, hr);
+          for (const [x, y] of [[5, 1], [9, 0], [13, 1], [7, 4], [11, 4], [5, 7], [9, 7], [13, 7]]) { P(x, y, 1, 1, hrL); P(x + 1, y, 1, 1, hrD); }
+        }
+        if (style === 'slickback') { const mid = IS.mix(hr, hrD, 0.5); for (const x of [6, 9, 12]) P(x, 1, 1, 7, mid); P(7, 1, 1, 5, hrL); P(10, 1, 1, 4, hrL); }
         if (look.roots) { P(5, 0, 10, 1, look.roots); P(6, 1, 8, 1, IS.mix(look.roots, hr, 0.5)); }
       }
     } else if (side) {
@@ -164,11 +170,38 @@ IS.Sprites = (() => {
         if (style === 'curly') { P(2, -1, 14, 5, hr); P(2, 4, 8, 7, hr); for (let i = 0; i < 6; i++) P(3 + i * 2, -2, 1, 1, hr); for (const y of [0, 2, 5, 8]) for (let x = 3 + (y % 2); x < 14; x += 3) { if (y > 3 && x > 9) continue; P(x, y, 1, 1, hrD); P(x + 1, y - 1, 1, 1, hrL); } P(13, 4, 2, 1, hr); P(1, 6, 1, 1, hr); P(3, 11, 1, 1, hr); P(6, 11, 1, 1, hr); }
         if (style === 'spiky') { for (let i = 0; i < 5; i++) P(5 + i * 2, -2, 1, 2, hr); }
         if (style === 'bun') { P(5, -3, 5, 4, hr); }
+        if (style === 'fringe') { P(13, 4, 3, 2, hr); P(15, 6, 1, 1, hr); P(6, -1, 1, 1, hr); P(10, -1, 2, 1, hr); P(14, 0, 1, 1, hr); }
+        if (style === 'curlyshort') { for (const x of [4, 7, 10, 13]) P(x, -1, 2, 1, hr); P(3, 2, 1, 6, hr); for (const [x, y] of [[5, 0], [9, 0], [12, 1], [4, 3], [7, 2], [5, 6], [7, 5]]) { P(x, y, 1, 1, hrL); P(x + 1, y, 1, 1, hrD); } P(13, 4, 3, 1, hr); P(14, 5, 1, 1, hr); }
+        if (style === 'slickback') { P(11, -1, 4, 1, hr); P(12, 0, 4, 1, hr); P(13, 4, 3, 1, sk); P(6, 1, 7, 1, hrL); P(5, 2, 4, 1, IS.mix(hr, hrD, 0.5)); P(5, 5, 4, 1, IS.mix(hr, hrD, 0.5)); P(10, 2, 3, 1, IS.mix(hr, hrD, 0.5)); }
         if (look.roots) { P(5, 0, 10, 1, look.roots); }
       }
     } else {
       if (style === 'bald') {
         P(3, 5, 2, 4, hr); P(15, 5, 2, 4, hr); P(7, 2, 2, 1, skL);
+      } else if (style === 'fringe') {
+        // Messy fringe split down the middle, short sides
+        P(5, 0, 10, 1, hr); P(4, 1, 12, 3, hr);
+        P(5, -1, 1, 1, hr); P(8, -1, 2, 1, hr); P(12, -1, 1, 1, hr); P(14, 0, 1, 1, hr); P(3, 1, 1, 1, hr);
+        P(9, 0, 2, 4, hrD); P(8, 3, 1, 1, hrD); P(11, 3, 1, 1, hrD); // the part
+        P(6, 1, 2, 1, hrL); P(12, 1, 2, 1, hrL);
+        P(4, 4, 4, 1, hr); P(4, 5, 2, 1, hr); P(7, 5, 1, 1, hr); P(5, 6, 1, 1, hrD);
+        P(12, 4, 4, 1, hr); P(14, 5, 2, 1, hr); P(12, 5, 1, 1, hr); P(14, 6, 1, 1, hrD);
+        P(3, 2, 1, 4, hr); P(16, 2, 1, 4, hr);
+      } else if (style === 'curlyshort') {
+        // Short, tight curls that hug the head
+        P(4, 0, 12, 4, hr); P(3, 1, 14, 3, hr);
+        for (const x of [4, 7, 10, 13]) P(x, -1, 2, 1, hr); // scalloped outline
+        for (const [x, y] of [[4, 0], [7, 0], [10, 0], [13, 0], [5, 2], [8, 2], [11, 2], [14, 2]]) { P(x, y, 1, 1, hrL); P(x + 1, y, 1, 1, hrD); }
+        P(4, 4, 3, 1, hr); P(8, 4, 2, 1, hr); P(11, 4, 2, 1, hr); P(14, 4, 2, 1, hr); // curl tips on the forehead
+        P(5, 4, 1, 1, hrD); P(12, 4, 1, 1, hrD);
+        P(3, 3, 1, 2, hr); P(16, 3, 1, 2, hr);
+      } else if (style === 'slickback') {
+        // Combed back with a side part and a little lift at the front
+        P(5, 0, 10, 1, hr); P(4, 1, 12, 2, hr); P(7, -1, 6, 1, hr);
+        P(4, 3, 2, 1, hr); P(14, 3, 2, 1, hr);
+        P(6, 0, 1, 3, hrD); // side part
+        P(8, -1, 3, 1, hrL); P(9, 0, 4, 1, hrL); P(11, 1, 3, 1, hrL);
+        P(3, 2, 1, 3, hr); P(16, 2, 1, 3, hr);
       } else {
         capFront();
         P(3, 2, 1, 6, hr); P(16, 2, 1, 6, hr);
@@ -299,32 +332,85 @@ IS.Sprites = (() => {
   // ------------------------------------------------------------------
   // Nature
   // ------------------------------------------------------------------
-  S.makeOak = seed => {
-    const r = IS.mulberry32(seed);
-    const { c, g } = IS.makeCanvas(46, 58);
-    const hue = r();
-    const D = IS.mix('#237a3c', '#2f7d2c', hue), M = IS.mix('#42ad48', '#58b23c', hue), L = IS.mix('#93dc5a', '#bfe25a', hue);
-    // trunk
-    px(g, 19, 38, 8, 17, '#7a5232'); px(g, 19, 38, 2, 17, '#5e3d24'); px(g, 24, 40, 2, 15, '#946540');
-    px(g, 17, 53, 12, 2, '#6a4529');
-    // canopy
-    const blobs = [[23, 22, 15], [12, 30, 10], [34, 30, 10], [15, 13, 9], [31, 13, 9], [23, 33, 10]];
-    for (const [x, y, rr] of blobs) disc(g, x, y, rr, D);
-    for (const [x, y, rr] of blobs) disc(g, x - 1, y - 2, rr - 2, M);
-    disc(g, 17, 14, 5, L); disc(g, 28, 12, 3, L); disc(g, 11, 26, 3, L); disc(g, 22, 22, 3, IS.mix(M, L, 0.5));
-    for (let i = 0; i < 70; i++) {
-      const x = 4 + Math.floor(r() * 38), y = 4 + Math.floor(r() * 38);
-      const d = g.getImageData(x, y, 1, 1).data;
-      if (d[3] > 0) px(g, x, y, 2, 1, r() < 0.5 ? D : L);
+  // Leafy canopy built from overlapping blobs, then clumps of light and shade
+  // (warm yellow-green on the lit upper left, cool olive underneath).
+  const canopy = (g, r, cx, cy, rx, ry, n, pal) => {
+    const blobs = [];
+    for (let i = 0; i < n; i++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r());
+      blobs.push([Math.round(cx + Math.cos(a) * rx * d * 0.75), Math.round(cy + Math.sin(a) * ry * d * 0.75), Math.round((0.32 + r() * 0.18) * Math.min(rx, ry))]);
     }
-    IS.outline(c, '#1f3420');
+    blobs.push([cx, cy, Math.round(Math.min(rx, ry) * 0.6)]);
+    for (const [x, y, rr] of blobs) disc(g, x, y, rr + 1, pal.dark);
+    for (const [x, y, rr] of blobs) disc(g, x - 1, y - 2, rr - 1, pal.mid);
+    for (const [x, y, rr] of blobs) if (y < cy + ry * 0.2 && x < cx + rx * 0.4) disc(g, x - 2, y - 3, Math.max(1, rr - 3), pal.light);
+    const img = g.getImageData(0, 0, g.canvas.width, g.canvas.height).data;
+    const inside = (x, y) => x >= 0 && y >= 0 && x < g.canvas.width && y < g.canvas.height && img[(y * g.canvas.width + x) * 4 + 3] > 0;
+    // leaf clumps: little two-row shapes with a dark lip underneath
+    for (let i = 0; i < n * 4; i++) {
+      const x = Math.round(cx + (r() - 0.5) * rx * 1.8), y = Math.round(cy + (r() - 0.5) * ry * 1.8);
+      if (!inside(x, y) || !inside(x + 3, y + 2)) continue;
+      const lit = y < cy + (x - cx) * 0.3;
+      const top = lit ? (r() < 0.45 ? pal.high : pal.light) : pal.mid;
+      px(g, x + 1, y, 2, 1, top); px(g, x, y + 1, 4, 1, top); px(g, x, y + 2, 4, 1, lit ? pal.mid : pal.dark);
+    }
+    // shade clumps on the lower right
+    for (let i = 0; i < n * 2; i++) {
+      const x = Math.round(cx + r() * rx * 0.9), y = Math.round(cy + r() * ry * 0.9);
+      if (!inside(x, y)) continue;
+      px(g, x, y, 3, 1, pal.deep); px(g, x + 1, y - 1, 1, 1, pal.deep);
+    }
+    // fluffy edge
+    for (let i = 0; i < n * 3; i++) {
+      const a = r() * Math.PI * 2;
+      const x = Math.round(cx + Math.cos(a) * rx), y = Math.round(cy + Math.sin(a) * ry);
+      if (inside(x - Math.sign(Math.cos(a)), y - Math.sign(Math.sin(a)))) px(g, x, y, 2, 1, Math.sin(a) < 0 ? pal.mid : pal.dark);
+    }
+  };
+  S.leafPal = { deep: '#36542a', dark: '#46682a', mid: '#6e9230', light: '#9cb83c', high: '#d2d050' };
+
+  S.makeOak = (seed, big) => {
+    const r = IS.mulberry32(seed);
+    const s = big ? 1.4 : 0.95 + r() * 0.2;
+    const W = Math.round(58 * s), H = Math.round(76 * s);
+    const { c, g } = IS.makeCanvas(W, H);
+    const cx = Math.round(W / 2), base = H - 4;
+    const T0 = '#6a3220', T1 = '#a2522a', T2 = '#cc7434', T3 = '#ee9c4a';
+    const top = Math.round(H * 0.4), tw = Math.round(3 * s + 2);
+    const grooves = [0.35, 0.6, 0.8].map(v => v + (r() - 0.5) * 0.1);
+    for (let y = top; y <= base; y++) {
+      const t = (y - top) / (base - top);
+      const flare = Math.pow(Math.max(0, (t - 0.65) / 0.35), 2) * 7 * s;
+      const half = tw + flare;
+      const sway = Math.round(Math.sin(y * 0.11 + seed) * 1.2);
+      const x0 = Math.round(cx - half + sway), w = Math.round(half * 2);
+      px(g, x0, y, w, 1, T1);
+      px(g, x0 + 1, y, Math.max(1, Math.round(w * 0.35)), 1, T2);
+      if (w > 6) px(g, x0 + 2, y, Math.max(1, Math.round(w * 0.12)), 1, T3);
+      px(g, x0 + w - 2, y, 2, 1, T0);
+      for (const gv of grooves) if ((y + Math.round(gv * 7)) % 9 < 6) px(g, x0 + Math.round(w * gv), y, 1, 1, T0);
+    }
+    // roots
+    for (const dir of [-1, 1, r() < 0.5 ? -1 : 1]) {
+      const len = Math.round((5 + r() * 5) * s);
+      for (let i = 0; i < len; i++) {
+        const x = cx + dir * (tw + 4 * s + i), y = base - Math.max(0, 2 - Math.floor(i / 3));
+        px(g, Math.round(x), y, 2, 2, T1); px(g, Math.round(x), y, 2, 1, T2);
+      }
+    }
+    // moss and a shelf fungus on some trunks
+    for (let i = 0; i < 6; i++) px(g, cx - tw + Math.floor(r() * tw * 2), top + 8 + Math.floor(r() * (base - top - 10)), 2, 1, '#8aac3a');
+    if (r() < 0.45) { const fy = top + Math.round((base - top) * (0.4 + r() * 0.3)); const fx = cx + tw - 1; px(g, fx, fy, 5, 2, '#e8964a'); px(g, fx, fy, 5, 1, '#ffd08a'); px(g, fx + 1, fy + 2, 3, 1, '#b8642e'); }
+    canopy(g, r, cx, Math.round(H * 0.3), Math.round(24 * s), Math.round(19 * s), 14, S.leafPal);
+    IS.outline(c, '#2a2418');
+    c.ax = cx; c.ay = base;
     return c;
   };
 
   S.makePine = seed => {
     const r = IS.mulberry32(seed);
     const { c, g } = IS.makeCanvas(36, 62);
-    const D = IS.mix('#17664a', '#1d6c40', r()), M = '#26935a', L = '#5ec06c';
+    const D = IS.mix('#2e5a2a', '#355f28', r()), M = '#4a7a2e', L = '#8aac3c';
     px(g, 16, 48, 4, 12, '#6b4428'); px(g, 16, 48, 1, 12, '#4f311c');
     const layers = [[46, 16, 15], [36, 14, 13], [26, 12, 11], [16, 9, 9]];
     for (const [base, h, half] of layers) {
@@ -372,22 +458,25 @@ IS.Sprites = (() => {
 
   S.makeBush = (seed, berries) => {
     const r = IS.mulberry32(seed);
-    const { c, g } = IS.makeCanvas(28, 20);
-    disc(g, 9, 11, 7, '#3c7a3a'); disc(g, 18, 11, 7, '#3c7a3a'); disc(g, 14, 7, 6, '#3c7a3a');
-    disc(g, 8, 9, 5, '#58a04a'); disc(g, 17, 9, 5, '#58a04a'); disc(g, 13, 5, 4, '#6fb558');
-    if (berries) for (let i = 0; i < 6; i++) px(g, 5 + Math.floor(r() * 18), 5 + Math.floor(r() * 10), 2, 2, '#d8445a');
-    IS.outline(c, '#1f3420');
+    const { c, g } = IS.makeCanvas(34, 26);
+    canopy(g, r, 17, 15, 13, 8, 6, S.leafPal);
+    if (berries) for (let i = 0; i < 6; i++) px(g, 7 + Math.floor(r() * 20), 9 + Math.floor(r() * 9), 2, 2, r() < 0.5 ? '#e8486a' : '#ffffff');
+    IS.outline(c, '#2a2418');
+    c.ax = 17; c.ay = 23;
     return c;
   };
 
   S.makeRock = seed => {
     const r = IS.mulberry32(seed);
-    const { c, g } = IS.makeCanvas(22, 16);
-    ellipse(g, 11, 9, 9, 6, '#8a8796');
-    ellipse(g, 10, 7, 7, 4, '#a7a4b3');
-    px(g, 6, 5, 3, 1, '#c9c6d4');
-    if (r() < 0.5) px(g, 13, 10, 3, 1, '#6e6b7c');
-    IS.outline(c, OUT);
+    const { c, g } = IS.makeCanvas(26, 20);
+    ellipse(g, 13, 12, 10, 6, '#5c568e');
+    ellipse(g, 12, 10, 9, 5, '#8480bc');
+    ellipse(g, 10, 8, 5, 3, '#aeaade');
+    px(g, 15, 13, 4, 1, '#4a4478');
+    // moss cap
+    for (let i = 0; i < 10; i++) { const x = 5 + Math.floor(r() * 14), y = 5 + Math.floor(r() * 3); px(g, x, y, 2, 1, r() < 0.5 ? '#8aac3a' : '#c0cc4a'); }
+    IS.outline(c, '#2a2440');
+    c.ax = 13; c.ay = 18;
     return c;
   };
 
@@ -399,26 +488,56 @@ IS.Sprites = (() => {
     return c;
   };
 
+  // Flat ground decals (no outline), placed many per tile
   S.makeFlowers = seed => {
     const r = IS.mulberry32(seed);
-    const { c, g } = IS.makeCanvas(24, 24);
-    const cols = ['#ffffff', '#f6d06b', '#f28aa8', '#b48be0', '#ff8f5a'];
-    const n = 2 + Math.floor(r() * 3);
-    const col = cols[Math.floor(r() * cols.length)];
-    for (let i = 0; i < n; i++) {
-      const x = 3 + Math.floor(r() * 16), y = 4 + Math.floor(r() * 14);
-      px(g, x + 1, y + 2, 1, 3, '#3f8a3a');
-      px(g, x, y, 3, 1, col); px(g, x + 1, y - 1, 1, 3, col);
-      px(g, x + 1, y, 1, 1, '#f2b82e');
+    const { c, g } = IS.makeCanvas(18, 12);
+    const sets = [['#fff6ee', '#f2e2d8'], ['#ffb8cc', '#f08aa8'], ['#ffe68a', '#f2c24a'], ['#d8c4ff', '#b49ae8']];
+    const [a, b] = sets[Math.floor(r() * (r() < 0.6 ? 2 : 4))];
+    for (let i = 0; i < 6 + Math.floor(r() * 5); i++) {
+      const x = 2 + Math.floor(r() * 13), y = 2 + Math.floor(r() * 7);
+      px(g, x, y, 2, 1, a); px(g, x, y + 1, 1, 1, b);
+      if (r() < 0.4) px(g, x + 1, y + 1, 1, 1, '#7a9a30');
     }
     return c;
   };
-
   S.makeTuft = seed => {
     const r = IS.mulberry32(seed);
-    const { c, g } = IS.makeCanvas(8, 6);
-    const col = r() < 0.5 ? '#4f9a45' : '#5aa64c';
-    px(g, 1, 2, 1, 4, col); px(g, 3, 0, 1, 6, col); px(g, 5, 2, 1, 4, col); px(g, 2, 3, 1, 3, col); px(g, 4, 1, 1, 5, '#7cc35c');
+    const { c, g } = IS.makeCanvas(12, 9);
+    const n = 3 + Math.floor(r() * 3);
+    for (let i = 0; i < n; i++) {
+      const x = 1 + Math.floor(r() * 9), h = 3 + Math.floor(r() * 5);
+      const lean = r() < 0.5 ? -1 : 1;
+      px(g, x, 8 - h, 1, h, '#6a8a2c');
+      px(g, x + (i % 2 ? lean : 0), 8 - h, 1, 2, '#c4cc4a');
+    }
+    px(g, 1, 8, 10, 1, '#5a7a28');
+    return c;
+  };
+  S.makeFern = seed => {
+    const r = IS.mulberry32(seed);
+    const { c, g } = IS.makeCanvas(18, 12);
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI * 0.9 + i * Math.PI * 0.2;
+      for (let k = 2; k < 8; k++) px(g, Math.round(9 + Math.cos(a) * k), Math.round(11 + Math.sin(a) * k * 0.8), 1, 1, k % 2 ? '#4e7a2c' : '#86a83a');
+    }
+    if (r() < 0.5) px(g, 8, 2, 2, 1, '#a8c048');
+    return c;
+  };
+  S.makeMushroom = seed => {
+    const r = IS.mulberry32(seed);
+    const { c, g } = IS.makeCanvas(12, 9);
+    const cap = r() < 0.6 ? '#e8583a' : '#e8a04a';
+    for (const [x, y] of [[3, 3], [7, 4]]) {
+      px(g, x + 1, y + 2, 1, 3, '#f4e8d8');
+      px(g, x, y, 3, 2, cap); px(g, x + 1, y - 1, 1, 1, cap); px(g, x, y, 1, 1, '#ffffff');
+    }
+    return c;
+  };
+  S.makeClover = seed => {
+    const r = IS.mulberry32(seed);
+    const { c, g } = IS.makeCanvas(14, 9);
+    for (let i = 0; i < 4; i++) { const x = 1 + Math.floor(r() * 10), y = 1 + Math.floor(r() * 6); px(g, x, y, 1, 1, '#4e7a2a'); px(g, x + 1, y + 1, 1, 1, '#4e7a2a'); px(g, x + 2, y, 1, 1, '#5e8a2e'); }
     return c;
   };
 

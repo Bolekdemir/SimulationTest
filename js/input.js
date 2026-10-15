@@ -132,6 +132,7 @@ IS.Input = class {
     if (k === 'l') { const l = document.getElementById('log'); l.hidden = !l.hidden; sim.ui.syncToggles(); }
     if (k === 'f' && sim.selected) { sim.follow = !sim.follow; sim.ui.syncToggles(); }
     if (k === 'escape') sim.select(null);
+    if (k === 'h' && window.toggleFocus) window.toggleFocus();
     if (k === '+' || k === '=') sim.zoomBy(1);
     if (k === '-') sim.zoomBy(-1);
     if (k === 'tab') {

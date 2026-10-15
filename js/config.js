@@ -3,7 +3,7 @@
 //  Designed by Mav.
 // =====================================================================
 //
-//  look.hairStyle : short | long | longwavy | wavy | curly | ponytail | bun | spiky | bob | bald
+//  look.hairStyle : short | fringe | slickback | curlyshort | curly | wavy | long | longwavy | ponytail | bun | spiky | bob | bald
 //  look.accessory : none | glasses | shades | hat | bandana | beard | flower | scarf
 //  look.tall      : true makes them 2px taller
 //  look.eyes      : iris colour.   look.roots: dark roots for dyed hair
@@ -30,7 +30,7 @@ IS.ISLANDERS = [
     name: 'Iroh',
     pronoun: 'he',
     bio: 'Tall, sharp and disciplined, though you would never guess it. Goofs off constantly and somehow gets away with it. Roasts everyone he likes.',
-    look: { skin: '#f1c9a5', hair: '#c79a6a', hairStyle: 'wavy', eyes: '#2a1a14', shirt: '#e2743a', pants: '#36425e', shoes: '#3a2a22', accessory: 'none', accent: '#e2743a', tall: true },
+    look: { skin: '#f1c9a5', hair: '#c79a6a', hairStyle: 'fringe', eyes: '#2a1a14', shirt: '#e2743a', pants: '#36425e', shoes: '#3a2a22', accessory: 'none', accent: '#e2743a', tall: true },
     traits: { sociable: 0.4, energetic: 0.85, kind: 0.85, grumpy: 0.12, curious: 0.7, hardworking: 0.85, brave: 0.8 },
     humor: 'roast',
     loves: ['swimming', 'wandering', 'fishing'],
@@ -45,7 +45,7 @@ IS.ISLANDERS = [
     name: 'Forest',
     pronoun: 'he',
     bio: 'Driven, disciplined and a little impatient. The most athletic person on the island. Serious until his bros drag the goofiness out of him.',
-    look: { skin: '#eec39d', hair: '#cfa574', hairStyle: 'curly', eyes: '#c8902a', shirt: '#3f8a52', pants: '#4e3e30', shoes: '#2e2420', accessory: 'none', accent: '#f2c14e' },
+    look: { skin: '#eec39d', hair: '#cfa574', hairStyle: 'curlyshort', eyes: '#c8902a', shirt: '#3f8a52', pants: '#4e3e30', shoes: '#2e2420', accessory: 'none', accent: '#f2c14e' },
     traits: { sociable: 0.3, energetic: 0.85, kind: 0.7, grumpy: 0.38, curious: 0.5, hardworking: 0.95, brave: 0.85 },
     humor: 'dry',
     loves: ['chopping', 'swimming', 'gardening'],
@@ -60,7 +60,7 @@ IS.ISLANDERS = [
     name: 'Egg',
     pronoun: 'he',
     bio: 'Always happy, endlessly unserious, allergic to effort. Would trade everything for a nap with a cat on his chest.',
-    look: { skin: '#f3cfae', hair: '#b4875a', hairStyle: 'wavy', eyes: '#4a2e1e', shirt: '#f4cf5a', pants: '#6a7fae', shoes: '#f4efe6', accessory: 'none', accent: '#f4cf5a' },
+    look: { skin: '#f3cfae', hair: '#b4875a', hairStyle: 'slickback', eyes: '#4a2e1e', shirt: '#f4cf5a', pants: '#6a7fae', shoes: '#f4efe6', accessory: 'none', accent: '#f4cf5a' },
     traits: { sociable: 0.45, energetic: 0.25, kind: 0.95, grumpy: 0.02, curious: 0.45, hardworking: 0.15, brave: 0.45 },
     humor: 'goofy',
     loves: ['cats', 'napping', 'beach'],

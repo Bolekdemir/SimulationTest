@@ -109,7 +109,7 @@ IS.Iso = (() => {
   I.flowerBed = (seed, along) => I.prop(56, 44, 28, 30, (g, L) => {
     const r = IS.mulberry32(seed);
     const [w, d] = along === 'y' ? [0.6, 1] : [1, 0.6];
-    const b = I.box(g, L, -w / 2, -d / 2, w, d, 6, boxCols('#a0603a', '#6aa848'));
+    const b = I.box(g, L, -w / 2, -d / 2, w, d, 6, boxCols('#a0603a', '#76a234'));
     const cols = ['#ff7aa8', '#ffd060', '#ffffff', '#c58aff', '#ff9a58'];
     for (let i = 0; i < 14; i++) {
       const p = L(-w / 2 + r() * w, -d / 2 + r() * d);
@@ -121,10 +121,10 @@ IS.Iso = (() => {
   I.hedge = (seed, along) => I.prop(56, 50, 28, 32, (g, L) => {
     const r = IS.mulberry32(seed);
     const [w, d] = along === 'y' ? [0.7, 1] : [1, 0.7];
-    I.box(g, L, -w / 2, -d / 2, w, d, 14, { top: '#8ccf4e', left: '#5aa844', right: '#2f7a58' });
+    I.box(g, L, -w / 2, -d / 2, w, d, 14, { top: '#9cb83c', left: '#6e9230', right: '#3e5a32' });
     for (let i = 0; i < 26; i++) {
       const p = L(-w / 2 + r() * w, -d / 2 + r() * d);
-      g.fillStyle = r() < 0.5 ? '#b4e266' : '#3f8a4a';
+      g.fillStyle = r() < 0.5 ? '#d2d050' : '#46682a';
       g.fillRect(Math.round(p.x), Math.round(p.y) - 14 - Math.floor(r() * 2), 2, 1);
     }
   });

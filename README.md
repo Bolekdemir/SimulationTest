@@ -19,6 +19,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 - **Weekly calendar**: Tue fishing contest, Wed supply boat, Thu story night, Fri community dinner, Sat beach bonfire, Sun picnic, plus birthday parties.
 - **Random life**: weather (sun, clouds, rain, storms, fog), dolphins, shooting stars, messages in bottles, colds (friends bring soup), food spoilage, firewood running out.
 - **Isometric world**: a raised island slab with cliff edges, 3D buildings with gable roofs and lit/shaded walls, cutaway interiors, market stalls, string lights, hedges, fences and beach umbrellas.
+- **Lush nature**: clumpy olive and yellow-green grass, chunky oaks with roots and moss, purple mossy rocks, blossom clusters, ferns, clover and mushrooms.
 - **Lighting**: warm sun and cool blue-violet shadows, a lavender dusk, glowing windows, threshold bloom, shadows cast by the moving sun, a sweeping lighthouse beam, fireflies and bonfire light.
 - **Humour and quirks**: roasts, dry jokes, goofy jokes, bragging, greed and impulsiveness all change how conversations go.
 
@@ -34,6 +35,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | Look inside buildings | Hover them, or press R |
 | Speed | Space pauses, 1-5 sets speed |
 | Next islander / follow | Tab / F |
+| Fullscreen | The Fullscreen button. If the viewer blocks real fullscreen, it hides the HUD instead (H toggles that too) |
 
 ## Code map
 

@@ -286,7 +286,8 @@ IS.World = class {
     }
 
     // Old Oak
-    place('bigoak', oak.x, oak.y, IS.Sprites.makeOak(77), 23, 55, { footY: 22, protect: 1, big: true });
+    const bigOak = IS.Sprites.makeOak(77, true);
+    place('bigoak', oak.x, oak.y, bigOak, bigOak.ax, bigOak.ay, { footY: 20, protect: 1, big: true });
 
     // 7. Farm crops
     const kinds = ['tomato', 'carrot', 'cabbage'];
@@ -297,8 +298,10 @@ IS.World = class {
       this.addSpot('farm', x, cy + 1, 'up', 'stand', { crop });
     }
 
-    // 8. Scatter nature
+    // 8. Scatter nature: trees, bushes and mossy rocks, then lots of ground detail
     const near = (x, yy, t, r) => { for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) if (this.tile(x + a, yy + b) === t) return true; return false; };
+    const S2 = IS.Sprites;
+    const putAnch = (kind, x, yy, spr, opts = {}) => place(kind, x, yy, spr, spr.ax, spr.ay, { footY: 20, ...opts });
     for (let yy = 1; yy < H - 1; yy++) for (let x = 1; x < W - 1; x++) {
       const i = this.idx(x, yy);
       if (protect[i] || this.blocked[i]) continue;
@@ -307,32 +310,51 @@ IS.World = class {
       const seed = x * 131 + yy * 7;
       if (t === TT.FOREST) {
         if (h < 0.36 && !this.blocked[this.idx(x - 1, yy)] && !this.blocked[this.idx(x, yy - 1)]) {
-          const pine = yy < 14 || IS.hash2(x, yy, 9) < 0.35;
-          if (pine) place('tree', x, yy, IS.Sprites.makePine(seed), 18, 59, { footY: 22, tree: true });
-          else place('tree', x, yy, IS.Sprites.makeOak(seed), 23, 55, { footY: 22, tree: true });
-        } else if (h < 0.42) {
+          const pine = yy < 13 || IS.hash2(x, yy, 9) < 0.3;
+          if (pine) place('tree', x, yy, S2.makePine(seed), 18, 59, { footY: 22, tree: true });
+          else putAnch('tree', x, yy, S2.makeOak(seed), { tree: true });
+        } else if (h < 0.43) {
           const berries = IS.hash2(x, yy, 3) < 0.5;
-          const o = place('bush', x, yy, IS.Sprites.makeBush(seed, berries), 14, 18, { footY: 20 });
+          const o = putAnch('bush', x, yy, S2.makeBush(seed, berries));
           if (berries) o.berries = true;
-        } else if (h < 0.44) {
-          place('stump', x, yy, IS.Sprites.makeStump(), 10, 14, { footY: 20 });
-        } else if (h < 0.55) {
-          this.decals.push({ sprite: IS.Sprites.makeTuft(seed), x: x * T + 6 + (h * 97 % 10), y: yy * T + 10 });
-        }
+        } else if (h < 0.47) putAnch('rock', x, yy, S2.makeRock(seed));
+        else if (h < 0.49) place('stump', x, yy, S2.makeStump(), 10, 14, { footY: 20 });
       } else if (t === TT.GRASS) {
-        if (h < 0.06 && !near(x, yy, TT.PATH, 1) && !near(x, yy, TT.PLAZA, 2)) place('tree', x, yy, IS.Sprites.makeOak(seed), 23, 55, { footY: 22, tree: true });
-        else if (h < 0.09) place('bush', x, yy, IS.Sprites.makeBush(seed, h < 0.075), 14, 18, { footY: 20 });
-        else if (h < 0.06) place('rock', x, yy, IS.Sprites.makeRock(seed), 11, 15, { footY: 20 });
-        else if (h < 0.16 || (Math.abs(x - this.picnic.x) < 6 && Math.abs(yy - this.picnic.y) < 5 && h < 0.4)) {
-          this.decals.push({ sprite: IS.Sprites.makeFlowers(seed), x: x * T, y: yy * T });
-        } else if (h < 0.3) {
-          this.decals.push({ sprite: IS.Sprites.makeTuft(seed), x: x * T + 4 + (h * 97 % 12), y: yy * T + 6 + (h * 53 % 10) });
-        }
+        if (h < 0.06 && !near(x, yy, TT.PATH, 1) && !near(x, yy, TT.PLAZA, 2)) putAnch('tree', x, yy, S2.makeOak(seed), { tree: true });
+        else if (h < 0.1) putAnch('bush', x, yy, S2.makeBush(seed, h < 0.08));
+        else if (h < 0.115) putAnch('rock', x, yy, S2.makeRock(seed));
       } else if (t === TT.SAND) {
         const ld = landDist[i];
-        if (h < 0.05 && ld >= 2 && !near(x, yy, TT.DOCK, 2)) place('tree', x, yy, IS.Sprites.makePalm(seed), 24, 59, { footY: 22, tree: true });
-        else if (h < 0.065) place('rock', x, yy, IS.Sprites.makeRock(seed), 11, 15, { footY: 20 });
+        if (h < 0.05 && ld >= 2 && !near(x, yy, TT.DOCK, 2)) place('tree', x, yy, S2.makePalm(seed), 24, 59, { footY: 22, tree: true });
+        else if (h < 0.065) putAnch('rock', x, yy, S2.makeRock(seed));
       }
+    }
+    // Ground detail: several decals per tile, everywhere that isn't paved
+    const dr = IS.mulberry32(4242);
+    const cache = {};
+    const variant = (kind, n) => { const k = kind + (Math.floor(dr() * n)); return cache[k] || (cache[k] = S2[kind](Math.floor(dr() * 9999))); };
+    for (let yy = 1; yy < H - 1; yy++) for (let x = 1; x < W - 1; x++) {
+      const t = this.tile(x, yy);
+      const add = (kind, n) => this.decals.push({ sprite: variant(kind, n), x: x * T + dr() * 16 - 4, y: yy * T + dr() * 16 - 4 });
+      const meadow = Math.abs(x - this.picnic.x) < 7 && Math.abs(yy - this.picnic.y) < 5;
+      if (t === TT.GRASS) {
+        const k = 1 + Math.floor(dr() * 3);
+        for (let j = 0; j < k; j++) {
+          const v = dr();
+          if (v < (meadow ? 0.45 : 0.22)) add('makeFlowers', 10);
+          else if (v < 0.75) add('makeTuft', 8);
+          else if (v < 0.88) add('makeClover', 4);
+        }
+        if (near(x, yy, TT.FOREST, 1) && dr() < 0.2) add('makeMushroom', 3);
+      } else if (t === TT.FOREST) {
+        for (let j = 0; j < 2; j++) {
+          const v = dr();
+          if (v < 0.35) add('makeFern', 6);
+          else if (v < 0.7) add('makeTuft', 8);
+          else if (v < 0.8) add('makeMushroom', 3);
+          else if (v < 0.9) add('makeFlowers', 10);
+        }
+      } else if (t === TT.SAND && dr() < 0.08) add('makeTuft', 8);
     }
 
     // 9. Activity spots
@@ -596,13 +618,21 @@ IS.World = class {
     const C = {
       g0: rgb('#62c04a'), g1: rgb('#92d84e'), gd: rgb('#4caa4a'), gl: rgb('#c6ec6c'),
       f0: rgb('#3e9e52'), f1: rgb('#52b058'), fd: rgb('#2f8452'),
-      s0: rgb('#ffd88a'), s1: rgb('#ffe8ae'), sd: rgb('#f4c26e'), swet: rgb('#eeb072'),
+      s0: rgb('#f8d088'), s1: rgb('#ffe2a8'), sd: rgb('#eab86a'), swet: rgb('#e4a46c'),
       p0: rgb('#eaa866'), p1: rgb('#dc9a5a'), pe: rgb('#c27e4a'), pp: rgb('#b8704a'), pl: rgb('#ffcf92'),
       mort: rgb('#a888a8'), st: ['#e8c4a4', '#dfb494', '#eecdb0', '#d4a888'].map(rgb),
       soil: rgb('#b4623a'), furrow: rgb('#843f2c'), soilL: rgb('#cc7a48'),
       dk: ['#dc9a5a', '#cc8a4c', '#e6a866'].map(rgb), seam: rgb('#8a4a2c'),
       cliffSand: rgb('#d99858'), cliffDirt: rgb('#9a5838'), cliffDirtD: rgb('#6a3a3a'), cliffStone: rgb('#a898b0'), cliffWood: rgb('#8a5030'),
-      lip: rgb('#3f9a4a'),
+      lip: rgb('#3f6a2e'),
+      grass: ['#5a8a2e', '#76a234', '#9cbc40', '#c6d050'].map(rgb),
+      forest: ['#3a5c28', '#4c782c', '#6a9434', '#90ae3e'].map(rgb),
+      clumpShade: rgb('#2e4a30'),
+    };
+    const nG = IS.makeNoise(57), nG2 = IS.makeNoise(83);
+    const band = (sx, sy, big) => {
+      const v = nG(sx / 7, sy / 4.5) * 0.55 + nG2(sx / 2.5, sy / 2) * 0.17 + big * 0.35;
+      return v < 0.4 ? 0 : v < 0.53 ? 1 : v < 0.66 ? 2 : 3;
     };
     const set = (A, i, c, a = 255) => { A[i] = c[0]; A[i + 1] = c[1]; A[i + 2] = c[2]; A[i + 3] = a; };
     const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -661,12 +691,17 @@ IS.World = class {
         let c;
         const wx = gx * IS.TILE, wy = gy * IS.TILE;
         switch (t) {
-          case TT.GRASS: {
-            c = mixc(C.g0, C.g1, patch[fidx]);
-            if (hb < 0.16) c = mixc(c, C.gd, 0.65); else if (hb > 0.93) c = mixc(c, C.gl, 0.75);
+          case TT.GRASS:
+          case TT.FOREST: {
+            // Posterized clumps; a clump sitting below a lighter one is shaded
+            const ramp = t === TT.GRASS ? C.grass : C.forest;
+            const b = band(sx, sy, patch[fidx]);
+            const above = band(sx, sy - 1, patch[fidx]);
+            c = ramp[b];
+            if (above > b) c = mixc(c, C.clumpShade, 0.35);
+            if (hb > 0.985) c = mixc(c, [255, 250, 200], 0.4);
             break;
           }
-          case TT.FOREST: c = mixc(C.f0, C.f1, patch[fidx]); if (hb < 0.22) c = C.fd; break;
           case TT.SAND: {
             c = mixc(C.s0, C.s1, patch[fidx]);
             if (hb < 0.06) c = C.sd;
@@ -725,7 +760,7 @@ IS.World = class {
       this.shadowEllipse(g, s.x, s.y, big ? (o.big ? 22 : 14) : 9, big ? 7 : 4);
     }
     // Decals: flowers and grass tufts, and fallen leaves under trees
-    for (const d of this.decals) { const s = P(d.x + 12, d.y + 12); g.drawImage(d.sprite, Math.round(s.x - 12), Math.round(s.y - 12)); }
+    for (const d of this.decals) { const s = P(d.x + 12, d.y + 12); g.drawImage(d.sprite, Math.round(s.x - d.sprite.width / 2), Math.round(s.y - d.sprite.height + 2)); }
     const r = IS.mulberry32(99);
     for (const o of this.objects) {
       if (o.kind !== 'tree' && o.kind !== 'bigoak') continue;
