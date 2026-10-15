@@ -434,10 +434,10 @@ IS.Events = class {
       b.x = IS.lerp(farX, dockX, e); b.y = IS.lerp(farY, dockY, e);
       if (b.t >= 1) {
         b.state = 'docked';
-        w.food += 6; w.wood += 4;
+        w.food += 6 + sim.people.length; w.wood += 4;
         const lucky = IS.shuffle(sim.people.slice()).slice(0, IS.randi(1, 2));
         for (const p of lucky) p.remember('Got a letter from the mainland', { tag: 'letter', mood: 8, news: true });
-        sim.log(`The supply boat docked: +6 food, +4 wood, and mail for ${lucky.map(p => p.name).join(' and ')}.`, 'event', lucky);
+        sim.log(`The supply boat docked: +${6 + sim.people.length} food, +4 wood, and mail for ${lucky.map(p => p.name).join(' and ')}.`, 'event', lucky);
         sim.toast('The supply boat has docked!');
       }
     } else if (b.state === 'docked') {

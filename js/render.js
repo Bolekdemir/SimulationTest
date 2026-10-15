@@ -48,6 +48,8 @@ IS.Renderer = class {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.light = IS.makeCanvas(16, 16, false);
+    this.shadow = IS.makeCanvas(16, 16, false);
+    this.silCache = new WeakMap();
     this.wave = this.makeWaveTexture();
     this.fog = this.makeFogTexture();
     this.cloud = this.makeCloud();
@@ -72,6 +74,15 @@ IS.Renderer = class {
     this.canvas.style.width = vw * z + 'px';
     this.canvas.style.height = vh * z + 'px';
     this.light.c.width = vw; this.light.c.height = vh;
+    this.shadow.c.width = vw; this.shadow.c.height = vh;
+    // Vignette: warm, dark edges pull the eye in and make everything feel snug
+    const vg = IS.makeCanvas(vw, vh, false);
+    const rad = Math.hypot(vw, vh) / 2;
+    const gr = vg.g.createRadialGradient(vw / 2, vh / 2, rad * 0.45, vw / 2, vh / 2, rad);
+    gr.addColorStop(0, 'rgba(40, 16, 40, 0)');
+    gr.addColorStop(1, 'rgba(40, 16, 40, 0.42)');
+    vg.g.fillStyle = gr; vg.g.fillRect(0, 0, vw, vh);
+    this.vignette = vg.c;
     this.ctx.imageSmoothingEnabled = false;
     this.vw = vw; this.vh = vh;
     this.waveA = this.ctx.createPattern(this.wave, 'repeat');
@@ -116,8 +127,8 @@ IS.Renderer = class {
   // Ambient tint by time of day, as [r, g, b, alpha]
   ambient(min) {
     const K = [
-      [0, [18, 10, 58, 0.72]], [300, [18, 10, 58, 0.7]], [360, [70, 50, 100, 0.38]], [420, [255, 170, 120, 0.1]],
-      [480, [255, 220, 180, 0]], [1020, [255, 200, 150, 0]], [1110, [255, 120, 50, 0.2]], [1170, [150, 50, 120, 0.34]],
+      [0, [18, 10, 58, 0.72]], [300, [18, 10, 58, 0.7]], [360, [90, 50, 110, 0.38]], [420, [255, 160, 110, 0.16]],
+      [500, [255, 215, 170, 0.05]], [960, [255, 205, 150, 0.05]], [1050, [255, 160, 80, 0.14]], [1110, [255, 115, 50, 0.24]], [1170, [150, 50, 120, 0.34]],
       [1230, [40, 22, 90, 0.58]], [1320, [18, 10, 58, 0.72]], [1440, [18, 10, 58, 0.72]],
     ];
     let i = 1;
@@ -211,6 +222,8 @@ IS.Renderer = class {
       ctx.globalAlpha = 1;
     }
 
+    this.drawCastShadows(ctx, ox, oy, inView);
+
     // Depth-sorted pass
     const list = [];
     for (const o of w.objects) if (inView(o.x, o.y, 80)) list.push({ y: o.sortY, o, kind: 'obj' });
@@ -218,6 +231,7 @@ IS.Renderer = class {
     for (const p of sim.people) list.push({ y: p.y + (p.mode === 'carried' || p.mode === 'air' ? 1000 : 0), p, kind: 'person' });
     const boat = sim.events.boat;
     if (boat) list.push({ y: boat.y, kind: 'boat' });
+    if (sim.cat) list.push({ y: sim.cat.y, kind: 'cat' });
     list.sort((a, b) => a.y - b.y);
     for (const it of list) {
       if (it.kind === 'obj') {
@@ -238,12 +252,15 @@ IS.Renderer = class {
         }
       } else if (it.kind === 'person') {
         this.drawPerson(ctx, it.p, ox, oy, t);
+      } else if (it.kind === 'cat') {
+        sim.cat.draw(ctx, ox, oy, now);
       } else if (it.kind === 'boat') {
         const bob = Math.round(Math.sin(t * 1.5) * 1.5);
         ctx.drawImage(IS.Sprites.boat, Math.round(boat.x - 40 - ox), Math.round(boat.y - 60 - oy + bob));
       }
     }
     sim.fx.draw(ctx, ox, oy);
+    this.drawPendants(ctx, ox, oy, t);
     this.drawGulls(ctx, ox, oy, rdt, t);
 
     // Cozy colour grade: a warm soft-light wash adds saturation and depth
@@ -258,13 +275,111 @@ IS.Renderer = class {
     this.drawWeather(ctx, rdt, t, amb);
     this.drawStars(ctx, now);
 
+    ctx.drawImage(this.vignette, 0, 0);
     // Emotes after lighting so they stay readable at night
     for (const p of sim.people) this.drawEmote(ctx, p, ox, oy, now);
+  }
+
+  pendantSpots(b) {
+    return b.kind === 'hall' ? [[3.5, 3], [6.5, 3]] : [[3, 2]];
+  }
+
+  // Shadow of every object, cast away from the sun and squashed onto the ground
+  sun() {
+    const min = this.sim.clock.min;
+    const t = (min - 360) / 720;
+    if (t <= 0 || t >= 1) return null;
+    const edge = Math.abs(t - 0.5) * 2;
+    let a = Math.min(1, t / 0.08, (1 - t) / 0.1);
+    a *= { sunny: 1, cloudy: 0.45, fog: 0.3, rain: 0.2, storm: 0.1 }[this.sim.weather];
+    return { k: IS.lerp(-1.3, 1.3, t) + 0.55, len: 0.3 + edge * 0.4, a };
+  }
+  silhouette(img) {
+    let s = this.silCache.get(img);
+    if (!s) {
+      const { c, g } = IS.makeCanvas(img.width, img.height, false);
+      g.drawImage(img, 0, 0);
+      g.globalCompositeOperation = 'source-in';
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, img.width, img.height);
+      this.silCache.set(img, c);
+      s = c;
+    }
+    return s;
+  }
+  drawCastShadows(ctx, ox, oy, inView) {
+    const sun = this.sun();
+    if (!sun || sun.a < 0.02) return;
+    const S = this.shadow.g, sim = this.sim, w = sim.world, T = IS.TILE;
+    S.setTransform(1, 0, 0, 1, 0, 0);
+    S.clearRect(0, 0, this.vw, this.vh);
+    const cast = (img, ax, ay, x, y, scale = 1) => {
+      S.setTransform(1, 0, -sun.k * sun.len * scale, -sun.len * scale, Math.round(x - ox), Math.round(y - oy));
+      S.drawImage(this.silhouette(img), -ax, -ay);
+    };
+    for (const o of w.objects) {
+      if (o.kind === 'log' || o.kind === 'bench' || !inView(o.x, o.y, 120)) continue;
+      cast(o.sprite, o.ax, o.ay, o.x, o.y - 2, o.kind === 'tree' || o.kind === 'bigoak' ? 0.9 : 1);
+    }
+    for (const b of w.buildings) {
+      if (b.cut > 0.5) continue;
+      cast(b.ext.canvas, 0, b.ext.h, b.px, b.py + b.ext.h, 0.42);
+    }
+    for (const p of sim.people) {
+      if (p.mode !== 'normal' || p.building || p.pose === 'swim' || p.pose === 'sleep') continue;
+      const f = p.frames[p.dir][p.pose === 'walk' ? [1, 0, 2, 0][Math.floor(p.anim / 6) % 4] : 0];
+      cast(f, 11, 34, p.x, p.y - 1);
+    }
+    const boat = sim.events.boat;
+    if (boat) cast(IS.Sprites.boat, 40, 60, boat.x, boat.y);
+    S.setTransform(1, 0, 0, 1, 0, 0);
+    S.globalCompositeOperation = 'source-in';
+    S.fillStyle = '#3a1a5a';
+    S.fillRect(0, 0, this.vw, this.vh);
+    S.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.3 * sun.a;
+    ctx.drawImage(this.shadow.c, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+
+  // Hanging lamps over the tables, visible when a roof is lifted
+  drawPendants(ctx, ox, oy, t) {
+    const T = IS.TILE;
+    for (const b of this.sim.world.buildings) {
+      if (b.cut < 0.05) continue;
+      ctx.globalAlpha = b.cut;
+      for (const [c, r] of this.pendantSpots(b)) {
+        const x = Math.round((b.x0 + c) * T - ox), y = Math.round((b.y0 + r) * T - oy) - 14;
+        ctx.fillStyle = '#3b3346'; ctx.fillRect(x, y - 16, 1, 12);
+        ctx.fillStyle = '#7a3d24'; ctx.fillRect(x - 6, y - 5, 13, 2);
+        ctx.fillStyle = '#e8703a'; ctx.fillRect(x - 5, y - 4, 11, 4); ctx.fillRect(x - 6, y, 13, 2);
+        ctx.fillStyle = '#ffd56a'; ctx.fillRect(x - 3, y + 2, 7, 1);
+        ctx.fillStyle = '#fff4c8'; ctx.fillRect(x - 1, y + 2, 3, 1);
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   drawInteriorLive(ctx, b, ox, oy, t) {
     const T = IS.TILE;
     const sim = this.sim;
+    // Warm lamplight in the middle of the room, soft shade in the corners
+    const rx = (b.x0 + 1) * T - ox, ry = (b.y0) * T - oy - 6, rw = (b.w - 2) * T, rh = (b.h - 1) * T + 6;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.clip();
+    ctx.globalCompositeOperation = 'soft-light';
+    for (const [c, r] of this.pendantSpots(b)) {
+      const lx = (b.x0 + c) * T - ox, ly = (b.y0 + r) * T - oy;
+      const g1 = ctx.createRadialGradient(lx, ly, 2, lx, ly, T * 3.2);
+      g1.addColorStop(0, 'rgba(255, 190, 100, 0.85)'); g1.addColorStop(1, 'rgba(255, 190, 100, 0)');
+      ctx.fillStyle = g1; ctx.fillRect(rx, ry, rw, rh);
+    }
+    ctx.globalCompositeOperation = 'multiply';
+    const cx = rx + rw / 2, cy = ry + rh / 2;
+    const g2 = ctx.createRadialGradient(cx, cy, Math.min(rw, rh) * 0.3, cx, cy, Math.hypot(rw, rh) * 0.62);
+    g2.addColorStop(0, 'rgba(255, 255, 255, 0)'); g2.addColorStop(1, 'rgba(120, 70, 100, 0.55)');
+    ctx.fillStyle = g2; ctx.fillRect(rx, ry, rw, rh);
+    ctx.restore();
     if (b.kind === 'hall') {
       const ev = sim.events.list.find(e => e.state === 'active' && (e.seat === 'hallSeat'));
       // fireplace flicker
@@ -327,7 +442,7 @@ IS.Renderer = class {
       ctx.save();
       ctx.translate(sx, sy - z - 22);
       ctx.rotate(p.swing);
-      ctx.drawImage(img, -11, -10);
+      ctx.drawImage(img, -11, -12);
       ctx.restore();
       if (p.mode === 'carried' && Math.random() < 0.3) {
         ctx.fillStyle = '#fff4c8';
@@ -339,7 +454,7 @@ IS.Renderer = class {
 
     if (p.pose === 'sleep') {
       const top = sy - 18;
-      ctx.drawImage(img, 0, 0, 22, 18, sx - 11, top - 9, 22, 18);
+      ctx.drawImage(img, 0, 0, 22, 20, sx - 11, top - 11, 22, 20);
       const col = p.bedSpot ? IS.shade(p.cfg.look.shirt, -0.1) : '#6a8fc9';
       ctx.fillStyle = col; ctx.fillRect(sx - 9, top + 7, 18, 32);
       ctx.fillStyle = IS.shade(col, 0.25); ctx.fillRect(sx - 9, top + 7, 18, 3);
@@ -348,7 +463,7 @@ IS.Renderer = class {
       return;
     }
     if (p.pose === 'swim') {
-      ctx.drawImage(img, 0, 0, 22, 20, sx - 11, sy - 32 + 12, 22, 20);
+      ctx.drawImage(img, 0, 0, 22, 22, sx - 11, sy - 34 + 12, 22, 22);
       ctx.strokeStyle = 'rgba(232, 251, 255, 0.85)';
       ctx.beginPath(); ctx.ellipse(sx + 0.5, sy - 2.5, 10 + Math.sin(t * 4), 3, 0, 0, Math.PI * 2); ctx.stroke();
       ctx.globalAlpha = 1;
@@ -358,9 +473,9 @@ IS.Renderer = class {
     ctx.fillStyle = 'rgba(20, 20, 40, 0.25)';
     ctx.beginPath(); ctx.ellipse(sx, sy - 1, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
     if (p.pose === 'sit') {
-      ctx.drawImage(img, 0, 0, 22, 28, sx - 11, sy - 32 + 4, 22, 28);
+      ctx.drawImage(img, 0, 0, 22, 30, sx - 11, sy - 34 + 4, 22, 30);
     } else {
-      ctx.drawImage(img, sx - 11, sy - 32);
+      ctx.drawImage(img, sx - 11, sy - 34);
     }
     const a = p.action;
     if (a && a.phase === 'do' && p.pose === 'sit' && a.def.id === 'read' && p.dir === 'down') {
@@ -472,15 +587,16 @@ IS.Renderer = class {
       for (const bld of w.buildings) {
         const inside = sim.people.some(p => p.building === bld && p.pose !== 'sleep');
         const hallEv = bld.kind === 'hall' && sim.events.list.some(e => e.state === 'active' && e.seat === 'hallSeat');
-        if (bld.kind === 'hall' && bld.cut > 0.3 && !(evening && (inside || hallEv))) {
-          lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 60, s: dark * bld.cut * 0.8, warm: 0.6 });
+        if (bld.cut > 0.3 && !(evening && (inside || hallEv))) {
+          for (const [c, r] of this.pendantSpots(bld)) lights.push({ x: (bld.x0 + c) * T, y: (bld.y0 + r) * T, r: T * 3.2, s: 0.85 * dark * bld.cut, warm: 0.7 });
+          if (bld.kind === 'hall') lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 60, s: dark * bld.cut * 0.8, warm: 0.6 });
           continue;
         }
         if (!(evening && (inside || hallEv))) continue;
         bld.lit = true;
         for (const win of bld.ext.windows) lights.push({ x: bld.px + win.x + 7, y: bld.py + win.y + 6, r: 30, s: 0.8 * dark, warm: 0.5, win: { x: bld.px + win.x, y: bld.py + win.y, w: win.w, h: win.h }, cut: bld.cut });
         if (bld.kind === 'hall' && bld.cut > 0.3) lights.push({ x: (bld.x0 + 7) * T, y: (bld.y0 + 1.6) * T, r: 70, s: dark * bld.cut, warm: 0.7 });
-        if (bld.cut > 0.3) lights.push({ x: (bld.x0 + bld.w / 2) * T, y: (bld.y0 + bld.h / 2) * T, r: bld.w * 14, s: 0.8 * dark * bld.cut, warm: 0.3 });
+        if (bld.cut > 0.3) for (const [c, r] of this.pendantSpots(bld)) lights.push({ x: (bld.x0 + c) * T, y: (bld.y0 + r) * T, r: T * 3.4, s: 0.95 * dark * bld.cut, warm: 0.8 });
       }
       if (w.bonfire.lit) {
         const fl = 1 + Math.sin(t * 13) * 0.06 + Math.sin(t * 7.3) * 0.05;

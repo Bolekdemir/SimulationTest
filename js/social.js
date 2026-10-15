@@ -203,7 +203,13 @@ IS.Social = (() => {
       add(f3 >= 15 ? 'gossipGood' : f3 < 0 ? 'gossipBad' : 'gossipGood', (t.curious + t.sociable) * 0.6 + (f3 < 0 ? t.grumpy : 0), { third });
     }
     add('compliment', t.kind * 1.4 + (r.friendship > 30 ? 0.5 : 0));
-    add('joke', (t.energetic + (1 - t.grumpy)) * 0.55);
+    add('joke', (t.energetic + (1 - t.grumpy)) * 0.55 + (sp.cfg.humor && sp.cfg.humor !== 'wholesome' ? 0.5 : 0));
+    const humor = sp.cfg.humor;
+    if (humor === 'roast') add('roast', 1.1 + (r.friendship > 30 ? 0.8 : 0));
+    if (humor === 'brag') add('brag', 1.4);
+    if (humor === 'cocky') add('cocky', 1.2);
+    const cat = sim.cat;
+    if (cat && sp.loves.includes('cats')) add('cat', 1 + (sp.recentMemory('cat', 720) ? 1 : 0));
     add('complaint', t.grumpy * 1.5 + (sp.mood() < 40 ? 1 : 0));
     if (sp.needs.hunger < 35) add('hungry', 2);
     if (r.friendship > 45 && sim.clock.min > 1140) add('deep', 1.3);
@@ -213,7 +219,7 @@ IS.Social = (() => {
     if (r.friendship < -25 || (t.grumpy > 0.6 && sp.mood() < 35)) add('argue', 1.5 + t.grumpy + (r.friendship < -40 ? 1.5 : 0));
     else {
       // Personality friction: clashing or cranky people bicker now and then
-      const friction = (0.66 - S.compat(sp, li)) * 4 + t.grumpy * (sp.mood() < 55 ? 1 : 0.3) - t.kind * 0.4;
+      const friction = (0.66 - S.compat(sp, li)) * 4 + t.grumpy * (sp.mood() < 55 ? 1 : 0.3) - t.kind * 0.4 + ((sp.cfg.quirks || []).includes('impulsive') ? 0.5 : 0);
       if (friction > 0 && r.friendship < 45 && !r.partner) add('argue', friction * 0.8);
     }
     if (r.friendship < 0 && t.kind > 0.5) add('apology', 1.6);
@@ -239,6 +245,8 @@ IS.Social = (() => {
         break;
       }
       case 'catchphrase': text = IS.pick(sp.cfg.catchphrases); break;
+      case 'joke': text = D.line(sp.cfg.humor ? 'joke_' + sp.cfg.humor : 'joke'); if (Math.random() < 0.35) text = D.line('joke'); break;
+      case 'cat': ctx.cat = sim.cat ? sim.cat.name : 'the cat'; text = D.line('cat'); break;
       case 'news:bottle': ctx.bottleMsg = extra.memory.detail || '...'; text = D.line('bottle'); break;
       case 'news:find': text = `I found ${extra.memory.detail} in the forest!`; break;
       case 'news:contest': text = extra.memory.text.includes('Won') ? 'I won the fishing contest! Did you hear?' : 'That fishing contest was rigged, I swear.'; break;
@@ -260,6 +268,10 @@ IS.Social = (() => {
       complaint: lt.grumpy > 0.55 ? 0.7 : lt.kind > 0.6 ? 0.3 : -0.4, hungry: 0.1, deep: 1.1, flirt: li.canFallFor(sp.name) ? 1.4 : -0.3,
       argue: -2.5, apology: lt.kind > 0.5 ? 2.2 : 0.4, skyhand: 0.9, skyhandSea: 0.8, skyhandWitness: 0.7, eventSoon: 0.6,
       birthday: 2.5, sickVisit: 3, catchphrase: 0.35, confess: 0,
+      roast: rel.friendship > 25 ? 1.3 : lt.kind > 0.7 ? 0 : -0.9,
+      brag: li.cfg.humor === 'brag' ? 0.8 : -0.1 - lt.kind * 0.3 - lt.grumpy * 0.6,
+      cocky: li.cfg.humor === 'cocky' || li.cfg.humor === 'brag' ? 0.7 : -0.2,
+      cat: li.loves.includes('cats') ? 1.8 : 0.5,
     };
     let b = base[t.topic];
     if (t.topic === 'gossipBad') b = li.relTo(t.extra.third ? t.extra.third.name : '').friendship < 0 ? 0.9 : -0.7;
@@ -330,6 +342,9 @@ IS.Social = (() => {
     if (t.topic === 'joke' && valence !== 'neu') special = 'joke';
     if ((t.topic === 'skyhand' || t.topic === 'skyhandSea') && valence !== 'neg') special = t.topic;
     if (t.topic === 'flirt' && dr > 0) special = 'flirtYes';
+    if (t.topic === 'roast') special = valence === 'neg' ? 'roastNeg' : 'roastPos';
+    if (t.topic === 'brag' || t.topic === 'cocky') special = valence === 'pos' ? 'bragPos' : 'brag';
+    if (t.topic === 'cat') special = 'cat';
     if (valence === 'pos') emote = dr > 0 ? 'heart' : df > 3 ? 'heart' : IS.pick(['note', 'note', 'sparkle']);
     if (valence === 'neg') emote = lt.grumpy > 0.5 ? 'anger' : 'sweat';
     if (special === 'skyhand' || special === 'skyhandSea') emote = 'exclaim';
@@ -340,7 +355,8 @@ IS.Social = (() => {
       const m = t.extra.memory;
       li.remember(`Heard from ${sp.name}: ${m.text.toLowerCase()}`, { tag: 'heard', about: sp.name });
     }
-    return { df, dr, text: D.response(valence, ltone, special), emote, endsChat };
+    const reply = D.fill(D.response(valence, ltone, special), { other: sp.name, cat: sim.cat ? sim.cat.name : 'the cat' });
+    return { df, dr, text: reply, emote, endsChat };
   };
 
   return S;

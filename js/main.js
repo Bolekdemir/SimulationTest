@@ -11,6 +11,8 @@ IS.Sim = class {
     this.logEntries = [];
     this.people = IS.ISLANDERS.map((cfg, i) => new IS.Person(cfg, i, this));
     this.events = new IS.Events(this);
+    const catLover = this.people.find(p => p.loves.includes('cats'));
+    this.cat = new IS.Cat(this, IS.CONFIG.catName || 'Biscuit', catLover ? catLover.homeId : 'house1');
     this.speedIdx = 1;
     this.lastSpeed = 1;
     this.xray = false;
@@ -136,7 +138,8 @@ IS.Sim = class {
       this.clock.abs += dt;
       this.updateClock();
       this.events.update(dt);
-      for (const p of this.people) p.update(dt, rdt / steps, this.clock.ctx || this.ctx());
+      for (const p of this.people) p.update(dt, rdt / steps, this.ctx());
+      this.cat.update(dt);
       for (const cv of this.conversations.slice()) cv.update(dt);
       if (dt > 0) IS.Social.update(this, dt);
       this.cropGrowth(dt);
@@ -166,7 +169,7 @@ IS.Sim = class {
   }
 
   cropGrowth(dt) {
-    const rate = this.weather === 'rain' || this.weather === 'storm' ? 0.00028 : 0.00018;
+    const rate = this.weather === 'rain' || this.weather === 'storm' ? 0.00034 : 0.00022;
     for (const cr of this.world.crops) cr.growth = Math.min(1, cr.growth + rate * dt);
   }
 

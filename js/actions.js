@@ -54,6 +54,10 @@ IS.Actions = (() => {
     finish: (p, a) => {
       if (p.world.food > 0) {
         p.world.food--;
+        if ((p.cfg.quirks || []).includes('greedy') && p.world.food > 0 && Math.random() < 0.5) {
+          p.world.food--;
+          if (Math.random() < 0.3) p.sim.log(`${p.name} helped himself to seconds. And thirds.`.replace('himself', p.cfg.pronoun === 'she' ? 'herself' : p.cfg.pronoun === 'they' ? 'themselves' : 'himself'), 'warn', [p]);
+        }
         p.needs.hunger = Math.min(100, p.needs.hunger + 55);
         if (p.loves.includes('cooking')) { p.needs.fun = Math.min(100, p.needs.fun + 12); p.addMood('Cooked something tasty', 5, 120); }
       } else {
@@ -75,7 +79,7 @@ IS.Actions = (() => {
       p.needs.fun = Math.min(100, p.needs.fun + (p.loves.includes('fishing') ? 0.2 : 0.06) * dt);
       if (a.acc >= 20) {
         a.acc = 0;
-        if (Math.random() < 0.2 + (p.loves.includes('fishing') ? 0.1 : 0) + (p.sim.weather === 'rain' ? 0.08 : 0)) {
+        if (Math.random() < 0.25 + (p.loves.includes('fishing') ? 0.1 : 0) + (p.sim.weather === 'rain' ? 0.08 : 0)) {
           p.world.food++;
           a.catches = (a.catches || 0) + 1;
           p.emote('fish', 2);
@@ -97,7 +101,7 @@ IS.Actions = (() => {
     can: (p, c) => between(c.min, H(6), H(19)) && c.weather !== 'storm',
     score: (p, c) => {
       const ripe = p.world.crops.some(cr => cr.growth >= 1);
-      return 0.3 + p.traits.hardworking * 0.55 + (ripe ? 0.35 : 0) + (c.weekday < 5 && between(c.min, H(9), H(17)) ? 0.2 : 0) + love(p, 'gardening');
+      return 0.3 + p.traits.hardworking * 0.55 + (ripe ? 0.35 : 0) + (p.world.food < 10 ? 0.3 : 0) + (c.weekday < 5 && between(c.min, H(9), H(17)) ? 0.2 : 0) + love(p, 'gardening');
     },
     plan: p => {
       const spot = p.world.freeSpot('farm', s => s.crop.growth >= 1) || p.world.freeSpot('farm');
@@ -308,6 +312,38 @@ IS.Actions = (() => {
     start: p => { p.greetedBoat = true; },
     tick: (p, a) => { const b = p.sim.events.boat; if (!b || b.state === 'leaving') a.done = true; },
     thought: () => 'Supply boat! Maybe there\'s mail for me.',
+  });
+
+  def({
+    id: 'petCat', label: 'Petting the cat', love: 'cats', outdoor: true, chatOK: true,
+    can: (p, c) => { const cat = p.sim.cat; return !!cat && !cat.building && !cat.reserved && between(c.min, H(7), H(21)); },
+    score: p => {
+      const cat = p.sim.cat;
+      const near = IS.dist(p.x, p.y, cat.x, cat.y) < IS.TILE * 14 ? 0.3 : 0;
+      return 0.1 + p.traits.kind * 0.25 + love(p, 'cats') * 1.4 + near + (p.loves.includes('cats') ? dN(p, 'fun') * 0.6 : 0);
+    },
+    plan: p => {
+      const cat = p.sim.cat;
+      const goal = p.world.findNear(cat.tx, cat.ty, (x, y) => p.world.walkable(x, y) && !(x === cat.tx && y === cat.ty) && Math.abs(x - cat.tx) + Math.abs(y - cat.ty) === 1, 2);
+      cat.reserved = p;
+      return { tx: goal.x, ty: goal.y, duration: IS.rand(10, 20), cat };
+    },
+    start: (p, a) => {
+      p.faceToward(a.cat.x, a.cat.y);
+      a.cat.pettedBy = p;
+      p.emote('heart', 2);
+      if (Math.random() < 0.5) p.say(IS.pick([`Hi ${a.cat.name}! Who's a good kitty?`, 'Look at those little paws...', `${a.cat.name}! My favourite!`, 'Pspspsps.']));
+    },
+    tick: (p, a, dt) => {
+      p.needs.fun = Math.min(100, p.needs.fun + (p.loves.includes('cats') ? 0.6 : 0.25) * dt);
+      if (Math.random() < dt * 0.12) a.cat.purr();
+    },
+    finish: (p, a) => {
+      a.cat.reserved = null; a.cat.pettedBy = null;
+      if (p.loves.includes('cats')) p.remember(`Petted ${a.cat.name}`, { tag: 'cat', mood: 6, moodDuration: 240 });
+    },
+    cancel: (p, a) => { const cat = p.sim.cat; if (cat && cat.reserved === p) { cat.reserved = null; cat.pettedBy = null; } },
+    thought: p => p.loves.includes('cats') ? 'I need to pet the cat. It is urgent.' : 'Hey, kitty kitty.',
   });
 
   // Event attendance and hosting are handed out by the event manager.

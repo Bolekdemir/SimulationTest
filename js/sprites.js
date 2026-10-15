@@ -26,13 +26,16 @@ IS.Sprites = (() => {
   // ------------------------------------------------------------------
   // People
   // ------------------------------------------------------------------
-  // Sprite box is 20x28 "body units" with 4px headroom for hats and buns.
-  // Canvas is 22x34; feet sit at canvas (11, 32).
+  // Sprite box is 20x28 "body units" with 6px headroom for hats, buns and
+  // tall folks. Canvas is 22x36; feet sit at canvas (11, 34). Left-facing
+  // frames are mirrored copies of right-facing ones.
   function drawPerson(look, dir, frame) {
-    const { c, g } = IS.makeCanvas(22, 34);
-    const side = dir === 'left' || dir === 'right';
+    const { c, g } = IS.makeCanvas(22, 36);
+    const side = dir === 'right';
     const back = dir === 'up';
-    const P = (x, y, w, h, col) => px(g, x + 1, y + 4, w, h, col);
+    const tall = look.tall ? 2 : 0;
+    let lift = tall; // upper body is raised for tall people
+    const P = (x, y, w, h, col) => px(g, x + 1, y + 6 - lift, w, h, col);
 
     const sk = look.skin, skD = IS.shade(sk, -0.18), skL = IS.shade(sk, 0.15);
     const hr = look.hair, hrD = IS.shade(hr, -0.28), hrL = IS.shade(hr, 0.22);
@@ -44,31 +47,35 @@ IS.Sprites = (() => {
     const accessory = look.accessory || 'none';
     const walkA = frame === 1, walkB = frame === 2, work = frame === 3, carry = frame >= 4;
     const armsUp = work || carry;
+    const longish = style === 'long' || style === 'longwavy';
 
     // Long hair and ponytails hang behind the body, so draw them first.
-    if (!back && !side && style === 'long') { P(3, 4, 14, 13, hrD); }
-    if (side && style === 'long') { P(3, 4, 6, 13, hrD); }
+    if (!back && !side && longish) { P(3, 4, 14, 13, hrD); }
+    if (side && longish) { P(3, 4, 6, 13, hrD); }
     if (side && style === 'ponytail') { P(1, 5, 4, 7, hr); P(1, 11, 3, 2, hrD); }
 
-    // Legs
+    // Legs (drawn from the ground up, longer for tall people)
+    lift = 0;
+    const L0 = 21 - tall, LH = 5 + tall;
     if (!side) {
       let lx = 6, rx = 11, lLift = 0, rLift = 0;
       if (walkA) lLift = 1;
       if (walkB) rLift = 1;
       if (frame === 4) { lx = 5; rx = 12; lLift = 2; }
       if (frame === 5) { lx = 6; rx = 11; rLift = 2; }
-      P(lx, 21, 3, 5 - lLift, pn); P(lx, 26 - lLift, 3, 2, shoe);
-      P(rx, 21, 3, 5 - rLift, pn); P(rx, 26 - rLift, 3, 2, shoe);
-      P(rx + 2, 21, 1, 5 - rLift, pnD);
+      P(lx, L0, 3, LH - lLift, pn); P(lx, 26 - lLift, 3, 2, shoe);
+      P(rx, L0, 3, LH - rLift, pn); P(rx, 26 - rLift, 3, 2, shoe);
+      P(rx + 2, L0, 1, LH - rLift, pnD);
     } else {
       let bx = 8, fx = 10, bLift = 0, fLift = 0;
       if (walkA) { bx = 6; fx = 12; }
       if (walkB) { bx = 9; fx = 9; fLift = 1; }
       if (frame === 4) { bx = 6; fx = 12; bLift = 2; }
       if (frame === 5) { bx = 7; fx = 11; fLift = 2; }
-      P(bx, 21, 3, 5 - bLift, pnD); P(bx, 26 - bLift, 4, 2, IS.shade(shoe, -0.2));
-      P(fx, 21, 3, 5 - fLift, pn); P(fx, 26 - fLift, 4, 2, shoe);
+      P(bx, L0, 3, LH - bLift, pnD); P(bx, 26 - bLift, 4, 2, IS.shade(shoe, -0.2));
+      P(fx, L0, 3, LH - fLift, pn); P(fx, 26 - fLift, 4, 2, shoe);
     }
+    lift = tall;
 
     // Torso
     if (!side) {
@@ -112,17 +119,18 @@ IS.Sprites = (() => {
     P(5, 1, 10, 1, sk); P(4, 2, 12, 9, sk); P(5, 11, 10, 1, sk);
     P(4, 2, 1, 9, skL);
     P(15, 2, 1, 9, skD); P(5, 11, 10, 1, skD);
-    if (side) P(dir === 'right' ? 16 : 3, 7, 1, 2, sk); // nose
+    if (side) P(16, 7, 1, 2, sk); // nose
 
-    // Face
-    const eye = '#2a1d26';
+    // Face: eyes are a dark pupil over a coloured iris pixel
+    const pupil = '#1d1424';
+    const iris = look.eyes || '#3a2a30';
     const blush = IS.mix(sk, '#ff7a7a', 0.35);
     if (!back && !side) {
-      P(7, 6, 1, 2, eye); P(12, 6, 1, 2, eye);
+      P(7, 6, 1, 1, pupil); P(7, 7, 1, 1, iris); P(12, 6, 1, 1, pupil); P(12, 7, 1, 1, iris);
       P(6, 9, 1, 1, blush); P(13, 9, 1, 1, blush);
       P(9, 9, 2, 1, IS.shade(sk, -0.35));
     } else if (side) {
-      P(13, 6, 1, 2, eye); P(12, 9, 1, 1, blush); P(14, 9, 1, 1, IS.shade(sk, -0.35));
+      P(13, 6, 1, 1, pupil); P(13, 7, 1, 1, iris); P(12, 9, 1, 1, blush); P(14, 9, 1, 1, IS.shade(sk, -0.35));
     }
 
     // Hair
@@ -134,26 +142,29 @@ IS.Sprites = (() => {
         P(5, 0, 10, 1, hr); P(4, 1, 12, 9, hr); P(3, 3, 1, 6, hr); P(16, 3, 1, 6, hr);
         P(6, 1, 3, 1, hrL); P(4, 9, 12, 1, hrD);
         if (style === 'long') { P(3, 9, 14, 8, hr); P(3, 16, 14, 1, hrD); }
+        if (style === 'longwavy') { P(3, 9, 14, 8, hr); for (let i = 0; i < 7; i++) P(3 + i * 2, 16 + (i % 2), 2, 1, hrD); for (let y = 10; y < 16; y += 3) P(5 + (y % 2) * 4, y, 1, 2, hrD); }
+        if (style === 'wavy') { P(3, 9, 14, 2, hr); for (let i = 0; i < 7; i++) P(3 + i * 2, 11, 1, 1, hrD); }
         if (style === 'bob') { P(3, 9, 14, 3, hr); P(3, 11, 14, 1, hrD); }
         if (style === 'ponytail') { P(8, 9, 4, 7, hr); P(9, 15, 2, 2, hrD); P(8, 9, 4, 1, acc); }
-        if (style === 'curly') { P(3, 0, 14, 11, hr); for (let i = 0; i < 7; i++) P(3 + i * 2, 10, 1, 1, hrD); }
+        if (style === 'curly') { P(2, -1, 16, 12, hr); for (let i = 0; i < 7; i++) P(3 + i * 2, -2, 1, 1, hr); for (let y = 0; y < 10; y += 2) for (let x = 3 + (y % 4 ? 1 : 0); x < 17; x += 3) { P(x, y, 1, 1, hrD); P(x + 1, y - 1, 1, 1, hrL); } for (let i = 0; i < 8; i++) P(2 + i * 2, 11, 1, 1, hr); }
         if (style === 'spiky') { for (let i = 0; i < 5; i++) P(5 + i * 2, -2, 1, 2, hr); }
         if (style === 'bun') { P(7, -3, 6, 4, hr); P(8, -3, 2, 1, hrL); }
+        if (look.roots) { P(5, 0, 10, 1, look.roots); P(6, 1, 8, 1, IS.mix(look.roots, hr, 0.5)); }
       }
     } else if (side) {
-      const f = dir === 'right';
-      const X = (x, w) => (f ? x : 20 - x - w);
-      const Q = (x, y, w, h, col) => P(X(x, w), y, w, h, col);
       if (style === 'bald') {
-        Q(4, 5, 5, 4, hr); Q(8, 2, 2, 1, skL);
+        P(4, 5, 5, 4, hr); P(8, 2, 2, 1, skL);
       } else {
-        Q(5, 0, 10, 1, hr); Q(4, 1, 12, 3, hr); Q(4, 4, 5, 6, hr); Q(13, 4, 3, 1, hr);
-        Q(7, 1, 3, 1, hrL);
-        if (style === 'long') Q(3, 4, 6, 12, hr);
-        if (style === 'bob') { Q(3, 4, 7, 8, hr); Q(3, 11, 7, 1, hrD); }
-        if (style === 'curly') { Q(3, 0, 13, 4, hr); Q(3, 4, 7, 7, hr); }
-        if (style === 'spiky') { for (let i = 0; i < 5; i++) Q(5 + i * 2, -2, 1, 2, hr); }
-        if (style === 'bun') { Q(5, -3, 5, 4, hr); }
+        P(5, 0, 10, 1, hr); P(4, 1, 12, 3, hr); P(4, 4, 5, 6, hr); P(13, 4, 3, 1, hr);
+        P(7, 1, 3, 1, hrL);
+        if (style === 'long') P(3, 4, 6, 12, hr);
+        if (style === 'longwavy') { P(3, 4, 6, 12, hr); P(2, 7, 1, 2, hr); P(2, 12, 1, 2, hr); P(8, 15, 1, 1, hrD); }
+        if (style === 'wavy') { P(3, 4, 6, 7, hr); P(2, 6, 1, 2, hr); P(12, 4, 3, 2, hr); P(4, 10, 2, 1, hrD); }
+        if (style === 'bob') { P(3, 4, 7, 8, hr); P(3, 11, 7, 1, hrD); }
+        if (style === 'curly') { P(2, -1, 14, 5, hr); P(2, 4, 8, 7, hr); for (let i = 0; i < 6; i++) P(3 + i * 2, -2, 1, 1, hr); for (const y of [0, 2, 5, 8]) for (let x = 3 + (y % 2); x < 14; x += 3) { if (y > 3 && x > 9) continue; P(x, y, 1, 1, hrD); P(x + 1, y - 1, 1, 1, hrL); } P(13, 4, 2, 1, hr); P(1, 6, 1, 1, hr); P(3, 11, 1, 1, hr); P(6, 11, 1, 1, hr); }
+        if (style === 'spiky') { for (let i = 0; i < 5; i++) P(5 + i * 2, -2, 1, 2, hr); }
+        if (style === 'bun') { P(5, -3, 5, 4, hr); }
+        if (look.roots) { P(5, 0, 10, 1, look.roots); }
       }
     } else {
       if (style === 'bald') {
@@ -164,16 +175,31 @@ IS.Sprites = (() => {
         if (style === 'bob') {
           P(4, 4, 12, 1, hr); P(3, 2, 2, 10, hr); P(15, 2, 2, 10, hr); P(3, 11, 2, 1, hrD); P(15, 11, 2, 1, hrD);
         } else if (style === 'curly') {
-          P(3, -1, 14, 5, hr); P(2, 2, 2, 8, hr); P(16, 2, 2, 8, hr);
-          for (let i = 0; i < 6; i++) P(4 + i * 2, 4, 1, 1, hrD);
+          P(3, -1, 14, 5, hr); P(2, 0, 16, 4, hr); P(2, 2, 2, 8, hr); P(16, 2, 2, 8, hr);
+          for (let i = 0; i < 7; i++) P(3 + i * 2, -2, 1, 1, hr);
+          for (const y of [-1, 1, 3]) for (let x = 3 + ((y + 1) % 4 ? 1 : 0); x < 17; x += 3) { P(x, y, 1, 1, hrD); P(x + 1, y - 1, 1, 1, hrL); }
+          P(5, 4, 2, 1, hr); P(5, 5, 1, 1, hr); P(9, 4, 2, 1, hr); P(10, 5, 1, 1, hrD); P(13, 4, 2, 1, hr); P(14, 5, 1, 1, hr);
+          P(1, 4, 1, 1, hr); P(1, 7, 1, 1, hr); P(18, 5, 1, 1, hr); P(18, 8, 1, 1, hr); P(2, 9, 1, 1, hrD); P(17, 9, 1, 1, hrD);
+        } else if (style === 'wavy' || style === 'longwavy') {
+          // Swept, wavy bangs
+          P(4, 4, 5, 1, hr); P(5, 5, 2, 1, hr); P(12, 4, 4, 1, hr); P(14, 5, 2, 1, hr);
+          P(10, 1, 2, 1, hrL); P(13, 2, 2, 1, hrL);
+          P(3, 2, 2, 7, hr); P(15, 2, 2, 7, hr); P(2, 5, 1, 2, hr); P(17, 4, 1, 2, hr);
+          P(3, 9, 1, 1, hrD); P(16, 9, 1, 1, hrD);
         } else {
           // Bangs
           P(4, 4, 3, 1, hr); P(9, 4, 3, 1, hr); P(14, 4, 2, 1, hr);
         }
         if (style === 'long') { P(3, 2, 2, 14, hr); P(15, 2, 2, 14, hr); P(3, 15, 2, 1, hrD); P(15, 15, 2, 1, hrD); }
+        if (style === 'longwavy') {
+          P(3, 2, 2, 14, hr); P(15, 2, 2, 14, hr);
+          for (let y = 6; y < 16; y += 3) { P(2, y, 1, 2, hr); P(17, y + 1, 1, 2, hr); P(4, y + 1, 1, 1, hrD); P(15, y, 1, 1, hrD); }
+          P(3, 16, 2, 1, hrD); P(15, 16, 2, 1, hrD);
+        }
         if (style === 'ponytail') { P(16, 5, 2, 6, hrD); P(16, 4, 2, 1, acc); }
         if (style === 'spiky') { for (let i = 0; i < 5; i++) P(5 + i * 2, -2, 1, 2, hr); P(4, -1, 12, 1, hr); }
         if (style === 'bun') { P(7, -3, 6, 4, hr); P(8, -3, 2, 1, hrL); }
+        if (look.roots) { P(5, 0, 10, 1, look.roots); P(9, 1, 2, 1, IS.mix(look.roots, hr, 0.5)); }
       }
     }
 
@@ -183,17 +209,18 @@ IS.Sprites = (() => {
       if (!side) {
         P(6, 5, 3, 1, dark); P(6, 8, 3, 1, dark); P(6, 5, 1, 4, dark); P(8, 5, 1, 4, dark);
         P(11, 5, 3, 1, dark); P(11, 8, 3, 1, dark); P(11, 5, 1, 4, dark); P(13, 5, 1, 4, dark);
-        P(9, 6, 2, 1, dark); P(7, 6, 1, 1, '#cfe6f2');
-        P(12, 6, 1, 1, '#cfe6f2');
+        P(9, 6, 2, 1, dark);
       } else {
-        const f = dir === 'right';
-        P(f ? 12 : 5, 5, 3, 1, dark); P(f ? 12 : 5, 8, 3, 1, dark); P(f ? 12 : 7, 5, 1, 4, dark); P(f ? 14 : 5, 5, 1, 4, dark);
-        P(f ? 8 : 8, 6, 4, 1, dark);
+        P(12, 5, 3, 1, dark); P(12, 8, 3, 1, dark); P(14, 5, 1, 4, dark); P(8, 6, 4, 1, dark);
       }
+    }
+    if (accessory === 'shades' && !back) {
+      if (!side) { P(6, 6, 3, 2, pupil); P(11, 6, 3, 2, pupil); P(9, 6, 2, 1, pupil); P(6, 6, 1, 1, '#7a6fa8'); P(11, 6, 1, 1, '#7a6fa8'); }
+      else { P(12, 6, 3, 2, pupil); P(8, 6, 4, 1, pupil); P(12, 6, 1, 1, '#7a6fa8'); }
     }
     if (accessory === 'beard' && !back) {
       if (!side) { P(4, 8, 12, 4, hr); P(5, 12, 10, 1, hr); P(7, 8, 6, 1, hrD); P(9, 10, 2, 1, IS.shade(sk, -0.4)); }
-      else { const f = dir === 'right'; P(f ? 10 : 5, 8, 6, 4, hr); P(f ? 13 : 5, 8, 2, 1, hrD); }
+      else { P(10, 8, 6, 4, hr); P(13, 8, 2, 1, hrD); }
     }
     if (accessory === 'hat') {
       P(2, 2, 16, 2, IS.shade(acc, -0.1)); P(5, -2, 10, 4, acc); P(5, 1, 10, 1, IS.shade(acc, -0.35));
@@ -203,10 +230,10 @@ IS.Sprites = (() => {
       P(4, 2, 12, 2, acc); P(5, 2, 3, 1, IS.shade(acc, 0.25));
       if (!side && !back) { P(16, 3, 2, 3, IS.shade(acc, -0.15)); }
       if (back) { P(9, 4, 2, 3, IS.shade(acc, -0.15)); }
-      if (side) { P(dir === 'right' ? 2 : 16, 3, 2, 3, IS.shade(acc, -0.15)); }
+      if (side) { P(2, 3, 2, 3, IS.shade(acc, -0.15)); }
     }
     if (accessory === 'flower' && !back) {
-      const fx = side ? (dir === 'right' ? 6 : 12) : 13;
+      const fx = side ? 6 : 13;
       P(fx, 0, 3, 3, acc); P(fx + 1, 1, 1, 1, '#ffe27a');
     }
 
@@ -214,18 +241,26 @@ IS.Sprites = (() => {
     return c;
   }
 
+  const mirror = src => {
+    const { c, g } = IS.makeCanvas(src.width, src.height);
+    g.translate(src.width, 0); g.scale(-1, 1);
+    g.drawImage(src, 0, 0);
+    return c;
+  };
+
   S.makePerson = look => {
     const frames = {};
-    for (const dir of ['down', 'up', 'right', 'left']) {
+    for (const dir of ['down', 'up', 'right']) {
       frames[dir] = [];
       for (let f = 0; f < 6; f++) frames[dir].push(drawPerson(look, dir, f));
     }
+    frames.left = frames.right.map(mirror);
     // Portrait: head and shoulders, scaled 4x
     const src = frames.down[0];
     const { c } = IS.makeCanvas(22 * 4, 22 * 4);
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
-    g.drawImage(src, 0, 0, 22, 22, 0, 0, 88, 88);
+    g.drawImage(src, 0, look.tall ? 0 : 2, 22, 22, 0, 0, 88, 88);
     return { frames, portrait: c.toDataURL() };
   };
 

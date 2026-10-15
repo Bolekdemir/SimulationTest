@@ -54,6 +54,17 @@ IS.Dialogue = (() => {
     star: ['I saw a shooting star last night. Made a wish!', 'Shooting star last night. Not telling you what I wished for.'],
     bigfish: ['I caught a fish THIS big today!', 'You should\'ve seen the fish I caught. Huge.'],
     confess: ['{other}... I think I\'m falling for you.', 'Can I tell you something? I really, really like you.'],
+    // Humour styles (set per islander with `humor` in config.js)
+    joke_roast: ['I\'d agree with you, {other}, but then we\'d both be wrong.', 'You fish like a cat swims.', 'Nice hair. Did the wind do that or did you lose a fight?', 'You\'re the reason the seagulls look confident.'],
+    joke_dry: ['I chopped eleven logs today. The logs did not chop back. I win.', 'I timed my breakfast. Four minutes. Could be three.', 'Fun fact: the dock has 212 planks. I counted. Twice.'],
+    joke_goofy: ['What\'s a cat\'s favourite colour? Purrrple.', 'I want to be a cat. Sleep, eat, get petted. Peak.', 'I tried to eat a clock once. Very time consuming.', 'If you hold a shell to your ear you can hear me napping.'],
+    joke_cocky: ['Not to brag, but I\'m the best looking guy on this island.', 'Wait, is the ocean salty because fish sweat?', 'I\'d tell you a joke but you can\'t afford it.'],
+    joke_brag: ['Is the moon just the sun at night? Like, genuinely?', 'Why is the sand so... sandy?', 'I\'d laugh but I just did my face.'],
+    joke_wholesome: [],
+    roast: ['You look terrible today, {other}. Love that for you.', 'I\'ve seen better posture on a wet noodle.', 'You\'re lucky you\'re funny, {other}. Wait, you\'re not.', 'Was that your outfit on purpose?'],
+    brag: ['My dad could buy this whole island. Twice.', 'Ugh, there\'s literally no shopping here.', 'Back home I had a pool. Two pools, actually.', 'Do you know how much my sunglasses cost?'],
+    cocky: ['You\'re welcome for me being here, by the way.', 'I could win the fishing contest blindfolded.', 'Everyone on this island secretly wants to be me.'],
+    cat: ['{cat} sat on my feet today. I\'m never moving again.', 'Have you seen {cat}? I need to pet {cat}.', '{cat} looked at me today. We\'re basically best friends now.'],
   };
 
   const R = {
@@ -87,6 +98,11 @@ IS.Dialogue = (() => {
       confessNo: ['Oh... I\'m sorry. I don\'t feel the same.', 'I think we\'re better as friends.'],
       flirtYes: ['Heh... maybe I would.', 'Stop it, you\'re making me blush.'],
       joke: ['Hahaha! Terrible. I love it.', 'Boo! Get off the stage!', '...I hate that I laughed.'],
+      roastPos: ['HAHA shut up.', 'Wow. Okay. Fair.', 'I\'m telling everyone you said that.', 'You\'re so annoying. Haha.'],
+      roastNeg: ['...wow. Okay.', 'Was that supposed to be funny?', 'Rude. Genuinely rude.'],
+      brag: ['Cool story.', 'Wow. Riveting.', 'Okay, sure.', 'Nobody asked, but okay.'],
+      bragPos: ['Omg, same.', 'Wait, that\'s actually so cool.'],
+      cat: ['Aww, {cat}!', 'I love that cat.', 'That cat has a better life than me.'],
     },
   };
 
@@ -120,7 +136,7 @@ IS.Dialogue = (() => {
   D.line = (topic, tone, sub) => {
     const pool = L[topic];
     if (!pool) return '...';
-    if (Array.isArray(pool)) return IS.pick(pool);
+    if (Array.isArray(pool)) return pool.length ? IS.pick(pool) : IS.pick(L.joke);
     if (sub && pool[sub]) return IS.pick(pool[sub]);
     return IS.pick(pool[tone] || pool.neutral || Object.values(pool)[0]);
   };

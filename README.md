@@ -1,12 +1,14 @@
 # Tidewhistle Isle
 
-A cozy pixel-art island life simulation. Four islanders live on a small island with their own personalities, needs, memories, friendships and grudges. You watch from above as the Sky Hand, and you can pick them up, carry them around, and throw them into the sea.
+A cozy pixel-art island life simulation. Six islanders (and a cat) live on a small island with their own personalities, needs, memories, friendships and grudges. You watch from above as the Sky Hand, and you can pick them up, carry them around, and throw them into the sea.
 
 Open `index.html` in a browser. No build step, no dependencies.
 
 ## Design your islanders
 
-Everything about the people lives in `js/config.js`: name, age, bio, look (skin, hair, hair style, shirt, pants, accessory), personality traits, loves and hates, home, birthday, catchphrases, who they can fall for, and starting relationships. The four people in there now are placeholders.
+Everything about the people lives in `js/config.js`: name, bio, look (skin, hair, hair style, eye colour, height, shirt, pants, accessory), personality traits, sense of humour, quirks, loves and hates, home, birthday, catchphrases, who they can fall for, and starting relationships.
+
+The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and roommates **Beach** and **Lynn**. Plus **Biscuit**, the island cat.
 
 ## What's simulated
 
@@ -16,7 +18,8 @@ Everything about the people lives in `js/config.js`: name, age, bio, look (skin,
 - **Relationships** drift toward what their personalities naturally support. Crushes, confessions, rejections and couples happen when romance is enabled.
 - **Weekly calendar**: Tue fishing contest, Wed supply boat, Thu story night, Fri community dinner, Sat beach bonfire, Sun picnic, plus birthday parties.
 - **Random life**: weather (sun, clouds, rain, storms, fog), dolphins, shooting stars, messages in bottles, colds (friends bring soup), food spoilage, firewood running out.
-- **Day/night** with lamps, lit windows, a sweeping lighthouse beam, fireflies and bonfire light.
+- **Cozy lighting**: shadows cast by the moving sun, golden hours, a warm vignette, pendant lamps in every room, lit windows, a sweeping lighthouse beam, fireflies and bonfire light.
+- **Humour and quirks**: roasts, dry jokes, goofy jokes, bragging, greed and impulsiveness all change how conversations go.
 
 ## Controls
 
@@ -40,6 +43,7 @@ Everything about the people lives in `js/config.js`: name, age, bio, look (skin,
 | `js/sprites.js` | All pixel art, drawn procedurally |
 | `js/actions.js` | Every activity and how it is scored |
 | `js/person.js` | Islander entity: needs, movement, memory, relationships, Sky Hand physics |
+| `js/cat.js` | The island cat |
 | `js/social.js` | Conversations and relationship changes |
 | `js/dialogue.js` | Line pools |
 | `js/events.js` | Calendar, weather, random events, supply boat |
