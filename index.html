@@ -1,0 +1,259 @@
+<title>Tidewhistle Isle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;700&display=swap">
+<style>
+  /* Layout: full-screen pixel canvas, HGSS-style menu boxes floating at the edges.
+     Single deliberate look (a cozy handheld game), so one palette for both themes. */
+  :root {
+    --ink: #2a2135;
+    --paper: #fbf6ea;
+    --paper-2: #efe4cc;
+    --frame: #3b3346;
+    --frame-hi: #d9cfe8;
+    --muted: #776c84;
+    --accent: #e8735a;
+    --sea: #1f3d63;
+    --good: #5fae4a;
+    --ok: #e8a92e;
+    --bad: #e0405a;
+    --gold: #f2c14e;
+    --font: 'Pixelify Sans', 'Trebuchet MS', system-ui, sans-serif;
+    --edge-t: max(12px, env(safe-area-inset-top, 0px));
+    --edge-l: max(12px, env(safe-area-inset-left, 0px));
+    --edge-r: max(12px, env(safe-area-inset-right, 0px));
+    --edge-b: max(12px, env(safe-area-inset-bottom, 0px));
+    color-scheme: light;
+  }
+  html, body { margin: 0; height: 100%; background: var(--sea); color: var(--ink); font-family: var(--font); overflow: hidden; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  button { font: inherit; color: inherit; }
+
+  #stage { position: fixed; inset: 0; overflow: hidden; background: var(--sea); touch-action: none; }
+  #game { position: absolute; left: 0; top: 0; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #overlay { position: absolute; inset: 0; pointer-events: none; }
+
+  .box {
+    background: var(--paper);
+    border: 3px solid var(--frame);
+    border-radius: 9px;
+    box-shadow: inset 0 0 0 2px var(--frame-hi), 0 4px 0 rgba(15, 10, 30, 0.35);
+  }
+
+  /* Clock */
+  #hud-tl { position: absolute; top: var(--edge-t); left: var(--edge-l); bottom: 110px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: min(300px, calc(100vw - 24px)); pointer-events: none; }
+  #hud-tl > * { pointer-events: auto; }
+  #clock { padding: 8px 12px 10px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; align-items: baseline; }
+  #clock-time { font-size: 30px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; grid-row: span 2; letter-spacing: 1px; }
+  #clock-date { font-size: 14px; font-weight: 500; }
+  #clock-weather { font-size: 13px; color: var(--muted); }
+  #clock-weather[data-w="storm"] { color: var(--bad); }
+  #stock { grid-column: 1 / -1; display: flex; gap: 12px; font-size: 13px; color: var(--muted); border-top: 2px dotted var(--paper-2); padding-top: 6px; margin-top: 4px; flex-wrap: wrap; }
+  #stock b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  #next-event { grid-column: 1 / -1; font-size: 13px; color: var(--accent); font-weight: 500; }
+  #speed { display: flex; gap: 4px; padding: 5px; align-items: center; flex-wrap: wrap; }
+  #speed button, .tbtn {
+    border: 2px solid var(--frame); background: var(--paper-2); border-radius: 6px; padding: 3px 9px; cursor: pointer;
+    font-size: 14px; font-weight: 500; min-width: 36px; box-shadow: 0 2px 0 var(--frame);
+  }
+  #speed button[aria-pressed="true"], .tbtn[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  #speed button:active, .tbtn:active { transform: translateY(2px); box-shadow: none; }
+  button:focus-visible { outline: 3px solid var(--gold); outline-offset: 1px; }
+  #ff { font-size: 12px; color: #fff; background: var(--frame); padding: 2px 8px; border-radius: 4px; margin-left: 4px; }
+
+  /* Toggles */
+  #hud-tr { position: absolute; top: var(--edge-t); right: var(--edge-r); display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 60vw; }
+  #hud-tr .tbtn { background: var(--paper); }
+  #hud-tr .tbtn[aria-pressed="true"] { background: var(--accent); }
+
+  /* Event log */
+  #log { width: 100%; min-height: 0; max-height: 40vh; flex: 0 1 auto; display: flex; flex-direction: column; padding: 8px 4px 6px 10px; }
+  #clock { width: 100%; }
+  #log h3, #inspector h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 500; }
+  #log-list { list-style: none; margin: 6px 0 0; padding: 0 6px 0 0; overflow-y: auto; font-size: 13px; line-height: 1.3; display: flex; flex-direction: column; gap: 6px; }
+  #log-list li { padding-left: 8px; border-left: 3px solid var(--paper-2); }
+  #log-list li[data-who] { cursor: pointer; }
+  #log-list li[data-who]:hover span { text-decoration: underline; }
+  #log-list time { display: block; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .log-event { border-color: var(--accent) !important; }
+  .log-good { border-color: var(--good) !important; }
+  .log-warn { border-color: var(--bad) !important; }
+  .log-social { border-color: #6a8fd9 !important; }
+  .log-love { border-color: #e05a9a !important; }
+  .log-sky { border-color: var(--gold) !important; }
+  .log-weather { border-color: #8aa3b8 !important; }
+
+  /* Roster */
+  #roster { position: absolute; bottom: var(--edge-b); left: 50%; transform: translateX(-50%); display: flex; gap: 6px; max-width: calc(100vw - 24px); overflow-x: auto; padding: 4px; }
+  .chip { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; background: var(--paper); border: 3px solid var(--frame); border-radius: 9px; cursor: pointer; box-shadow: 0 3px 0 rgba(15, 10, 30, 0.35); position: relative; min-width: 0; flex: 0 0 auto; text-align: left; }
+  .chip.active { background: #fff3d6; border-color: var(--accent); }
+  .chip img { width: 40px; height: 40px; image-rendering: pixelated; background: var(--paper-2); border-radius: 5px; }
+  .chip-text { display: flex; flex-direction: column; line-height: 1.1; }
+  .chip-text b { font-size: 15px; }
+  .chip-text small { font-size: 11px; color: var(--muted); max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mood-dot { position: absolute; top: 4px; right: 5px; width: 8px; height: 8px; border-radius: 2px; background: var(--ok); border: 1px solid var(--frame); }
+
+  /* Inspector */
+  #inspector { position: absolute; right: var(--edge-r); top: calc(var(--edge-t) + 48px); width: 330px; max-height: calc(100% - 160px); display: flex; flex-direction: column; overflow: hidden; }
+  #insp-head { display: flex; gap: 10px; align-items: center; padding: 10px 10px 8px; border-bottom: 2px dotted var(--paper-2); }
+  #insp-portrait { width: 56px; height: 56px; image-rendering: pixelated; background: var(--paper-2); border-radius: 6px; border: 2px solid var(--frame); }
+  #insp-title { flex: 1; min-width: 0; }
+  #insp-name { margin: 0; font-size: 22px; line-height: 1; }
+  #insp-sub { font-size: 13px; color: var(--muted); }
+  #insp-actions { display: flex; flex-direction: column; gap: 4px; }
+  #insp-actions .tbtn { font-size: 12px; padding: 2px 8px; }
+  #insp-body { overflow-y: auto; padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+  #insp-body section { display: flex; flex-direction: column; gap: 5px; }
+  .now b { font-size: 15px; }
+  .now em { color: var(--muted); font-style: normal; }
+  #insp-body ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .needs li, .traits li { display: grid; grid-template-columns: 82px 1fr; align-items: center; gap: 8px; }
+  .bar { height: 9px; background: var(--paper-2); border: 2px solid var(--frame); border-radius: 3px; overflow: hidden; display: block; }
+  .bar i { display: block; height: 100%; background: var(--good); }
+  .bar.mood i { background: #4fa3c7; }
+  .bar.trait i { background: #8a7fb8; }
+  .rels li { display: grid; grid-template-columns: 54px 1fr auto; grid-template-rows: auto auto; gap: 1px 8px; align-items: center; }
+  .rel-name { font-weight: 700; grid-row: span 2; }
+  .rel-label { font-size: 12px; color: var(--muted); }
+  .dbar { position: relative; height: 8px; background: var(--paper-2); border: 2px solid var(--frame); border-radius: 3px; grid-column: 2; }
+  .dbar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: var(--frame); }
+  .dbar i { position: absolute; top: 0; bottom: 0; }
+  .dbar i.pos { background: var(--good); }
+  .dbar i.neg { background: var(--bad); }
+  .heart { color: #e05a9a; font-size: 12px; grid-row: span 2; grid-column: 3; }
+  .sky { margin: 0; font-weight: 500; }
+  .sky small { color: var(--muted); font-weight: 400; }
+  .likes { margin: 2px 0 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+  .love { color: var(--good); } .hate { color: var(--bad); }
+  .mems li { line-height: 1.3; }
+  .mems time { color: var(--muted); font-size: 11px; margin-right: 4px; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .bio { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+  /* Speech bubbles and name tags */
+  .bubble {
+    position: absolute; left: 0; top: 0; max-width: 220px; width: max-content;
+    background: #fff; border: 2px solid var(--frame); border-radius: 7px; padding: 3px 8px 4px;
+    font-size: 15px; line-height: 1.2; color: var(--ink); box-shadow: 0 2px 0 rgba(15, 10, 30, 0.3); text-align: center;
+  }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 8px; height: 8px; background: #fff; border-right: 2px solid var(--frame); border-bottom: 2px solid var(--frame); transform: translateX(-50%) rotate(45deg); }
+  .nametag { position: absolute; left: 0; top: 0; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 1px 0 var(--frame), -1px 0 var(--frame), 0 1px var(--frame), 0 -1px var(--frame), 1px 1px var(--frame); white-space: nowrap; }
+  .nametag.sel { color: var(--gold); }
+
+  /* Toasts */
+  #toasts { position: absolute; top: calc(var(--edge-t) + 50px); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; width: max-content; max-width: calc(100vw - 24px); }
+  .toast { background: var(--frame); color: #fff; padding: 6px 14px; border-radius: 7px; font-size: 15px; box-shadow: 0 3px 0 rgba(15, 10, 30, 0.35); border: 2px solid var(--gold); transition: opacity .5s, transform .5s; animation: pop .25s ease-out; text-align: center; }
+  .toast.out { opacity: 0; transform: translateY(-6px); }
+  @keyframes pop { from { transform: scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* Help */
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; background: var(--sea); z-index: 5; }
+  #loading .box { padding: 14px 22px; font-size: 18px; }
+  #help { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(15, 10, 30, 0.45); padding: 16px; }
+  #help .box { max-width: 560px; width: 100%; max-height: 100%; overflow-y: auto; padding: 18px 22px; }
+  #help h2 { margin: 0 0 4px; font-size: 26px; }
+  #help h3 { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+  #help p, #help li { font-size: 15px; line-height: 1.4; }
+  #help ul { margin: 0; padding-left: 18px; }
+  #help kbd { font-family: var(--font); background: var(--paper-2); border: 2px solid var(--frame); border-radius: 4px; padding: 0 5px; font-size: 13px; }
+  #help-close { margin-top: 14px; }
+  #zoom { display: flex; gap: 4px; }
+
+  @media (max-width: 760px) {
+    #hud-tl { bottom: auto; width: min(230px, calc(100vw - 172px)); }
+    #clock { grid-template-columns: 1fr; }
+    #clock-time { grid-row: auto; }
+    #hud-tr { max-width: 150px; }
+    #log { position: fixed; left: var(--edge-l); right: var(--edge-r); bottom: 96px; width: auto; max-height: 26vh; }
+    #inspector { left: var(--edge-l); right: var(--edge-r); width: auto; top: auto; bottom: 86px; max-height: 52%; }
+    #clock-time { font-size: 24px; }
+    .chip-text small { max-width: 80px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .toast { animation: none; transition: none; } }
+</style>
+
+<div id="stage">
+  <canvas id="game" aria-label="Island simulation view"></canvas>
+  <div id="loading"><div class="box">Washing ashore on Tidewhistle Isle…</div></div>
+  <div id="overlay"></div>
+
+  <div id="hud-tl">
+    <div id="clock" class="box">
+      <span id="clock-time">06:00</span>
+      <span id="clock-date">Fri · Spring 1</span>
+      <span id="clock-weather">Sunny</span>
+      <div id="stock"><span>Pantry <b id="stock-food">0</b></span><span>Wood <b id="stock-wood">0</b></span></div>
+      <div id="next-event"></div>
+    </div>
+    <div id="speed" class="box" role="group" aria-label="Simulation speed">
+      <button data-speed="0" title="Pause (Space)">II</button>
+      <button data-speed="1" title="Normal speed (2)">1×</button>
+      <button data-speed="2" title="2× (3)">2×</button>
+      <button data-speed="3" title="5× (4)">5×</button>
+      <button data-speed="4" title="15× (5)">15×</button>
+      <span id="ff" hidden>Night &gt;&gt;</span>
+    </div>
+    <aside id="log" class="box"><h3>Island log</h3><ul id="log-list"></ul></aside>
+  </div>
+
+  <div id="hud-tr">
+    <div id="zoom"><button class="tbtn" id="zoom-out" title="Zoom out (-)">−</button><button class="tbtn" id="zoom-in" title="Zoom in (+)">+</button></div>
+    <button class="tbtn" id="btn-roofs" title="See inside buildings (R)">Roofs off</button>
+    <button class="tbtn" id="btn-names" title="Name tags (N)">Names</button>
+    <button class="tbtn" id="btn-log" title="Island log (L)">Log</button>
+    <button class="tbtn" id="btn-help" title="How to play">?</button>
+  </div>
+
+  <aside id="inspector" class="box" hidden>
+    <div id="insp-head">
+      <img id="insp-portrait" alt="">
+      <div id="insp-title"><h2 id="insp-name">Name</h2><div id="insp-sub"></div></div>
+      <div id="insp-actions"><button class="tbtn" id="insp-follow">Follow</button><button class="tbtn" id="insp-close">Close</button></div>
+    </div>
+    <div id="insp-body"></div>
+  </aside>
+
+  <div id="roster"></div>
+  <div id="toasts"></div>
+
+  <div id="help" hidden>
+    <div class="box">
+      <h2>Tidewhistle Isle</h2>
+      <p>Four islanders live here with their own personalities, needs, friendships and grudges. You are the Sky Hand. Watch over them, or meddle.</p>
+      <h3>Controls</h3>
+      <ul>
+        <li><b>Click</b> an islander to see what they're thinking.</li>
+        <li><b>Press and hold</b> an islander to pick them up. Drag them around. <b>Flick</b> to throw.</li>
+        <li><b>Drag</b> empty ground, or use <kbd>WASD</kbd> / arrows, to move the camera. Scroll to zoom.</li>
+        <li>Hover a building, or press <kbd>R</kbd>, to look inside.</li>
+        <li><kbd>Space</kbd> pause · <kbd>1</kbd>–<kbd>5</kbd> speed · <kbd>Tab</kbd> next islander · <kbd>F</kbd> follow · <kbd>N</kbd> names · <kbd>L</kbd> log</li>
+      </ul>
+      <h3>The week</h3>
+      <ul>
+        <li><b>Tue</b> Fishing Contest at the dock, 15:00</li>
+        <li><b>Wed</b> Supply boat arrives in the morning with food, wood and mail</li>
+        <li><b>Thu</b> Story Night at the Hall, 20:00</li>
+        <li><b>Fri</b> Community Dinner at the Hall, 19:00</li>
+        <li><b>Sat</b> Beach Bonfire, 20:00 (Game Night if it rains)</li>
+        <li><b>Sun</b> Picnic in the west meadow, 12:00</li>
+      </ul>
+      <p>Plus birthdays, storms, dolphins, shooting stars, messages in bottles, and the occasional cold.</p>
+      <button class="tbtn" id="help-close">Back to the island</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/config.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/world.js"></script>
+<script src="js/dialogue.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/person.js"></script>
+<script src="js/social.js"></script>
+<script src="js/events.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/input.js"></script>
+<script src="js/main.js"></script>
