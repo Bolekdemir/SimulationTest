@@ -218,6 +218,7 @@ IS.Events = class {
       const a = p.action;
       if (a && (a.event === ev || a.def.id === 'cook' || a.def.id === 'attend')) continue;
       if (a && a.def.id === 'sleep' && a.night) continue;
+      if (a && a.forced) continue;
       if (this.cookingFor(p)) continue;
       p.cancelAction();
     }

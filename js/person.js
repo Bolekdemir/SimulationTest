@@ -315,20 +315,25 @@ IS.Person = class {
     const ok = a.care ? (o.sick && o.mode === 'normal') : o.canBeVisited(this);
     if (!ok) { this.cancelAction(); this.idleUntil = c.abs + 2; return; }
     const d = IS.dist(this.x, this.y, o.x, o.y);
-    if (d <= IS.TILE * 1.6) {
+    if (d <= IS.TILE * (a.near ? 3.2 : 1.6)) {
       this.faceToward(o.x, o.y);
-      const started = IS.Social.start(this.sim, this, o, a.care ? { topic: 'sickVisit', stationaryB: true } : { forced: true });
+      const started = IS.Social.start(this.sim, this, o, a.care ? { topic: 'sickVisit', stationaryB: true } : a.topic ? { topic: a.topic, forced: true } : { forced: true });
       if (started) { this.finishAction(c); return; }
       this.pose = 'stand';
       a.wait = (a.wait || 0) + dt;
-      if (a.wait > 15) { this.cancelAction(); this.idleUntil = c.abs + 5; }
+      if (a.wait > (a.forced ? 45 : 15)) { this.cancelAction(); this.idleUntil = c.abs + 5; }
       return;
     }
     a.repath -= dt;
     if (a.repath <= 0 || !this.path.length) {
       a.repath = 1.5;
-      const goal = this.world.findNear(o.tx, o.ty, (x, y) => (this.world.walkable(x, y)) && !(x === o.tx && y === o.ty) && Math.abs(x - o.tx) + Math.abs(y - o.ty) <= 1, 2);
-      const path = this.world.findPath(this.tx, this.ty, goal.x, goal.y);
+      // Stand next to them; if that's blocked (crops, furniture), get as close as possible
+      let path = null;
+      for (const reach of [1, 2, 3]) {
+        const goal = this.world.findNear(o.tx, o.ty, (x, y) => this.world.walkable(x, y) && !(x === o.tx && y === o.ty) && Math.abs(x - o.tx) + Math.abs(y - o.ty) <= reach, reach + 1);
+        if (goal) path = this.world.findPath(this.tx, this.ty, goal.x, goal.y);
+        if (path) { a.near = reach > 1; break; }
+      }
       if (path === null) { this.cancelAction(); this.failUntil.socialize = c.abs + 30; return; }
       this.path = path;
     }

@@ -15,7 +15,10 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 - **Needs**: fullness, energy, social, fun. They drive every decision.
 - **Utility AI brains**: each islander scores ~20 activities (fishing, gardening, foraging, chopping wood, reading, beach, swimming, wandering, stargazing, cooking, visiting friends...) against their needs, traits, loves/hates, time of day and weather.
 - **Conversations**: topics chosen from personality, memories and relationships (gossip, jokes, complaints, compliments, flirting, arguments, apologies, news, the Sky Hand). Listeners react based on compatibility and mood.
-- **Relationships** drift toward what their personalities naturally support. Crushes, confessions, rejections and couples happen when romance is enabled.
+- **Relationships** drift toward what their personalities naturally support.
+- **Romance with taste**: everyone has a type (`into` in config: looks, smarts, funny, kind, drive, confidence). Forest falls for looks almost on sight; Lynn wants kindness and brains. Crushes, flirting, confessions, rejections and couples follow from it.
+- **Noticing each other**: islanders spot people they like across the island and walk over to chat, wave in passing, and pause their work when a friend drops by.
+- **Whispers from the sky**: type an order into the selected islander's page ("go fishing", "flirt with Lynn", "apologize to Beach", "roast Egg", "stop"). They always obey, with an opinion about it.
 - **Weekly calendar**: Tue fishing contest, Wed supply boat, Thu story night, Fri community dinner, Sat beach bonfire, Sun picnic, plus birthday parties.
 - **Random life**: weather (sun, clouds, rain, storms, fog), dolphins, shooting stars, messages in bottles, colds (friends bring soup), food spoilage, firewood running out.
 - **Isometric world**: a raised island slab with cliff edges, 3D buildings with gable roofs and lit/shaded walls, cutaway interiors, market stalls, string lights, hedges, fences and beach umbrellas.
@@ -35,6 +38,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | Look inside buildings | Hover them, or press R |
 | Speed | Space pauses, 1-5 sets speed |
 | Next islander / follow | Tab / F |
+| Give an order | Select an islander, type in the box on their page |
 | Fullscreen | The Fullscreen button. If the viewer blocks real fullscreen, it hides the HUD instead (H toggles that too) |
 
 ## Code map
@@ -48,7 +52,8 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 | `js/actions.js` | Every activity and how it is scored |
 | `js/person.js` | Islander entity: needs, movement, memory, relationships, Sky Hand physics |
 | `js/cat.js` | The island cat |
-| `js/social.js` | Conversations and relationship changes |
+| `js/social.js` | Conversations, attraction, noticing, relationship changes |
+| `js/command.js` | Parses typed orders into activities and conversations |
 | `js/dialogue.js` | Line pools |
 | `js/events.js` | Calendar, weather, random events, supply boat |
 | `js/render.js` | Drawing, lighting, weather, particles |

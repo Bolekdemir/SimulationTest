@@ -8,8 +8,10 @@ IS.Sim = class {
     this.fx = new IS.FX();
     this.conversations = [];
     this.chatCooldown = {};
+    this.greetCooldown = {};
     this.logEntries = [];
     this.people = IS.ISLANDERS.map((cfg, i) => new IS.Person(cfg, i, this));
+    IS.Social.seedRomance(this);
     this.events = new IS.Events(this);
     const catLover = this.people.find(p => p.loves.includes('cats'));
     this.cat = new IS.Cat(this, IS.CONFIG.catName || 'Biscuit', catLover ? catLover.homeId : 'house1');

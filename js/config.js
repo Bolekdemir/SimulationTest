@@ -21,6 +21,10 @@
 //                   wandering, chatting, stargazing, cooking, napping, cats
 //  home           : which house they live in (0-3). Two people can share one.
 //  canFallFor     : names this person can develop romantic feelings for.
+//  looks/smarts/funny : 0.0 to 1.0, how others see them (feeds attraction)
+//  into           : what they find attractive, as weights. Any mix of
+//                   looks, smarts, funny, kind, drive (hardworking), confidence
+//                   (brave + sociable). Bigger weight = matters more.
 //  birthday       : { season: Spring|Summer|Fall|Winter, day: 1-28 }
 //  bonds          : starting relationships. friendship -100 to 100, romance 0 to 100.
 // =====================================================================
@@ -36,7 +40,9 @@ IS.ISLANDERS = [
     loves: ['swimming', 'wandering', 'fishing'],
     hates: ['napping'],
     home: 0,
-    canFallFor: [],
+    canFallFor: ['Lynn', 'Beach'],
+    looks: 0.78, smarts: 0.85, funny: 0.9,
+    into: { kind: 0.3, smarts: 0.25, funny: 0.25, looks: 0.2 },
     birthday: { season: 'Spring', day: 10 },
     catchphrases: ['Relax, I\'m a professional.', 'I have a plan. It\'s a bad plan, but it\'s a plan.', 'Don\'t worry, I only roast the people I like.', 'Okay. Serious face. ...Nope, can\'t.'],
     bonds: { Forest: { friendship: 75, label: 'bros' }, Egg: { friendship: 75, label: 'bros' } },
@@ -52,6 +58,8 @@ IS.ISLANDERS = [
     hates: ['fishing', 'napping'],
     home: 0,
     canFallFor: ['Lynn', 'Beach'],
+    looks: 0.82, smarts: 0.6, funny: 0.4,
+    into: { looks: 0.75, drive: 0.15, kind: 0.1 },
     birthday: { season: 'Spring', day: 17 },
     catchphrases: ['Less talking, more doing.', 'We\'re wasting daylight.', 'I\'ll just do it myself.', 'Respect the grind.'],
     bonds: { Iroh: { friendship: 75, label: 'bros' }, Egg: { friendship: 75, label: 'bros' }, Lynn: { friendship: 5, romance: 25 }, Beach: { friendship: 0, romance: 15 } },
@@ -66,7 +74,9 @@ IS.ISLANDERS = [
     loves: ['cats', 'napping', 'beach'],
     hates: ['chopping'],
     home: 1,
-    canFallFor: [],
+    canFallFor: ['Lynn', 'Beach'],
+    looks: 0.62, smarts: 0.45, funny: 0.85,
+    into: { kind: 0.5, funny: 0.3, looks: 0.2 },
     birthday: { season: 'Spring', day: 3 },
     catchphrases: ['Life\'s good, man.', 'Nap first, problems later.', 'Everything\'s gonna be fine. Probably.', 'Has anyone seen the cat? Asking for me.'],
     bonds: { Iroh: { friendship: 75, label: 'bros' }, Forest: { friendship: 75, label: 'bros' } },
@@ -82,7 +92,9 @@ IS.ISLANDERS = [
     loves: ['chatting', 'beach', 'swimming'],
     hates: ['gardening', 'reading'],
     home: 2,
-    canFallFor: [],
+    canFallFor: ['Lynn', 'Beach'],
+    looks: 0.8, smarts: 0.2, funny: 0.6,
+    into: { looks: 0.5, confidence: 0.3, funny: 0.2 },
     birthday: { season: 'Spring', day: 13 },
     catchphrases: ['Relax, I got this.', 'You\'re welcome, by the way.', 'What\'s in it for me?', 'Heh. Smooth.'],
     bonds: {},
@@ -98,7 +110,9 @@ IS.ISLANDERS = [
     loves: ['beach', 'chatting', 'swimming'],
     hates: ['gardening', 'chopping', 'fishing'],
     home: 3,
-    canFallFor: [],
+    canFallFor: ['Iroh', 'Forest', 'Egg', 'Jude'],
+    looks: 0.95, smarts: 0.15, funny: 0.4,
+    into: { looks: 0.45, confidence: 0.4, funny: 0.15 },
     birthday: { season: 'Spring', day: 20 },
     catchphrases: ['Ugh, this island has no WiFi.', 'Do you know who my dad is?', 'I\'m literally so bored.', 'That\'s so not my problem.'],
     bonds: { Lynn: { friendship: 5, label: 'roommates' } },
@@ -113,7 +127,9 @@ IS.ISLANDERS = [
     loves: ['gardening', 'reading', 'stargazing'],
     hates: [],
     home: 3,
-    canFallFor: [],
+    canFallFor: ['Iroh', 'Forest', 'Egg', 'Jude'],
+    looks: 0.86, smarts: 0.9, funny: 0.55,
+    into: { kind: 0.4, smarts: 0.35, drive: 0.25 },
     birthday: { season: 'Spring', day: 6 },
     catchphrases: ['Let\'s figure it out together.', 'Has everyone eaten today?', 'The garden\'s looking happy this morning!', 'Be kind, it\'s free.'],
     bonds: { Beach: { friendship: 5, label: 'roommates' } },

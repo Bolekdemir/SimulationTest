@@ -376,6 +376,24 @@ IS.Actions = (() => {
     thought: () => 'Chop, stir, taste... needs more salt.',
   });
 
+  // Walking over to someone they noticed (or were told to talk to)
+  def({
+    id: 'approach', label: 'Going to say hi', outdoor: false, social: true,
+    can: () => false,
+    score: () => 0,
+    plan: p => p.approachTarget ? { follow: p.approachTarget, duration: 5, topic: p.approachTopic } : null,
+    label2: (p, a) => a.follow ? `Going over to ${a.follow.name}` : 'Going to say hi',
+    thought: (p, a) => {
+      const o = a.follow; if (!o) return 'Oh, hey!';
+      if (a.forced) return `The sky says I should talk to ${o.name}. Okay then.`;
+      const r = p.relTo(o.name);
+      if (r.romance > 45) return `Act normal. It's just ${o.name}. Totally normal.`;
+      if (r.friendship > 50) return `There's ${o.name}! Gotta go bug them.`;
+      if (r.friendship < -10) return `Maybe I should clear the air with ${o.name}.`;
+      return `Oh, ${o.name}'s over there. I'll go say hi.`;
+    },
+  });
+
   A.list = Object.values(A).filter(d => typeof d === 'object' && d.id);
   return A;
 })();

@@ -15,35 +15,133 @@ IS.Social = (() => {
 
   S.pairKey = (a, b) => (a.id < b.id ? a.id + '-' + b.id : b.id + '-' + a.id);
 
-  // Called every sim minute: nearby idle people may strike up a chat.
+  // What one person sees in another, 0..1, from their own idea of attractive
+  S.qualities = o => ({
+    looks: o.cfg.looks ?? 0.5, smarts: o.cfg.smarts ?? 0.5, funny: o.cfg.funny ?? 0.5,
+    kind: o.traits.kind, drive: o.traits.hardworking, confidence: (o.traits.brave + o.traits.sociable) / 2,
+  });
+  S.attraction = (a, b) => {
+    if (!a.canFallFor(b.name)) return 0;
+    const into = a.cfg.into || { looks: 1, kind: 1, funny: 1 };
+    const q = S.qualities(b);
+    let sum = 0, w = 0;
+    for (const [k, v] of Object.entries(into)) { sum += (q[k] ?? 0.5) * v; w += v; }
+    let at = w ? sum / w : 0.5;
+    for (const l of a.loves) if (b.loves.includes(l)) at += 0.04;
+    return IS.clamp(at, 0, 1);
+  };
+  // First impressions: people start with a little spark toward their type
+  S.seedRomance = sim => {
+    for (const a of sim.people) for (const b of sim.people) {
+      if (a === b || !a.canFallFor(b.name)) continue;
+      const r = a.relTo(b.name);
+      if (a.cfg.bonds && a.cfg.bonds[b.name] && a.cfg.bonds[b.name].romance !== undefined) continue;
+      r.romance = Math.round(Math.max(0, (S.attraction(a, b) - 0.5) * 45));
+    }
+  };
+
+  // Is this person free enough to notice someone and wander over?
+  const FREE = new Set(['wander', 'beach', 'plaza', 'stargaze', 'petCat', 'watchDolphins', 'home', 'forage', 'garden', 'fish', 'greetBoat']);
+  const isFree = p => {
+    if (p.mode !== 'normal' || p.chat || p.pose === 'sleep' || p.sick) return false;
+    const a = p.action;
+    if (!a) return true;
+    if (a.forced || a.def.id === 'approach' || a.def.id === 'socialize' || a.def.id === 'attend' || a.def.id === 'care') return false;
+    return a.phase === 'travel' || FREE.has(a.def.id);
+  };
+  S.isFree = isFree;
+
+  // Called every sim minute.
   S.update = (sim, dt) => {
     const ppl = sim.people;
+    const now = sim.clock.abs;
     for (let i = 0; i < ppl.length; i++) for (let j = i + 1; j < ppl.length; j++) {
       const a = ppl[i], b = ppl[j];
+      if ((a.building || null) !== (b.building || null)) continue;
+      const d = IS.dist(a.x, a.y, b.x, b.y);
+      const key = S.pairKey(a, b);
+      // Passing by: a quick hello without stopping
+      if (d < IS.TILE * 3 && a.mode === 'normal' && b.mode === 'normal' && !a.chat && !b.chat &&
+          a.pose !== 'sleep' && b.pose !== 'sleep' && (sim.greetCooldown[key] || 0) < now &&
+          a.action && b.action && a.action.phase === 'travel' && b.action.phase === 'travel' && !a.isAvoiding(b)) {
+        sim.greetCooldown[key] = now + 240;
+        if (Math.random() < 0.7) S.passBy(sim, a, b);
+      }
       if (!a.canChat() || !b.canChat()) continue;
       if (a.isAvoiding(b) || b.isAvoiding(a)) continue;
-      const d = IS.dist(a.x, a.y, b.x, b.y);
-      if (d > IS.TILE * 2.2) continue;
-      if ((a.building || null) !== (b.building || null)) continue;
-      const key = S.pairKey(a, b);
+      if (d > IS.TILE * 2.8) continue;
       const atEvent = a.action && b.action && a.action.def.id === 'attend' && b.action.def.id === 'attend';
-      if ((sim.chatCooldown[key] || 0) > sim.clock.abs) continue;
+      if ((sim.chatCooldown[key] || 0) > now) continue;
       const social = ((100 - a.needs.social) + (100 - b.needs.social)) / 200;
       const rel = (a.relTo(b.name).friendship + b.relTo(a.name).friendship) / 2;
       const relF = IS.clamp(1 + rel / 80, 0.25, 2);
       const travelling = (a.action && a.action.phase === 'travel') || (b.action && b.action.phase === 'travel');
-      let p = 0.07 * ((a.traits.sociable + b.traits.sociable) / 2 + 0.2) * (0.6 + social * 1.4) * relF;
-      if (atEvent) p *= 4;
+      let p = 0.1 * ((a.traits.sociable + b.traits.sociable) / 2 + 0.25) * (0.6 + social * 1.4) * relF;
+      if (atEvent) p *= 3;
       if (travelling) p *= 0.35;
       if (Math.random() < p * dt) S.start(sim, a, b, { atEvent });
     }
+    // Noticing: someone free spots a person they like and walks over
+    for (const a of ppl) {
+      if (!isFree(a) || (a.noticeUntil || 0) > now) continue;
+      for (const b of ppl) {
+        if (b === a || b.chat || !b.canBeVisited(a)) continue;
+        if ((a.building || null) !== (b.building || null)) continue;
+        const d = IS.dist(a.x, a.y, b.x, b.y);
+        if (d > IS.TILE * 10 || d < IS.TILE * 1.5) continue;
+        if ((sim.chatCooldown[S.pairKey(a, b)] || 0) > now) continue;
+        const r = a.relTo(b.name);
+        const lonely = (100 - a.needs.social) / 100;
+        let want = lonely * 0.9 + a.traits.sociable * 0.55 + r.friendship / 110 + r.romance / 90 + S.attraction(a, b) * 0.25;
+        if (a.mood() < 30) want -= a.traits.grumpy * 0.6;
+        if (a.action && a.action.phase === 'do' && ['garden', 'fish', 'forage'].includes(a.action.def.id)) want -= a.traits.hardworking * 0.4;
+        if (r.partner) want += 0.5;
+        if (want <= 0.2) continue;
+        if (Math.random() < 0.02 * (want - 0.2) * dt * (IS.TILE * 10 - d) / (IS.TILE * 10)) {
+          a.noticeUntil = now + 60;
+          S.approach(sim, a, b);
+          break;
+        }
+      }
+      // Looking is free: people who care about looks catch feelings from afar
+      const into = a.cfg.into || {};
+      if ((into.looks || 0) >= 0.4 && Math.random() < 0.015 * dt) {
+        const seen = ppl.find(b => b !== a && a.canFallFor(b.name) && (a.building || null) === (b.building || null) && IS.dist(a.x, a.y, b.x, b.y) < IS.TILE * 6);
+        if (seen) {
+          const gain = into.looks * (seen.cfg.looks ?? 0.5) * 1.2;
+          a.changeRel(seen.name, 0, gain);
+          if (Math.random() < 0.35) { a.emote('heart', 1.4); a.thought = IS.pick([`...Is ${seen.name} glowing today?`, `Don't stare at ${seen.name}. Don't stare.`, `Okay, ${seen.name} looks really good.`]); }
+        }
+      }
+    }
+  };
+
+  S.passBy = (sim, a, b) => {
+    const tone = IS.Dialogue.tone(a, b);
+    const f = a.relTo(b.name).friendship;
+    a.faceToward(b.x, b.y);
+    a.say(f > 40 ? IS.pick([`Yo ${b.name}!`, `${b.name}! What's up?`, `Hey you.`]) : f < -10 ? IS.pick(['...', `Oh. ${b.name}.`, 'Hm.']) : IS.pick([`Hey ${b.name}.`, 'Morning!', 'Hi!']).replace('Morning!', sim.clock.min < 720 ? 'Morning!' : 'Hey!'));
+    if (f > 40) a.emote('note', 1.2);
+    if (tone === 'grumpy') return;
+    setTimeout(() => { if (!b.chat && b.mode === 'normal') b.say(f > 40 ? IS.pick(['Heyyy!', `${a.name}!`, 'Yo!']) : IS.pick(['Hey.', 'Hi!', '*waves*'])); }, 900);
+  };
+
+  // Walk over to someone and start a conversation (optionally about something)
+  S.approach = (sim, a, b, topic, forced) => {
+    if (a.action) a.cancelAction();
+    a.approachTarget = b; a.approachTopic = topic || null;
+    const ok = a.startAction(IS.Actions.approach, sim.clock);
+    if (ok && forced) a.action.forced = true;
+    if (ok && !forced && Math.random() < 0.5) a.say(IS.pick([`Oh, ${b.name}!`, `${b.name}! Wait up!`, `Ooh, there's ${b.name}.`]));
+    return ok;
   };
 
   S.start = (sim, a, b, opts = {}) => {
     if (a.chat || b.chat) return false;
     if (!opts.topic && (!b.canChat() || !a.canChat())) {
       if (!opts.forced) return false;
-      if (!b.canChat()) return false;
+      // Walked all the way over: the other person pauses what they're doing
+      if (!b.canChat() && !b.canBeVisited(a)) return false;
     }
     if (opts.topic === 'sickVisit' && (b.mode !== 'normal' || b.chat)) return false;
     new S.Conversation(sim, a, b, opts);
@@ -74,6 +172,13 @@ IS.Social = (() => {
     plan() {
       const { a, b } = this;
       if (this.opts.topic) {
+        // A sky-ordered topic still opens with a hello and keeps going after
+        if (this.opts.forced && this.opts.topic !== 'sickVisit') {
+          this.queue.push({ speaker: a, listener: b, topic: 'greet' }, { speaker: b, listener: a, topic: 'greetBack' });
+          this.queueTopic(a, b, this.opts.topic);
+          if (!['argue', 'confess'].includes(this.opts.topic)) this.queue.push({ speaker: b, listener: a, topic: null });
+          return;
+        }
         this.queueTopic(a, b, this.opts.topic);
         return;
       }
@@ -213,7 +318,7 @@ IS.Social = (() => {
     add('complaint', t.grumpy * 1.5 + (sp.mood() < 40 ? 1 : 0));
     if (sp.needs.hunger < 35) add('hungry', 2);
     if (r.friendship > 45 && sim.clock.min > 1140) add('deep', 1.3);
-    if (sp.canFallFor(li.name) && r.romance > 25 && !r.partner) add('flirt', r.romance / 30);
+    if (sp.canFallFor(li.name) && r.romance > 25 && !r.partner && !sp.partner()) add('flirt', r.romance / 30 * (0.5 + S.attraction(sp, li)));
     if (r.partner) add('flirt', 1.2);
     if (sp.canFallFor(li.name) && r.romance > 70 && r.friendship > 40 && !r.partner && (sp.confessedTo || {})[li.name] === undefined) add('confess', 4);
     if (r.friendship < -25 || (t.grumpy > 0.6 && sp.mood() < 35)) add('argue', 1.5 + t.grumpy + (r.friendship < -40 ? 1.5 : 0));
@@ -327,7 +432,11 @@ IS.Social = (() => {
     const mult = ['compliment', 'deep', 'sickVisit', 'birthday', 'sharedLove'].includes(t.topic) ? 2 : 1;
     df = (valence === 'pos' ? IS.rand(1, 2.5) : valence === 'neu' ? 0.3 : -IS.rand(2, 4)) * mult;
     if (df > 0) df *= Math.max(0.12, 1 - Math.max(0, rel.friendship) / 115);
-    if (valence === 'pos' && rel.friendship > 15 && li.canFallFor(sp.name)) dr = (t.topic === 'flirt' || t.topic === 'deep' || t.topic === 'compliment' ? 4 : 1.5);
+    if (valence === 'pos' && rel.friendship > 5 && li.canFallFor(sp.name)) {
+      dr = (t.topic === 'flirt' || t.topic === 'deep' || t.topic === 'compliment' ? 4 : 1.5);
+      dr *= 0.25 + 1.6 * S.attraction(li, sp) * S.attraction(li, sp);
+      if (li.partner() && !rel.partner) dr *= 0.15;
+    }
     li.changeRel(sp.name, df, dr);
     sp.changeRel(li.name, df * 0.6, dr ? dr * 0.4 : 0);
     if (t.topic === 'sickVisit') {

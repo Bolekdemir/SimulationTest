@@ -17,13 +17,27 @@ IS.UI = class {
   makeIcons() {
     const px = IS.Sprites.px;
     const icon = draw => { const { c, g } = IS.makeCanvas(8, 8); draw(g); return c.toDataURL(); };
+    const grid = (rows, pal) => icon(g => rows.forEach((r, y) => [...r].forEach((ch, x) => { if (pal[ch]) px(g, x, y, 1, 1, pal[ch]); })));
+    const K = { k: '#2e1a10' };
     this.icons = {
       food: icon(g => { px(g, 3, 0, 4, 4, '#e8913a'); px(g, 2, 1, 5, 3, '#e8913a'); px(g, 3, 1, 2, 1, '#ffc078'); px(g, 2, 4, 2, 2, '#f4efe6'); px(g, 1, 6, 2, 2, '#f4efe6'); }),
       wood: icon(g => { px(g, 0, 2, 8, 4, '#a8763f'); px(g, 0, 2, 8, 1, '#c4935a'); px(g, 0, 2, 2, 4, '#d9b77e'); px(g, 0, 3, 1, 2, '#a8763f'); }),
       lantern: icon(g => { px(g, 3, 0, 2, 1, '#6b5a7a'); px(g, 2, 1, 4, 6, '#ffc96b'); px(g, 3, 2, 2, 3, '#fff3d0'); px(g, 2, 7, 4, 1, '#6b5a7a'); }),
+      pause: grid(['........', '.kk..kk.', '.kk..kk.', '.kk..kk.', '.kk..kk.', '.kk..kk.', '.kk..kk.', '........'], K),
+      minus: grid(['........', '........', '........', '.kkkkkk.', '.kkkkkk.', '........', '........', '........'], K),
+      plus: grid(['........', '...kk...', '...kk...', '.kkkkkk.', '.kkkkkk.', '...kk...', '...kk...', '........'], K),
+      roof: grid(['...kk...', '..kkkk..', '.kkkkkk.', 'kkkkkkkk', '.k....k.', '.k.kk.k.', '.k.kk.k.', '.kkkkkk.'], K),
+      tag: grid(['........', 'kkkkkk..', 'k.....k.', 'k.kkk..k', 'k.....k.', 'kkkkkk..', '........', '........'], K),
+      book: grid(['.kkkkkk.', '.k....kk', '.k.kk.kk', '.k....kk', '.k.kk.kk', '.k....kk', '.kkkkkkk', '..kkkkkk'], K),
+      full: grid(['kkk..kkk', 'k......k', 'k......k', '........', '........', 'k......k', 'k......k', 'kkk..kkk'], K),
+      help: grid(['..kkkk..', '.kk..kk.', '.....kk.', '....kk..', '...kk...', '........', '...kk...', '...kk...'], K),
+      heart: grid(['........', '.rr.rr..', 'rrrrrrr.', 'rrrrrrr.', '.rrrrr..', '..rrr...', '...r....', '........'], { r: '#c94a73' }),
+      friend: grid(['...kk...', '..kkkk..', '..kkkk..', '...kk...', '.kkkkkk.', 'kkkkkkkk', 'kkkkkkkk', '........'], { k: '#8f7565' }),
     };
     this.$('ico-food').src = this.icons.food;
     this.$('ico-wood').src = this.icons.wood;
+    this.$('ico-pause').src = this.icons.pause;
+    document.querySelectorAll('img[data-icon]').forEach(img => { img.src = this.icons[img.dataset.icon]; });
   }
 
   bind() {
@@ -51,8 +65,29 @@ IS.UI = class {
       const p = sim.byName(row.dataset.person);
       if (p) { sim.select(p); sim.follow = true; this.syncToggles(); }
     });
+    // Whispers from the sky
+    const form = this.$('cmd'), input = this.$('cmd-in');
+    const send = text => {
+      const p = sim.selected;
+      if (!p) return;
+      const r = IS.Command.run(sim, p, text);
+      const out = this.$('cmd-out');
+      out.textContent = r.text;
+      out.classList.toggle('err', !r.ok);
+      if (r.ok) { input.value = ''; this.ideas(p, true); }
+    };
+    form.addEventListener('submit', e => { e.preventDefault(); send(input.value); });
+    this.$('cmd-ideas').addEventListener('click', e => { const b = e.target.closest('.idea'); if (b) send(b.textContent); });
     if (window.innerWidth < 760) this.$('log').hidden = true;
     this.syncToggles();
+  }
+
+  ideas(p, force) {
+    if (!force && this.ideasFor === p) return;
+    this.ideasFor = p;
+    this.$('cmd-in').placeholder = `Tell ${p.name} what to do…`;
+    if (!force) this.$('cmd-out').textContent = '';
+    this.$('cmd-ideas').innerHTML = IS.Command.suggestions(p).map(t => `<button type="button" class="idea">${this.esc(t)}</button>`).join('');
   }
 
   syncToggles() {
@@ -63,7 +98,7 @@ IS.UI = class {
     this.$('insp-follow').setAttribute('aria-pressed', sim.follow);
     this.$('insp-follow').textContent = sim.follow ? 'Following' : 'Follow';
     document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.speed === sim.speedIdx));
-    document.querySelectorAll('[data-tab]').forEach(b => { const on = b.dataset.tab === this.tab; b.setAttribute('aria-pressed', on); b.setAttribute('aria-selected', on); });
+    document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === this.tab));
   }
 
   buildRoster() {
@@ -74,7 +109,7 @@ IS.UI = class {
       b.className = 'token';
       b.id = 'chip-' + p.id;
       b.title = `${p.name}: click to follow`;
-      b.innerHTML = `<span class="ring" id="chip-ring-${p.id}"><img src="${p.portrait}" alt=""></span><b>${p.name}</b><small id="chip-act-${p.id}">Sleeping</small>`;
+      b.innerHTML = `<span class="face"><img src="${p.portrait}" alt=""></span><span class="mood" id="chip-mood-${p.id}"></span><b>${p.name}</b><small id="chip-act-${p.id}">Sleeping</small>`;
       b.addEventListener('click', () => {
         if (this.sim.selected === p) { this.sim.follow = !this.sim.follow; }
         else { this.sim.select(p); this.sim.follow = true; }
@@ -111,6 +146,7 @@ IS.UI = class {
   // Called every animation frame: speech bubbles and name tags follow people
   frame(now) {
     const sim = this.sim, r = sim.renderer, z = sim.cam.zoom;
+    const shown = [];
     for (const p of sim.people) {
       let el = this.bubbleEls.get(p);
       if (!el) {
@@ -128,8 +164,9 @@ IS.UI = class {
       if (showBubble) {
         if (el.dataset.id !== String(p.bubble.id)) { el.textContent = p.bubble.text; el.dataset.id = p.bubble.id; }
         el.hidden = false;
-        el.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy + (-38 + sitDrop) * z)}px) translate(-50%, -100%)`;
-      } else el.hidden = true;
+        if (el.dataset.mid !== el.dataset.id) { el.dataset.mid = el.dataset.id; el._w = el.offsetWidth; el._h = el.offsetHeight; }
+        shown.push({ el, x: sx, y: sy + (-38 + sitDrop) * z });
+      } else { el.hidden = true; el._off = 0; }
       const showTag = !hiddenIndoors && !showBubble && (this.showNames || sim.hover === p || sim.selected === p);
       tag.hidden = !showTag;
       if (showTag) {
@@ -137,14 +174,35 @@ IS.UI = class {
         tag.classList.toggle('sel', sim.selected === p);
       }
     }
+    // Crowded scenes: stack bubbles upward instead of letting them overlap
+    shown.sort((a, b) => b.y - a.y);
+    const placed = [];
+    for (const b of shown) {
+      const w = b.el._w, h = b.el._h;
+      let bottom = b.y;
+      for (let pass = 0; pass < 6; pass++) {
+        const hit = placed.find(o => Math.abs(o.x - b.x) < (o.w + w) / 2 + 4 && bottom > o.top - 4 && bottom - h < o.bottom);
+        if (!hit) break;
+        bottom = hit.top - 6;
+      }
+      placed.push({ x: b.x, w, top: bottom - h, bottom });
+      const target = bottom - b.y;
+      b.el._off = b.el._off === undefined ? target : b.el._off + (target - b.el._off) * 0.3;
+      b.el.style.transform = `translate(${Math.round(b.x)}px, ${Math.round(b.y + b.el._off)}px) translate(-50%, -100%)`;
+    }
     if (now - this.lastPanel > 250) { this.lastPanel = now; this.panels(); }
   }
 
-  moodColor(m) { return m > 62 ? 'var(--good)' : m > 35 ? 'var(--ok)' : 'var(--bad)'; }
-  setRing(el, p) {
+  // Mood as five pixel segments under the portrait
+  setMood(el, p) {
     const m = p.mood();
-    el.style.setProperty('--m', Math.round(m) + '%');
-    el.style.setProperty('--c', this.moodColor(m));
+    const on = Math.max(1, Math.round(m / 20));
+    const tone = m > 62 ? 'good' : m > 35 ? 'ok' : 'bad';
+    const key = on + tone;
+    if (el.dataset.k === key) return;
+    el.dataset.k = key; el.dataset.tone = tone;
+    el.innerHTML = '<i class="on"></i>'.repeat(on) + '<i></i>'.repeat(5 - on);
+    el.title = `Mood: ${p.moodWord()}`;
   }
 
   // The day dial: a little sky arc the sun and moon travel across
@@ -196,6 +254,7 @@ IS.UI = class {
     this.$('stock-wood-wrap').classList.toggle('low', sim.world.wood < 3);
     this.$('ff').hidden = !sim.nightFF;
     this.drawDial();
+    document.body.classList.toggle('dusk', sim.renderer.ambient(c.min).dark > 0.45);
     const nxt = sim.events.nextEvent();
     const act = sim.events.list.find(e => e.state === 'active' && e.day === c.day);
     const ne = this.$('next-event');
@@ -205,7 +264,7 @@ IS.UI = class {
 
     for (const p of sim.people) {
       this.$('chip-act-' + p.id).textContent = p.actionLabel();
-      this.setRing(this.$('chip-ring-' + p.id), p);
+      this.setMood(this.$('chip-mood-' + p.id), p);
       this.$('chip-' + p.id).classList.toggle('active', sim.selected === p);
     }
     this.inspector();
@@ -225,9 +284,10 @@ IS.UI = class {
     box.hidden = !p;
     if (!p) return;
     this.$('insp-portrait').src = p.portrait;
-    this.setRing(this.$('insp-ring'), p);
+    this.setMood(this.$('insp-mood'), p);
     this.$('insp-name').textContent = p.name;
-    this.$('insp-sub').textContent = `${p.moodWord()}${p.cfg.age ? ', ' + p.cfg.age : ''}${p.sick ? ', has a cold' : ''}`;
+    this.$('insp-mood-word').textContent = `${p.moodWord()}${p.cfg.age ? ', ' + p.cfg.age : ''}${p.sick ? ', has a cold' : ''}`;
+    this.ideas(p);
     const body = this.$('insp-body');
     const scroll = body.scrollTop;
     if (this.tab === 'now') body.innerHTML = this.tabNow(p);
@@ -254,10 +314,10 @@ IS.UI = class {
     const rows = others.map(o => {
       const r = p.relTo(o.name);
       const f = r.friendship;
-      const hearts = p.canFallFor(o.name) && r.romance > 0 ? `<span class="hearts">♥ ${Math.round(r.romance)}</span>` : '';
-      return `<li class="bond" data-person="${o.name}"><img src="${o.portrait}" alt="">
+      const hearts = p.canFallFor(o.name) ? `<div class="fmeter" title="Romance ${Math.round(r.romance)}"><img src="${this.icons.heart}" alt="Romance">${this.pips(r.romance, 10, 'love')}</div>` : '';
+      return `<li class="bond" data-person="${o.name}"><span class="face"><img src="${o.portrait}" alt=""></span>
         <div class="bond-top"><b>${o.name}</b><em>${p.relLabel(o.name)}${r.label ? ', ' + this.esc(r.label) : ''}</em></div>
-        <div class="fmeter">${this.pips(Math.abs(f), 10, f < 0 ? 'neg' : '')}${hearts}</div></li>`;
+        <div class="fmeter" title="Friendship ${Math.round(f)}"><img src="${this.icons.friend}" alt="Friendship">${this.pips(Math.abs(f), 10, f < 0 ? 'neg' : '')}</div>${hearts}</li>`;
     }).join('');
     const sky = p.skyOpinion;
     const skyWord = sky > 60 ? 'Worships you' : sky > 20 ? 'Fond of you' : sky > -20 ? (p.grabCount ? 'Unsure about you' : 'Unaware of you') : sky > -60 ? 'Wary of you' : p.traits.grumpy > 0.5 ? 'Furious at you' : 'Terrified of you';
@@ -276,9 +336,18 @@ IS.UI = class {
     const chips = (list, cls) => list.map(x => `<span class="chip ${cls}">${x}</span>`).join('');
     return `
       ${p.cfg.bio ? `<section><p class="bio">${this.esc(p.cfg.bio)}</p></section>` : ''}
+      ${p.cfg.into ? `<section><h4>Type</h4><p class="bio">${this.esc(this.typeLine(p))}</p></section>` : ''}
       <section><h4>Loves and hates</h4><div class="chips">${chips(p.loves, '')}${chips(p.hates, 'no')}</div></section>
       <section><h4>Personality</h4><div class="meters">${traits}</div></section>
       <section><h4>Recent memories</h4><ul class="mems">${mems}</ul></section>`;
+  }
+
+  typeLine(p) {
+    const words = { looks: 'looks', smarts: 'brains', funny: 'a sense of humour', kind: 'kindness', drive: 'drive', confidence: 'confidence' };
+    const parts = Object.entries(p.cfg.into).sort((a, b) => b[1] - a[1]).map(([k]) => words[k] || k);
+    const lead = Object.values(p.cfg.into).sort((a, b) => b - a)[0] >= 0.6 ? `Mostly about ${parts[0]}` : `Falls for ${parts[0]}`;
+    const rest = parts.slice(1);
+    return rest.length ? `${lead}, then ${rest.slice(0, -1).join(', ')}${rest.length > 1 ? ' and ' : ''}${rest[rest.length - 1]}.` : lead + '.';
   }
 
   esc(s) { return String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
