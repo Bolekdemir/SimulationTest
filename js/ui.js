@@ -153,7 +153,10 @@ IS.UI = class {
     const scroll = body.parentElement.scrollTop;
     if (this.townTab === 'build' && IS.Build) { body.innerHTML = IS.Build.panelHTML(sim, this); IS.Build.bindPanel(sim, this, body); return; }
     const r = Tn.rating(sim);
-    let h = `<h3>Island Rating</h3><div class="rating"><big>${r.score}</big><span>${r.word}</span></div>
+    const tier = Tn.tier(sim), next = Tn.nextTier(sim), st0 = Tn.state(sim);
+    const goalLine = st0.isTown ? 'Tidewhistle is a real town. Keep growing it however you like.' : `Goal: grow Tidewhistle into a real town of ${Tn.GOAL} islanders.`;
+    let h = `<h3>${e(tier.name)} <small>${pop}/${next ? next.n : pop} islanders</small></h3><p class="sub">${e(goalLine)} ${next ? `Next: ${e(next.name)} at ${next.n}.` : ''}</p><div class="meter"><i style="width:${Math.min(100, pop / Tn.GOAL * 100)}%"></i></div>
+      <h3>Island Rating</h3><div class="rating"><big>${r.score}</big><span>${r.word}</span></div>
       <div class="meter"><i style="width:${r.score}%"></i><b style="left:50%" title="Visitors start coming at 50"></b></div>
       <p class="sub">${r.score >= 50 ? 'Visitors are coming. The happier the island, the more often they come.' : 'Visitors only come once the rating reaches 50.'}</p>
       <dl class="parts">` + r.parts.map(p => `<dt>${e(p.label)}</dt><dd>${e(p.note)}</dd><span class="num">${p.value > 0 && p.key !== 'charm' ? '+' : ''}${p.value}${p.max ? '/' + p.max : ''}</span>`).join('') + '</dl>';
@@ -169,6 +172,8 @@ IS.UI = class {
     } else if (st.pending) h += '<p class="sub">Someone is on their way by boat today!</p>';
     else h += `<p class="sub">Nobody visiting right now.${r.score >= 50 ? ' Someone might come any morning.' : ''}</p>`;
     if (st.lastDecision) { const d = st.lastDecision; h += `<p class="sub">Last visitor: ${e(d.name)} ${d.stay ? 'decided to stay' : 'left'}${(d.stay ? d.good : d.bad).length ? ' (' + e((d.stay ? d.good : d.bad).join(', ')) + ')' : ''}.</p>`; }
+    const sad = Tn.residents(sim).filter(p => p.town && p.town.considering);
+    if (sad.length) h += '<h3>Thinking of leaving</h3>' + sad.map(p => `<div class="card"><img src="${p.portrait}" alt=""><div><b>${e(p.name)}</b><br><span class="bad">${e((p.town.whyLeave || []).slice(0, 2).join(', and '))}</span><br>Cheer them up, or whisper “please stay”. Friends will try too.</div></div>`).join('');
     const gone = (sim.leftIsland || []).slice(-3).reverse();
     if (gone.length) h += `<p class="sub">Sailed away: ${gone.map(x => e(x.name)).join(', ')}.</p>`;
     body.innerHTML = h;

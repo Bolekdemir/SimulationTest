@@ -47,6 +47,7 @@ IS.Events = class {
     if (wd === 5) mk({ kind: 'bonfire', name: 'Beach Bonfire', start: H(20), end: H(23), seat: 'bonfireSeat', place: 'the beach', outdoor: true });
     if (wd === 6) mk({ kind: 'picnic', name: 'Sunday Picnic', start: H(12), end: H(14), seat: 'picnicSeat', place: 'the west meadow', outdoor: true });
     for (const w of sim.weddings || []) if (w.day === day && !w.done) this.addWedding(w);
+    if (sim.town && sim.town.festivalDay === day && !sim.town.isTown) this.addFestival(day);
     for (const b of bdays) {
       if (dinner) { dinner.name = `${b.name}'s Birthday Dinner`; dinner.birthday = b.name; continue; }
       const early = wd === 3 || wd === 5;
@@ -60,6 +61,14 @@ IS.Events = class {
     ev.thought = p => this.thoughtFor(ev, p);
     this.list.push(ev);
   }
+  // The day Tidewhistle becomes a town (town.js)
+  addFestival(day) {
+    if (this.list.some(e => e.kind === 'festival' && e.day === day)) return;
+    const ev = { id: 'festival-' + day, kind: 'festival', day, state: 'upcoming', attendees: new Map(), scores: {}, announced: false, name: 'Town Festival', start: 18 * 60, end: 21 * 60, seat: 'hallSeat', place: 'the Hall' };
+    ev.thought = p => this.thoughtFor(ev, p);
+    this.list.push(ev);
+  }
+
   // The bride or groom can't make it: same time tomorrow
   postponeWedding(ev, why) {
     const sim = this.sim;
@@ -75,6 +84,7 @@ IS.Events = class {
 
   decideAttendance(ev) {
     if (ev.kind === 'wedding') return this.weddingGuests(ev);
+    if (ev.kind === 'festival') { for (const p of this.sim.people) ev.attendees.set(p.name, !p.sick); return; }
     for (const p of this.sim.people) {
       if (ev.noSeats) continue;
       const t = p.traits;
@@ -136,6 +146,7 @@ IS.Events = class {
       case 'contest': return 'This year the trophy is MINE.';
       case 'story': return ev.storyteller === p.name ? 'Gather round, I have a tale for you.' : 'Story time! I hope it\'s the squid one.';
       case 'bonfire': return ev.indoor ? 'Rained out... game night it is!' : 'Fire, stars, and friends.';
+      case 'festival': return 'Tidewhistle is a TOWN now. I need to see this.';
       case 'wedding': return ev.couple.includes(p.name) ? 'I\'m getting married today. Breathe. Just breathe.' : `${ev.couple.join(' and ')} are getting married! I\'m going to cry.`;
       case 'picnic': return ev.indoor ? 'Picnic indoors. Still counts.' : 'Sandwiches in the sunshine!';
       default: return 'Fun times!';
@@ -162,7 +173,7 @@ IS.Events = class {
     if (min < ev.start) return;
     p.needs.social = Math.min(100, p.needs.social + 0.07 * dt);
     p.needs.fun = Math.min(100, p.needs.fun + 0.05 * dt);
-    if ((ev.kind === 'dinner' || ev.kind === 'party' || ev.kind === 'picnic' || ev.kind === 'wedding') && p.needs.hunger < 100) {
+    if ((ev.kind === 'dinner' || ev.kind === 'party' || ev.kind === 'picnic' || ev.kind === 'wedding' || ev.kind === 'festival') && p.needs.hunger < 100) {
       p.needs.hunger = Math.min(100, p.needs.hunger + 0.9 * dt);
     }
     if (ev.kind === 'contest') {
@@ -188,6 +199,7 @@ IS.Events = class {
     }
     if (ev.kind === 'bonfire' && !ev.indoor && Math.random() < dt * 0.02) p.emote('note', 1.5);
     if (ev.kind === 'wedding') this.weddingTick(p, ev, dt);
+    if (ev.kind === 'festival' && Math.random() < dt * 0.03) { p.emote(IS.pick(['sparkle', 'note', 'heart']), 1.6); if (Math.random() < 0.15) p.say(IS.pick(['To Tidewhistle!', 'A real town. Can you believe it?', 'Remember when it was just six of us?', 'Speech! Speech!', 'Best island in the world.']), 2.4); }
   }
 
   // Everyone who doesn't hate them comes. The couple always does.
@@ -354,7 +366,7 @@ IS.Events = class {
       if (sim.world.wood >= 3) sim.world.wood -= 3;
       else sim.log('Not much firewood left, so the bonfire is a small one.', 'warn');
     }
-    if (ev.kind === 'dinner' || ev.kind === 'party' || ev.kind === 'picnic' || ev.kind === 'wedding') {
+    if (ev.kind === 'dinner' || ev.kind === 'party' || ev.kind === 'picnic' || ev.kind === 'wedding' || ev.kind === 'festival') {
       const cost = [...ev.attendees.values()].filter(Boolean).length;
       if (sim.world.food >= cost) { sim.world.food -= cost; ev.feast = true; }
       else { ev.feast = false; sim.log('The pantry is low, so the meal is a modest one.', 'warn'); }
@@ -368,6 +380,7 @@ IS.Events = class {
     ev.state = 'done';
     const went = sim.people.filter(p => ev.attendees.get(p.name) && p.action && p.action.event === ev);
     if (ev.kind === 'bonfire') sim.world.bonfire.lit = false;
+    if (ev.kind === 'festival') IS.Town.becomeTown(sim);
     if (ev.kind === 'wedding') {
       const [a, b] = ev.couple.map(n => sim.byName(n));
       if (a && b && a.relTo(b.name).engaged) {

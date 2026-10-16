@@ -39,6 +39,43 @@ IS.Town = (() => {
     return { score, parts, word: score >= 80 ? 'Thriving' : score >= 65 ? 'Welcoming' : score >= 50 ? 'Okay' : score >= 35 ? 'Struggling' : 'Miserable' };
   };
 
+  // ------------------------------------------------------------ the goal: from hamlet to town
+  T.TIERS = [
+    { n: 0, name: 'Hamlet', text: 'A handful of people and a cat.' },
+    { n: 8, name: 'Village', text: 'People have heard of Tidewhistle now.' },
+    { n: 10, name: 'Big village', text: 'The plaza feels busy on Friday nights.' },
+    { n: 12, name: 'Town', text: 'Tidewhistle is a real town.' },
+  ];
+  T.GOAL = 12;
+  T.tier = sim => { const pop = T.residents(sim).length; let t = T.TIERS[0]; for (const x of T.TIERS) if (pop >= x.n) t = x; return t; };
+  T.nextTier = sim => T.TIERS.find(x => x.n > T.residents(sim).length) || null;
+  T.checkTier = sim => {
+    const st = T.state(sim), t = T.tier(sim);
+    st.best = st.best || 'Hamlet';
+    const rank = n => T.TIERS.findIndex(x => x.name === n);
+    if (rank(t.name) <= rank(st.best)) return;
+    st.best = t.name;
+    for (const p of T.residents(sim)) p.addMood(`Tidewhistle is a ${t.name.toLowerCase()} now`, 6, 1440);
+    if (t.n >= T.GOAL && !st.isTown) {
+      st.festivalDay = sim.clock.day + 1;
+      sim.log(`${T.residents(sim).length} islanders! Tidewhistle is big enough to be a real town. There'll be a Town Festival at the Hall tomorrow evening.`, 'good');
+      sim.toast('Tidewhistle is becoming a town! Festival tomorrow at the Hall.');
+      if (sim.events && sim.events.scheduled.has(st.festivalDay)) sim.events.addFestival(st.festivalDay);
+    } else {
+      sim.log(`Tidewhistle has grown into a ${t.name.toLowerCase()}! ${t.text}`, 'good');
+      sim.toast(`Tidewhistle is now a ${t.name.toLowerCase()}!`);
+    }
+  };
+  T.becomeTown = sim => {
+    const st = T.state(sim);
+    if (st.isTown) return;
+    st.isTown = sim.clock.day;
+    for (const p of T.residents(sim)) { p.remember('Tidewhistle became a real town today', { tag: 'town', mood: 20, moodDuration: 2880, news: true }); p.emote('sparkle', 3); }
+    sim.log('🎉 Tidewhistle is officially a TOWN. From six people and a cat to this. Keep going: there\'s always room for more.', 'good');
+    sim.toast('Tidewhistle is officially a town!');
+    if (sim.ui) sim.ui.townWin = true;
+  };
+
   // ------------------------------------------------------------ homes
   // A bed someone could move into: an empty bed in a house, or a spare
   // corner in a house where the people living there like the newcomer.
@@ -105,6 +142,7 @@ IS.Town = (() => {
     p.say(IS.pick(['I live here now. I LIVE here!', 'Home. This is home.', 'Okay. Unpacking. Where do the spoons go?']), 3);
     p.emote('heart', 2.5);
     if (IS.Build) IS.Build.onPopulation(sim, pop);
+    T.checkTier(sim);
     return true;
   };
 
@@ -254,6 +292,65 @@ IS.Town = (() => {
     if (sim.ui) { sim.ui.forget(p); sim.ui.buildRoster(); }
   };
 
+  // ------------------------------------------------------------ unhappy islanders leave
+  // Every hour we note how they feel; every morning a bad day adds up, a good one wears it down.
+  T.why = (sim, p) => {
+    const out = [];
+    const res = T.residents(sim).filter(o => o !== p);
+    if (p.skyOpinion < -40) out.push('the sky terrifies me');
+    if (Object.values(p.mourning || {}).some(e => e.aware && e.f > 30)) out.push('I can\'t stop thinking about who we lost');
+    if (sim.world.food < Math.max(2, res.length / 2)) out.push('there\'s never enough food');
+    const best = res.reduce((m, o) => Math.max(m, p.relTo(o.name).friendship), -100);
+    if (best < 20) out.push('I don\'t really have friends here');
+    const enemies = res.filter(o => p.relTo(o.name).friendship < -35).map(o => o.name);
+    if (enemies.length) out.push(`I can't stand ${enemies[0]}`);
+    const e = IS.Mind.feeling(p);
+    if (e && e.type === 'heartbroken') out.push('my heart is broken');
+    if (!out.length) out.push('I\'m just not happy here');
+    return out;
+  };
+  T.morningCheck = sim => {
+    for (const p of T.residents(sim)) {
+      const t = (p.town = p.town || { status: 'resident' });
+      if (t.status !== 'resident') continue;
+      const mood = t.moodN ? t.moodSum / t.moodN : p.mood();
+      const sickDay = (t.sickN || 0) > (t.moodN || 0) * 0.3 || p.sick;
+      t.moodSum = 0; t.moodN = 0; t.sickN = 0;
+      // A cold isn't a reason to emigrate: sick days don't count either way
+      if (sickDay && p.skyOpinion >= -55) continue;
+      const bad = mood < 38 || p.skyOpinion < -55;
+      t.misery = Math.max(0, (t.misery || 0) + (bad ? 1 : -1));
+      const stubborn = p.cfg.generated ? 0 : 2; // the original six have deep roots
+      if (!t.considering && t.misery >= 2 + stubborn) {
+        t.considering = sim.clock.abs;
+        t.whyLeave = T.why(sim, p);
+        p.thought = `Maybe I should leave the island. ${cap(t.whyLeave[0])}.`;
+        p.say(IS.pick([`I've been thinking about leaving. ${cap(t.whyLeave[0])}.`, `I don't know if I can stay here much longer.`]), 4);
+        sim.log(`${p.name} is thinking about leaving Tidewhistle: "${cap(t.whyLeave.slice(0, 2).join(', and '))}."`, 'warn', [p]);
+        sim.toast(`${p.name} is thinking about leaving the island.`);
+        for (const o of T.residents(sim)) if (o !== p && o.relTo(p.name).friendship > 10) IS.Mind.addPlan(o, { kind: 'talk', who: p.name, topic: 'stayPlease', text: `Talk ${p.name} into staying` });
+      } else if (t.considering && !bad && t.misery < 2) {
+        t.considering = 0;
+        p.say(IS.pick(['You know what? I think I\'m staying.', 'I feel better. I\'m not going anywhere.']), 3);
+        sim.log(`${p.name} has decided to stay on the island after all.`, 'good', [p]);
+      } else if (t.considering && t.misery >= 4 + stubborn * 1.5) {
+        const why = (t.whyLeave || T.why(sim, p)).slice(0, 2).join(', and ');
+        p.say(IS.pick([`I'm sorry. I'm leaving. ${cap(why)}.`, 'I\'ve made up my mind. I\'m taking the next boat.']), 4.5);
+        sim.log(`${p.name} has decided to leave Tidewhistle for good. "${cap(why)}."`, 'warn', [p]);
+        sim.toast(`${p.name} is leaving the island.`);
+        T.startLeaving(sim, p, 'unhappy');
+      }
+    }
+  };
+  // A friend (or the Sky) talked them round
+  T.plead = (sim, p, by, strength) => {
+    const t = p.town;
+    if (!t || !t.considering) return false;
+    t.misery = Math.max(0, t.misery - strength);
+    if (t.misery < 2) { t.considering = 0; p.addMood(`${by} asked me to stay`, 10, 1440); sim.log(`${by} talked ${p.name} into staying.`, 'good', [p]); }
+    return true;
+  };
+
   // ------------------------------------------------------------ every game minute
   T.tick = sim => {
     const minute = Math.floor(sim.clock.abs);
@@ -264,6 +361,7 @@ IS.Town = (() => {
   };
   T.minute = (sim, abs) => {
     const st = T.state(sim), min = abs % 1440, day = Math.floor(abs / 1440) + 1;
+    if (min === H(6) + 5) T.morningCheck(sim);
     // Morning: does anyone want to visit today?
     if (min === H(7)) {
       const r = T.rating(sim);
@@ -279,7 +377,10 @@ IS.Town = (() => {
     if (st.pending && min >= st.pending.at && !st.pending.sent) { st.pending.sent = true; if (sim.events) sim.events.sendFerry(); }
     for (const p of sim.people.slice()) {
       const t = p.town;
+      if (!t && min % 60 === 0 && p.pose !== 'sleep') p.town = { status: 'resident', moodSum: p.mood(), moodN: 1 };
       if (!t) continue;
+      if (t.status === 'resident' && min % 60 === 0 && p.pose !== 'sleep') { t.moodSum = (t.moodSum || 0) + p.mood(); t.moodN = (t.moodN || 0) + 1; if (p.sick) t.sickN = (t.sickN || 0) + 1; }
+      if (t.status === 'resident' && min % 60 === 0 && p.pose === 'sleep' && p.sick) t.sickN = (t.sickN || 0) + 1;
       if (t.status === 'visitor') {
         if (min % 30 === 0 && p.pose !== 'sleep') { t.moodSum += p.mood(); t.moodN++; }
         if (abs >= t.decideAt && !p.chat) T.decide(sim, p);
@@ -321,6 +422,7 @@ IS.Town = (() => {
     if (T.stranger(sp, li)) add('welcome', 12);
     if (li.town && li.town.status === 'leaving' && sp.relTo(li.name).friendship > 20 && !(sp.saidBye || {})[li.name]) add('farewell', 9);
     if (li.town && li.town.status === 'waiting' && !T.stranger(sp, li)) add('homeTalk', 2);
+    if (li.town && li.town.considering && li.town.status === 'resident' && sp.relTo(li.name).friendship > 10) add('stayPlease', 9);
   };
   T.onChatEnd = (a, b) => { a.relTo(b.name).met = true; b.relTo(a.name).met = true; };
 

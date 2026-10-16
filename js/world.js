@@ -242,6 +242,8 @@ IS.World = class {
       place('log', bf.x + a, bf.y + b, lp.canvas, lp.ax, lp.ay, { block: false, footY: 18 });
       this.addSpot('bonfireSeat', bf.x + a, bf.y + b, face, 'sit');
     }
+    // A second ring of people standing around the fire
+    for (const [a, b, face] of [[-3, 1, 'right'], [3, -1, 'left'], [-3, -1, 'right'], [3, 1, 'left'], [0, -3, 'down'], [0, 3, 'up'], [-2, 3, 'up'], [2, -3, 'down']]) this.addSpot('bonfireSeat', bf.x + a, bf.y + b, face, 'stand', { standing: true });
 
     // Market stalls and string lights over the plaza
     const free = (x, yy) => this.walkable(x, yy) && ![TT.PATH, TT.DOCK, TT.FARM].includes(this.tile(x, yy));
@@ -272,6 +274,7 @@ IS.World = class {
     for (const [a, b, face] of [[-1, 0, 'right'], [2, 0, 'left'], [0, -1, 'down'], [1, 2, 'up'], [0, 2, 'up'], [1, -1, 'down']]) {
       this.addSpot('picnicSeat', this.picnic.x + a, this.picnic.y + b, face, 'sit');
     }
+    for (const [a, b, face] of [[-1, 2, 'up'], [2, 2, 'up'], [-1, -1, 'down'], [2, -1, 'down'], [-2, 1, 'right'], [3, 1, 'left']]) this.addSpot('picnicSeat', this.picnic.x + a, this.picnic.y + b, face, 'sit', { extra: true });
     prot(this.picnic.x, this.picnic.y, 3);
 
     // Beach umbrellas and loungers near the bonfire
@@ -481,6 +484,8 @@ IS.World = class {
       add('bigPlant', 1, 5); add('bigPlant', 8, 5);
       for (let c = 3; c <= 7; c++) { add('hallChair', c, 2, { face: 'down' }); this.addSpot('hallSeat', b.x0 + c, b.y0 + 2, 'down', 'sit', { building: b.id }); }
       for (let c = 2; c <= 7; c++) { add('hallChair', c, 4, { face: 'up' }); this.addSpot('hallSeat', b.x0 + c, b.y0 + 4, 'up', 'sit', { building: b.id }); }
+      // Standing room at the back for when the town outgrows the chairs
+      for (const c of [3, 4, 5, 6]) this.addSpot('hallSeat', b.x0 + c, b.y0 + 5, 'up', 'stand', { building: b.id, standing: true });
       // Two guest bedrolls for visitors who don't have a house yet
       for (const c of [2, 7]) this.addSpot('bed', b.x0 + c, b.y0 + 5, 'down', 'sleep', { building: b.id, guest: true, owner: null });
       this.addSpot('cook', b.x0 + 2, b.y0 + 2, 'up', 'stand', { building: b.id });

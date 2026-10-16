@@ -527,6 +527,7 @@ IS.Command = (() => {
       const P = [['the dock', /\b(dock|pier|jetty)\b/], ['the lighthouse', /\blighthouse\b/], ['the Old Oak', /\b(old oak|oak|forest|woods)\b/], ['the north trail', /\b(trail|north)\b/], ['the west meadow', /\b(meadow|field|west)\b/], ['the farm', /\b(farm)\b/], ['the Hall', /\b(hall|town hall)\b/]];
       for (const [name, re] of P) if (re.test(t)) return { kind: 'goto', place: name, what: `go to ${name}` };
     }
+    if (!named && /\b(dont leave|don t leave|please stay|stay with us|stay here|dont go|don t go|stay on the island|we need you|dont move away|don t move away)\b/.test(t)) return { kind: 'plead', what: 'stay on the island' };
     if (!named && SOOTHE.test(t)) return { kind: 'soothe', what: 'feel a bit better' };
     if (!named && !acts.length) for (const [k, e] of Object.entries(EMOTES)) if (e.re.test(t) && !/\b(with|to|at)\b/.test(t.replace(/ (go|want) to /, ' '))) return { kind: 'emote', k, what: k === 'flex' ? 'show off' : k };
     return null;
@@ -659,6 +660,12 @@ IS.Command = (() => {
       const line = e && ['heartbroken', 'shocked', 'grieving', 'furious'].includes(e.type) ? IS.pick(['...Thanks. It still hurts, though.', 'I\'ll try. Thank you.']) : IS.pick(['...Thanks, Sky. I needed that.', 'Okay. Okay. Deep breath.', 'You\'re sweet for a giant voice in the sky.']);
       p.say(line, 3); p.emote('heart', 2);
       return { ok: true, text: `${p.name} feels a little better. “${line}”` };
+    }
+    if (order.kind === 'plead') {
+      const ok = IS.Town.plead(sim, p, 'The Sky', 2);
+      const line = ok ? IS.pick(['...The sky wants me to stay? Okay. Okay, I\'ll try.', 'You really care? Fine. One more week.']) : IS.pick(['Leave? I\'m not going anywhere.', 'Who said I was leaving?']);
+      p.say(line, 3); if (ok) p.emote('heart', 1.8);
+      return { ok: true, text: `${p.name}: “${line}”` };
     }
     if (order.kind === 'wake') {
       if (p.pose !== 'sleep') { p.say('I\'m... already awake?'); return { ok: true, text: `${p.name} is already up.` }; }

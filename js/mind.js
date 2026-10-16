@@ -156,7 +156,7 @@ IS.Mind = (() => {
       const liked = chores.filter(d => p.loves.includes(IS.Actions[d].love));
       const food = liked.find(d => d !== 'chop') || chores.find(d => d !== 'chop');
       if (W.wood < 5 && chores.includes('chop')) plans.push({ kind: 'do', def: 'chop', text: 'Restock the woodpile' });
-      else if (W.food < 12 && food) plans.push({ kind: 'do', def: food, text: 'Fill up the pantry' });
+      else if (W.food < 2 * sim.people.length + 2 && food) plans.push({ kind: 'do', def: food, text: 'Fill up the pantry' });
       else if (chores.length) plans.push({ kind: 'do', def: IS.pick(liked.length ? liked : chores), text: 'Get some work done' });
     }
     // Fun

@@ -5,6 +5,7 @@ IS.Actions = (() => {
   const A = {};
   const def = d => { A[d.id] = d; return d; };
 
+  const lowFood = p => p.world.food < 2 * p.sim.people.length ? (p.world.food < p.sim.people.length ? 1 : 0.6) : 0; // the pantry is low for a town this size
   const dN = (p, k) => (100 - p.needs[k]) / 100;
   const love = (p, key) => (p.loves.includes(key) ? 0.45 : 0) - (p.hates.includes(key) ? 0.6 : 0);
   const between = (min, a, b) => (a <= b ? min >= a && min < b : min >= a || min < b);
@@ -72,7 +73,7 @@ IS.Actions = (() => {
   def({
     id: 'fish', label: 'Fishing', love: 'fishing', outdoor: true, chatOK: true, pose: 'fish',
     can: (p, c) => between(c.min, H(5), H(20.5)) && c.weather !== 'storm',
-    score: (p, c) => 0.35 + p.traits.hardworking * 0.3 + (p.world.food < 10 ? 0.5 : 0) + dN(p, 'fun') * 0.4 + love(p, 'fishing'),
+    score: (p, c) => 0.35 + p.traits.hardworking * 0.3 + lowFood(p) * 0.8 + dN(p, 'fun') * 0.4 + love(p, 'fishing'),
     plan: p => { const spot = p.world.freeSpot('fish'); return spot ? { spot, duration: IS.rand(60, 140) } : null; },
     tick: (p, a, dt) => {
       a.acc = (a.acc || 0) + dt;
@@ -103,7 +104,7 @@ IS.Actions = (() => {
     can: (p, c) => between(c.min, H(6), H(19)) && c.weather !== 'storm',
     score: (p, c) => {
       const ripe = p.world.crops.some(cr => cr.growth >= 1);
-      return 0.3 + p.traits.hardworking * 0.55 + (ripe ? 0.35 : 0) + (p.world.food < 10 ? 0.3 : 0) + (c.weekday < 5 && between(c.min, H(9), H(17)) ? 0.2 : 0) + love(p, 'gardening');
+      return 0.3 + p.traits.hardworking * 0.55 + (ripe ? 0.35 : 0) + lowFood(p) * 0.6 + (c.weekday < 5 && between(c.min, H(9), H(17)) ? 0.2 : 0) + love(p, 'gardening');
     },
     plan: p => {
       const spot = p.world.freeSpot('farm', s => s.crop.growth >= 1) || p.world.freeSpot('farm');
@@ -130,7 +131,7 @@ IS.Actions = (() => {
   def({
     id: 'forage', label: 'Foraging', love: 'foraging', outdoor: true, chatOK: true, pose: 'work',
     can: (p, c) => between(c.min, H(7), H(18)) && c.weather !== 'storm',
-    score: (p, c) => 0.3 + p.traits.curious * 0.35 + (p.world.food < 10 ? 0.3 : 0) + love(p, 'foraging'),
+    score: (p, c) => 0.3 + p.traits.curious * 0.35 + lowFood(p) * 0.6 + love(p, 'foraging'),
     plan: p => { const spot = p.world.freeSpot('forage'); return spot ? { spot, duration: IS.rand(40, 90) } : null; },
     tick: (p, a, dt) => {
       a.acc = (a.acc || 0) + dt;
@@ -147,7 +148,7 @@ IS.Actions = (() => {
   def({
     id: 'chop', label: 'Chopping wood', love: 'chopping', outdoor: true, pose: 'work',
     can: (p, c) => between(c.min, H(8), H(18)) && clear(c),
-    score: (p, c) => 0.2 + p.traits.hardworking * 0.5 + (p.world.wood < 6 ? 0.4 : 0) + love(p, 'chopping') - dN(p, 'energy') * 0.6,
+    score: (p, c) => 0.2 + p.traits.hardworking * 0.5 + (p.world.wood < 2 + new Set(p.sim.people.map(o => o.homeId)).size * 2 ? 0.4 : 0) + (IS.Build && IS.Build.needsWood(p.sim) ? 0.5 : 0) + love(p, 'chopping') - dN(p, 'energy') * 0.6,
     plan: p => { const spot = p.world.freeSpot('chop'); return spot ? { spot, duration: IS.rand(45, 90) } : null; },
     tick: (p, a, dt) => {
       a.acc = (a.acc || 0) + dt;

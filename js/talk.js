@@ -1049,6 +1049,17 @@ IS.Talk = (() => {
     ],
     after: (ctx) => { ctx.a.saidBye = ctx.a.saidBye || {}; ctx.a.saidBye[ctx.b.name] = true; ctx.a.changeRel(ctx.b.name, 2); ctx.b.changeRel(ctx.a.name, 3); },
   });
+  def('stayPlease', {
+    key: 'stayPlease', w: 1,
+    setup: ctx => { const t = ctx.b.town || {}; ctx.vars.why = (t.whyLeave && t.whyLeave[0]) || 'I\'m just not happy here'; const f = ctx.b.relTo(ctx.a.name).friendship; ctx.swayed = f > 40 || (f > 15 && Math.random() < 0.55) || Math.random() < 0.2; },
+    beats: [
+      { by: 'a', say: ['Hey. I heard you might leave the island.', 'Is it true? You\'re thinking of leaving?', 'Please tell me you\'re not really leaving.'] },
+      { by: 'b', say: ctx => [`I don't know. ${ctx.vars.why[0].toUpperCase() + ctx.vars.why.slice(1)}.`, `Maybe. ${ctx.vars.why[0].toUpperCase() + ctx.vars.why.slice(1)}.`] },
+      { by: 'a', say: ['We need you here. I need you here.', 'It won\'t be the same without you.', 'Give it a few more days. Please. For me.', 'Whatever it is, we\'ll fix it together.'] },
+      { by: 'b', pick: ctx => (ctx.swayed ? 'yes' : 'no'), say: { yes: ['...Okay. I\'ll give it another chance.', 'You really mean that? Okay. I\'ll stay. For now.', 'Thank you. I needed to hear that.'], no: ['I\'ll think about it. That\'s all I can promise.', 'I appreciate it. I just don\'t know.'] } },
+    ],
+    after: (ctx, sim) => { IS.Town.plead(sim, ctx.b, ctx.a.name, ctx.swayed ? 2 : 1); ctx.a.changeRel(ctx.b.name, 2); ctx.b.changeRel(ctx.a.name, ctx.swayed ? 5 : 2); },
+  });
   def('homeTalk', {
     key: 'homeTalk', w: 1,
     beats: [
@@ -1609,6 +1620,7 @@ IS.Talk = (() => {
     if (topic === 'welcome' && !IS.Town.stranger(a, b)) return null;
     if (topic === 'farewell' && !(b.town && b.town.status === 'leaving')) return null;
     if (topic === 'homeTalk' && !(b.town && b.town.status === 'waiting')) return null;
+    if (topic === 'stayPlease' && !(b.town && b.town.considering && b.town.status === 'resident')) return null;
     if (topic === 'congrats' && !extra.news) return null;
     if (topic === 'congratsSour' && !extra.news) return null;
     if (topic === 'tease' && !extra.crush) { extra.crush = IS.Dialogue.crushOf(b); if (!extra.crush || extra.crush === a) return null; }

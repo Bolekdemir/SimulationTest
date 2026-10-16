@@ -62,7 +62,8 @@ IS.Build = (() => {
     const cut = B.wouldCutOff(sim, r, df);
     if (cut) return { ok: false, why: cut };
     const d = B.TYPES[type];
-    if (W.wood < d.wood) return { ok: true, afford: false, why: `Needs ${d.wood} wood (you have ${W.wood}).` };
+    const upfront = Math.ceil(d.wood / 4);
+    if (W.wood < upfront) return { ok: true, afford: false, why: `Needs at least ${upfront} wood to start (you have ${W.wood}).` };
     if (W.food < d.food) return { ok: true, afford: false, why: `Needs ${d.food} food (you have ${W.food}).` };
     return { ok: true, afford: true, why: '' };
   };
@@ -93,9 +94,10 @@ IS.Build = (() => {
     const W = sim.world, d = B.TYPES[type];
     const c = opts.restore ? { ok: true, afford: true } : B.check(sim, type, r);
     if (!c.ok || !c.afford) return { ok: false, why: c.why };
-    if (!opts.restore) { W.wood -= d.wood; W.food -= d.food; }
+    let paid = d.wood;
+    if (!opts.restore) { paid = Math.min(W.wood, d.wood); W.wood -= paid; W.food -= d.food; }
     const id = opts.id || 'built' + (B.state(sim).reduce((m, s) => Math.max(m, +String(s.id).replace(/\D/g, '') || 0), 0) + 1);
-    const site = { id, type, x0: r.x0, y0: r.y0, w: r.w, h: r.h, state: 'building', work: opts.work || 0, need: d.work, started: opts.started ?? sim.clock.abs, roof: opts.roof || d.roof || IS.pick(d.roofs) };
+    const site = { id, type, x0: r.x0, y0: r.y0, w: r.w, h: r.h, state: 'building', work: opts.work || 0, need: d.work, wood: opts.wood ?? paid, woodNeed: d.wood, started: opts.started ?? sim.clock.abs, roof: opts.roof || d.roof || IS.pick(d.roofs) };
     site.depth = (site.x0 + site.w) + (site.y0 + site.h) - 0.5;
     if (!opts.restore || !opts.keepState) B.state(sim).push(site);
     // Clear the ground: trees give wood back
@@ -142,6 +144,13 @@ IS.Build = (() => {
     if (sim.renderer) { for (const b of W.buildings) B.cacheAlpha(b); sim.renderer.prepObjects(); }
   };
   // Re-plan a route that now goes through a wall
+  // Move wood from the pile into a site, a log at a time, as the work needs it
+  B.feed = (sim, s) => {
+    const W = sim.world;
+    while (s.wood < s.woodNeed && W.wood > 0 && s.work >= s.need * (s.wood / s.woodNeed) - 2) { W.wood--; s.wood++; }
+  };
+  B.needsWood = sim => B.sites(sim).some(s => s.wood < s.woodNeed);
+
   B.fixPath = p => {
     const W = p.world;
     if (!p.path || !p.path.length) return;
@@ -157,7 +166,7 @@ IS.Build = (() => {
     if (site.state !== 'building') return;
     const W = sim.world, d = B.TYPES[site.type];
     const refund = site.work < 1 ? 1 : 0.5;
-    W.wood += Math.floor(d.wood * refund); W.food += Math.floor(d.food * refund);
+    W.wood += Math.floor((site.wood ?? d.wood) * refund); W.food += Math.floor(d.food * refund);
     for (const p of sim.people) if (p.action && p.action.site === site) p.cancelAction();
     for (let y = site.y0; y < site.y0 + site.h; y++) for (let x = site.x0; x < site.x0 + site.w; x++) W.blocked[W.idx(x, y)] = 0;
     sim.builds = B.state(sim).filter(s => s !== site);
@@ -237,7 +246,7 @@ IS.Build = (() => {
     },
     plan: p => {
       const W = p.world;
-      const sites = B.sites(p.sim).filter(s => s.work < s.need);
+      const sites = B.sites(p.sim).filter(s => s.work < s.need && (s.work < s.need * (s.wood / s.woodNeed) - 1 || p.world.wood > 0));
       if (!sites.length) return null;
       const site = sites.sort((a, b) => IS.dist(a.x0, a.y0, p.tx, p.ty) - IS.dist(b.x0, b.y0, p.tx, p.ty))[0];
       // A free tile on the edge of the site
@@ -257,7 +266,11 @@ IS.Build = (() => {
       if (!site || site.state !== 'building') { a.done = true; return; }
       p.needs.energy = Math.max(0, p.needs.energy - 0.05 * dt);
       p.needs.fun = Math.min(100, p.needs.fun + (p.traits.hardworking > 0.6 ? 0.06 : 0.01) * dt);
-      site.work += dt * (0.6 + p.traits.hardworking * 0.7);
+      B.feed(p.sim, site);
+      const cap = site.need * (site.wood / site.woodNeed);
+      if (site.work >= cap - 0.01) { a.done = true; site.stalled = true; if (!a.saidWood) { a.saidWood = true; p.say(IS.pick(['We\'re out of wood!', 'Need more logs for this.', 'Can\'t build with no wood...']), 2.4); } return; }
+      site.stalled = false;
+      site.work = Math.min(cap, site.work + dt * (0.6 + p.traits.hardworking * 0.7));
       if (Math.random() < dt * 0.25) p.sim.fx.dust(p.x + IS.rand(-6, 6), p.y - 4);
       if (Math.random() < dt * 0.012) p.say(IS.pick(['*hammering*', 'Hand me that nail.', 'Measure twice, cut once.', 'This wall is going to be SO straight.', 'Who designed this? Oh. The sky.', 'Almost there!', 'My thumb! ...I\'m fine.']), 1.8);
       if (site.work >= site.need) B.complete(p.sim, site);
@@ -451,13 +464,14 @@ IS.Build = (() => {
   // ------------------------------------------------------------ the Build tab in the Town book
   B.panelHTML = (sim, ui) => {
     const e = s => ui.esc(s), W = sim.world, pop = IS.Town.residents(sim).length;
+    void W;
     let h = `<h3>Build something <small>${W.wood} wood · ${W.food} food</small></h3>
-      <p class="sub">Pick something, then click a spot on the island. Islanders who like hard work will build it over the next few days. Chopping wood and the supply boat bring in more wood.</p><ul class="finds">`;
+      <p class="sub">Pick something, then click a spot on the island. You only need a quarter of the wood to start; builders use the rest as it comes in. Islanders who like hard work will build it over the next few days. Chopping wood and the supply boat bring in more wood.</p><ul class="finds">`;
     for (const [id, d] of Object.entries(B.TYPES)) {
       const locked = pop < d.unlock;
-      const afford = W.wood >= d.wood && W.food >= d.food;
+      const afford = W.wood >= Math.ceil(d.wood / 4) && W.food >= d.food;
       h += `<li class="${locked ? 'unknown' : ''}"><b>${e(d.name)}</b><span>${e(d.desc)}<br>${d.wood} wood${d.food ? `, ${d.food} food` : ''} · ${Math.round(d.work / 60)} hours of work</span><br>` +
-        (locked ? `<span>Unlocks at ${d.unlock} islanders.</span>` : `<button class="key" data-build="${id}" ${afford ? '' : 'disabled'}>${afford ? 'Place it' : 'Not enough materials'}</button>`) + '</li>';
+        (locked ? `<span>Unlocks at ${d.unlock} islanders.</span>` : `<button class="key" data-build="${id}" ${afford ? '' : 'disabled'}>${afford ? 'Place it' : `Need ${Math.ceil(d.wood / 4)} wood${d.food ? ` and ${d.food} food` : ''} to start`}</button>`) + '</li>';
     }
     h += '</ul>';
     const sites = B.sites(sim);
@@ -466,7 +480,8 @@ IS.Build = (() => {
     for (const s of sites) {
       const k = Math.round(s.work / s.need * 100);
       const now = sim.people.filter(p => p.action && p.action.site === s).map(p => p.name);
-      h += `<div class="card"><div><b>${e(B.TYPES[s.type].name)}</b> · ${k}%<div class="meter"><i style="width:${k}%"></i></div>${now.length ? `Working on it now: ${e(now.join(', '))}.` : 'Nobody on it right now. Builders work 7:30 to 19:00.'}${(s.helpers || []).length ? ` Helped so far: ${e(s.helpers.join(', '))}.` : ''}<br><button class="key" data-cancel="${s.id}">Call it off</button></div></div>`;
+      const woodLeft = s.woodNeed - s.wood;
+      h += `<div class="card"><div><b>${e(B.TYPES[s.type].name)}</b> · ${k}%${woodLeft > 0 ? ` · still needs ${woodLeft} wood` : ''}<div class="meter"><i style="width:${k}%"></i></div>${s.stalled && woodLeft > 0 && W.wood <= 0 ? '<span class="bad">Waiting for wood. Islanders will chop more.</span><br>' : ''}${now.length ? `Working on it now: ${e(now.join(', '))}.` : 'Nobody on it right now. Builders work 7:30 to 19:00.'}${(s.helpers || []).length ? ` Helped so far: ${e(s.helpers.join(', '))}.` : ''}<br><button class="key" data-cancel="${s.id}">Call it off</button></div></div>`;
     }
     const done = B.state(sim).filter(s => s.state === 'done');
     if (done.length) h += `<h3>Built <small>${done.length}</small></h3><p class="sub">${done.map(s => e(B.TYPES[s.type].name)).join(', ')}</p>`;
@@ -492,13 +507,13 @@ IS.Build = (() => {
   };
 
   // ------------------------------------------------------------ saving
-  B.serialize = sim => B.state(sim).map(s => ({ id: s.id, type: s.type, x0: s.x0, y0: s.y0, w: s.w, h: s.h, state: s.state, work: s.work, roof: s.roof, helpers: s.helpers || [], path: s.path || null, started: s.started, done: s.done }));
+  B.serialize = sim => B.state(sim).map(s => ({ id: s.id, type: s.type, x0: s.x0, y0: s.y0, w: s.w, h: s.h, state: s.state, work: s.work, wood: s.wood, roof: s.roof, helpers: s.helpers || [], path: s.path || null, started: s.started, done: s.done }));
   B.restore = (sim, list) => {
     sim.builds = B.state(sim);
     for (const s of list || []) {
       if (sim.builds.some(x => x.id === s.id) || sim.world.buildings.some(b => b.id === s.id)) continue; // already there
       const r = { x0: s.x0, y0: s.y0, w: s.w, h: s.h };
-      const res = B.place(sim, s.type, r, { restore: true, id: s.id, work: s.work, roof: s.roof, started: s.started });
+      const res = B.place(sim, s.type, r, { restore: true, id: s.id, work: s.work, wood: s.wood ?? B.TYPES[s.type].wood, roof: s.roof, started: s.started });
       if (!res.ok) continue;
       res.site.helpers = s.helpers || [];
       if (s.state === 'done') B.complete(sim, res.site, { restore: true, path: s.path || undefined });
