@@ -156,6 +156,20 @@
   .log-social::before { background: var(--sea) !important; }
   .log-love::before { background: var(--berry) !important; }
   .log-sky::before { background: var(--page) !important; }
+  .log-death::before { background: var(--frame) !important; }
+  .log-death span { color: var(--ribbon-lo); }
+
+  /* ---------- God powers: a strip of keys along the top ---------- */
+  #powers { position: absolute; top: calc(var(--edge-t) + 2px); left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 7px; z-index: 2; }
+  #powers .key { display: grid; justify-items: center; gap: 2px; min-width: 52px; padding: 5px 6px 6px; }
+  #powers .key img { width: 24px; height: 24px; image-rendering: pixelated; }
+  #powers .lbl { font-size: 13px; line-height: 1; }
+  #powers .key[aria-pressed="true"] { background: var(--ribbon); color: var(--on-ribbon); transform: none; box-shadow: var(--frame-px), inset 0 2px 0 0 var(--ribbon-hi), inset 0 -3px 0 0 var(--ribbon-lo); }
+  body.casting #game { cursor: crosshair; }
+  .token.dead .face img { filter: grayscale(1) brightness(0.7); }
+  .token.dead b { text-decoration: line-through; text-decoration-thickness: 2px; }
+  .token.dead small { color: var(--ribbon-lo); }
+  .nametag.grave { background: rgba(33, 26, 36, 0.85); color: #d9dde3; font-weight: 400; }
 
   /* ---------- Tools: a leather strip of paper tags ---------- */
   #hud-tr { position: absolute; top: calc(var(--edge-t) + 2px); right: calc(var(--edge-r) + 2px); display: flex; align-items: center; gap: 6px; padding: 7px; flex-wrap: wrap; justify-content: flex-end; }
@@ -367,6 +381,7 @@
   #stage { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #stage input { -webkit-user-select: text; user-select: text; }
 
+  body.menu-open #powers, body.focus #powers { display: none !important; }
   body.menu-open #hud-tl, body.menu-open #hud-tr, body.menu-open #roster, body.menu-open #inspector, body.menu-open #toasts { display: none !important; }
 
   body.focus #hud-tl, body.focus #roster, body.focus #inspector, body.focus #hud-tr > *:not(#btn-full) { display: none !important; }
@@ -381,7 +396,17 @@
     .leaf-l { padding-bottom: 6px; }
     #cmd { margin-top: 0; }
   }
+  @media (max-width: 1599px) {
+    #hud-tr .lbl, #hud-tr .gap { display: none; }
+  }
+  @media (max-width: 1180px) {
+    #powers { top: 50%; left: auto; right: calc(var(--edge-r) + 2px); transform: translateY(-50%); flex-direction: column; z-index: 0; }
+    #powers .key { min-width: 0; padding: 5px; }
+    #powers .lbl { display: none; }
+  }
   @media (max-width: 760px) {
+    #powers { top: 40%; }
+    #powers .key img { width: 20px; height: 20px; }
     #hud-tl { bottom: auto; width: min(220px, calc(100vw - 168px)); }
     #clock { grid-template-columns: 1fr; padding: 12px 12px 10px; }
     #dial { display: none; }
@@ -447,6 +472,15 @@
     <button class="key" id="btn-log" title="Island journal (L)"><img data-icon="book" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Journal</span></button>
     <button class="key" id="btn-full" title="Fullscreen, or hide the HUD where fullscreen is blocked (H)"><img data-icon="full" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl" id="btn-full-lbl">Fullscreen</span></button>
     <button class="key icon" id="btn-help" title="How to play" aria-label="How to play"><img data-icon="help" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
+  </div>
+
+  <div id="powers" class="leather" role="toolbar" aria-label="God powers">
+    <button class="key power" data-power="hand" title="Hand: Grab and throw (Z)" aria-label="Hand"><img data-icon="p-hand" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Hand</span></button>
+    <button class="key power" data-power="smite" title="Smite: Lightning (X)" aria-label="Smite"><img data-icon="p-smite" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Smite</span></button>
+    <button class="key power" data-power="meteor" title="Meteor: Drop a meteor (C)" aria-label="Meteor"><img data-icon="p-meteor" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Meteor</span></button>
+    <button class="key power" data-power="fire" title="Fire: Set on fire (V)" aria-label="Fire"><img data-icon="p-fire" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Fire</span></button>
+    <button class="key power" data-power="bless" title="Bless: Heal and cheer up (B)" aria-label="Bless"><img data-icon="p-bless" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Bless</span></button>
+    <button class="key power" data-power="revive" title="Revive: Raise the dead (G)" aria-label="Revive"><img data-icon="p-revive" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Revive</span></button>
   </div>
 
   <aside id="inspector" class="leather" hidden>
@@ -530,7 +564,8 @@
       <h3>Controls</h3>
       <ul>
         <li><b>Click</b> an islander to open their page. Type into the box there to tell them what to do, in plain words: <b>go fishing</b>, <b>take a nap</b>, <b>go swimming with Egg</b>, <b>ask Lynn what she thinks of Forest</b>, <b>trash talk Jude to Beach</b>, <b>talk to Egg about the cat</b>, <b>flirt with Lynn</b>, <b>apologize to Beach</b>, <b>stop</b>. If they don't understand, they'll say so instead of guessing.</li>
-        <li><b>Press and hold</b> an islander to pick them up. Drag them around, then <b>flick</b> to throw.</li>
+        <li><b>Press and hold</b> an islander to pick them up. Drag them around, then <b>flick</b> to throw. Flick <i>really</i> hard and they won't get up again.</li>
+        <li><b>God powers</b> sit along the top of the screen: <kbd>Z</kbd> hand, <kbd>X</kbd> smite, <kbd>C</kbd> meteor, <kbd>V</kbd> fire, <kbd>B</kbd> bless, <kbd>G</kbd> revive. Pick one, then click the island. <kbd>Esc</kbd> puts the hand back. The dead get graves, the living grieve and start to fear the sky, and a revive brings anyone back.</li>
         <li><b>Drag</b> empty ground, or use <kbd>WASD</kbd> / arrows, to move the camera. Scroll to zoom.</li>
         <li>Hover a building, or press <kbd>R</kbd>, to look inside.</li>
         <li><kbd>Space</kbd> pause, <kbd>1</kbd> to <kbd>5</kbd> speed, <kbd>Tab</kbd> next islander, <kbd>F</kbd> follow, <kbd>N</kbd> names, <kbd>L</kbd> journal, <kbd>H</kbd> hide the HUD.</li>
@@ -566,6 +601,7 @@
 <script src="js/mind.js"></script>
 <script src="js/save.js"></script>
 <script src="js/events.js"></script>
+<script src="js/gods.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/input.js"></script>

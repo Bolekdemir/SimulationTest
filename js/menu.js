@@ -92,7 +92,7 @@ IS.Menu = class {
 
   buildCast() {
     const card = cfg => {
-      const p = this.sim.byName(cfg.name);
+      const p = this.sim.everyone.find(x => x.name === cfg.name);
       const loves = (cfg.loves || []).map(l => `<span class="chip">${l}</span>`).join('') + (cfg.hates || []).map(l => `<span class="chip no">${l}</span>`).join('');
       return `<article class="cast-card"><span class="face"><img src="${p.portrait}" alt=""></span>
         <div><h3>${cfg.name}</h3><p class="bio">${this.sim.ui.esc(cfg.bio || '')}</p>

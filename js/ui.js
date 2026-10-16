@@ -33,6 +33,12 @@ IS.UI = class {
       help: grid(['..kkkk..', '.kk..kk.', '.....kk.', '....kk..', '...kk...', '........', '...kk...', '...kk...'], K),
       heart: grid(['........', '.rr.rr..', 'rrrrrrr.', 'rrrrrrr.', '.rrrrr..', '..rrr...', '...r....', '........'], { r: '#c94a73' }),
       menu: grid(['........', 'kkkkkkkk', 'kkkkkkkk', '........', 'kkkkkkkk', '........', 'kkkkkkkk', '........'], K),
+      'p-hand': grid(['...k.k..', '..kwkwk.', '..kwkwkk', '.kkwwwwk', 'kwkwwwwk', 'kwwwwwk.', '.kwwwwk.', '..kkkk..'], { k: '#2e1a10', w: '#f2d3b0' }),
+      'p-smite': grid(['....yyk.', '...yyk..', '..yyk...', '.yyyyyk.', '...yyk..', '..yyk...', '.yyk....', '.yk.....'], { y: '#f2b82e', k: '#2e1a10' }),
+      'p-meteor': grid(['oo......', '.oo.....', '..ooo...', '...okkk.', '....kkkk', '....kkrk', '....kkkk', '.....kk.'], { o: '#ff8a3a', k: '#3a2a22', r: '#e8343f' }),
+      'p-fire': grid(['...r....', '...rr...', '..rrr.r.', '.rryrrr.', '.ryyyrr.', 'rryyyyrr', 'rryyyyrr', '.rrrrrr.'], { r: '#e8343f', y: '#ffd56a' }),
+      'p-bless': grid(['..yyyy..', '.y....y.', '..yyyy..', '...ww...', '..wwww..', '.w.ww.w.', '...ww...', '..w..w..'], { y: '#f2b82e', w: '#8f7565' }),
+      'p-revive': grid(['..kkkk..', '.kggggk.', 'kgkggkgk', 'kggggggk', 'kgggkggk', '.kggggk.', '..kggk..', '..k..k..'], { k: '#2e1a10', g: '#bfe8d0' }),
       friend: grid(['...kk...', '..kkkk..', '..kkkk..', '...kk...', '.kkkkkk.', 'kkkkkkkk', 'kkkkkkkk', '........'], { k: '#8f7565' }),
     };
     this.$('ico-food').src = this.icons.food;
@@ -66,6 +72,7 @@ IS.UI = class {
       const p = sim.byName(row.dataset.person);
       if (p) { sim.select(p); sim.follow = true; this.syncToggles(); }
     });
+    document.querySelectorAll('[data-power]').forEach(b => b.addEventListener('click', () => IS.Gods.setPower(sim, b.dataset.power)));
     // Whispers from the sky
     const form = this.$('cmd'), input = this.$('cmd-in');
     const send = text => {
@@ -101,18 +108,33 @@ IS.UI = class {
     this.$('insp-follow').textContent = sim.follow ? 'Following' : 'Follow';
     document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.speed === sim.speedIdx));
     document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === this.tab));
+    document.querySelectorAll('[data-power]').forEach(b => b.setAttribute('aria-pressed', b.dataset.power === sim.power));
+    document.body.classList.toggle('casting', sim.power !== 'hand');
+  }
+
+  // Someone died: hide their speech bubble and name tag
+  forget(p) {
+    const el = this.bubbleEls.get(p), tag = this.tagEls.get(p);
+    if (el) el.hidden = true;
+    if (tag) tag.hidden = true;
   }
 
   buildRoster() {
     const el = this.$('roster');
     el.innerHTML = '';
-    for (const p of this.sim.people) {
+    for (const p of this.sim.everyone) {
       const b = document.createElement('button');
       b.className = 'token';
       b.id = 'chip-' + p.id;
       b.title = `${p.name}: click to follow`;
       b.innerHTML = `<span class="face"><img src="${p.portrait}" alt=""></span><span class="mood" id="chip-mood-${p.id}"></span><b>${p.name}</b><small id="chip-act-${p.id}">Sleeping</small>`;
       b.addEventListener('click', () => {
+        if (p.dead) {
+          const g = this.sim.graves.find(x => x.p === p);
+          if (g) { const s = IS.Iso.w2s(g.x, g.y); this.sim.follow = false; this.sim.cam.x = s.x; this.sim.cam.y = s.y - 20; this.toast(`${p.name} rests here. ${IS.Gods.causeWord(g.cause)}, ${g.season} ${((g.day - 1) % 28) + 1}.`); }
+          this.syncToggles();
+          return;
+        }
         if (this.sim.selected === p) { this.sim.follow = !this.sim.follow; }
         else { this.sim.select(p); this.sim.follow = true; }
         this.syncToggles();
@@ -175,6 +197,20 @@ IS.UI = class {
         tag.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy + 5 * z)}px) translate(-50%, 0)`;
         tag.classList.toggle('sel', sim.selected === p);
       }
+    }
+    // Headstones get a name plate when names are on, or under the cursor
+    const hg = sim.hoverIso && IS.Gods.graveAt(sim, sim.hoverIso, 1);
+    this.graveEls = this.graveEls || new Map();
+    for (const [g, el] of this.graveEls) if (!sim.graves.includes(g)) { el.remove(); this.graveEls.delete(g); }
+    for (const g of sim.graves) {
+      let el = this.graveEls.get(g);
+      if (!el) { el = document.createElement('div'); el.className = 'nametag grave'; this.$('overlay').appendChild(el); this.graveEls.set(g, el); }
+      const show = g.stage !== 'lost' && (this.showNames || hg === g) && !(g.building && g.building.cut < 0.3);
+      el.hidden = !show;
+      if (!show) continue;
+      el.textContent = g.stage === 'grave' ? `Here lies ${g.name}` : g.name;
+      const sp = r.toScreen(g.x, g.y, 0);
+      el.style.transform = `translate(${Math.round(sp.x * z)}px, ${Math.round(sp.y * z + 5 * z)}px) translate(-50%, 0)`;
     }
     // Crowded scenes: stack bubbles upward instead of letting them overlap
     shown.sort((a, b) => b.y - a.y);
@@ -264,7 +300,14 @@ IS.UI = class {
     else if (nxt) ne.innerHTML = `<b>${this.esc(nxt.name)}</b>${nxt.day === c.day ? 'Today' : 'Tomorrow'} at ${IS.fmtTime(nxt.start)}, ${this.esc(nxt.place)}`;
     else ne.innerHTML = '';
 
-    for (const p of sim.people) {
+    for (const p of sim.everyone) {
+      const chip = this.$('chip-' + p.id);
+      chip.classList.toggle('dead', !!p.dead);
+      if (p.dead) {
+        const g = sim.graves.find(x => x.p === p);
+        this.$('chip-act-' + p.id).textContent = g && g.stage === 'grave' ? 'Resting in peace' : 'Dead';
+        continue;
+      }
       this.$('chip-act-' + p.id).textContent = p.actionLabel();
       this.setMood(this.$('chip-mood-' + p.id), p);
       this.$('chip-' + p.id).classList.toggle('active', sim.selected === p);

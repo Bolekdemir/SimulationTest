@@ -234,6 +234,7 @@ IS.Person = class {
     if (this.mode === 'air') return 'Flying!';
     if (this.mode === 'swim') return 'Swimming back to shore';
     if (this.mode === 'recover') return 'Recovering';
+    if (this.mode === 'panic') return this.burning ? 'ON FIRE!' : 'Running for their life';
     if (this.chat) return `Talking with ${this.chat.other(this).name}`;
     const a = this.action;
     if (!a) return 'Idle';
@@ -271,6 +272,7 @@ IS.Person = class {
 
   // ---------------------------------------------------------------- update
   update(dt, rdt, c) {
+    if (this.burning) { IS.Gods.burnTick(this, rdt, c); if (this.dead) return; }
     this.decayNeeds(dt);
     this.moodMods = this.moodMods.filter(m => m.until > c.abs);
     if (this.wetUntil > c.abs && Math.random() < rdt * 3) this.sim.fx.drip(this.x + IS.rand(-5, 5), this.y, 14);
@@ -280,6 +282,7 @@ IS.Person = class {
       case 'air': this.updateAir(rdt, c); break;
       case 'hop': this.updateHop(rdt, c); break;
       case 'swim': this.updateSwim(dt, c); break;
+      case 'panic': IS.Gods.updatePanic(this, rdt, c); break;
       case 'recover':
         this.pose = this.isWaterHere() ? 'swim' : 'stand';
         if (c.abs >= this.recoverUntil) { this.mode = 'normal'; }
@@ -451,6 +454,8 @@ IS.Person = class {
     const k = sp > 900 ? 900 / sp : 1;
     this.vx = vx * k; this.vy = vy * k;
     this.vz = 40 + Math.min(260, sp * 0.22);
+    // A really violent flick sends them sky-high. They won't survive the landing.
+    if (sp > 1800) { this.vz = 560 + Math.min(260, (sp - 1800) * 0.15); this.vx *= 0.3; this.vy *= 0.3; this.say('AAAAAAAAAAAAAAAH!', 2); }
     this.bounces = 0;
     this.hardLanding = false;
     this.thrown = sp > 350;
@@ -466,6 +471,7 @@ IS.Person = class {
       const impact = -this.vz;
       this.z = 0;
       const water = this.isWaterHere();
+      if (!water && impact > 520) { IS.Gods.kill(this.sim, this, 'fall'); return; }
       if (!water && impact > 380 && this.bounces < 2) {
         this.vz = impact * 0.35; this.vx *= 0.45; this.vy *= 0.45; this.bounces++;
         this.hardLanding = true;

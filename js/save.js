@@ -17,8 +17,10 @@ IS.Save = (() => {
     newsId: sim.newsId || 0,
     log: sim.logEntries.slice(-80),
     lastDolphinDay: sim.events.lastDolphinDay,
-    people: sim.people.map(p => ({
-      name: p.name, x: p.x, y: p.y,
+    deaths: sim.deaths || 0, lastDeathAt: sim.lastDeathAt,
+    graves: (sim.graves || []).map(g => ({ name: g.name, cause: g.cause, day: g.day, season: g.season, t: g.t, x: g.x, y: g.y, gx: g.gx, gy: g.gy, stage: g.stage, flowers: g.flowers, flip: g.flip, stash: g.p.stash || {} })),
+    people: (sim.everyone || sim.people).map(p => ({
+      name: p.name, x: p.x, y: p.y, dead: !!p.dead, mourning: p.mourning || {}, revivedAt: p.revivedAt || 0, welcomedBack: p.welcomedBack || {},
       needs: p.needs, rel: p.rel, moodMods: p.moodMods,
       memories: p.memories.map(m => ({ ...m, toldTo: [...m.toldTo] })),
       skyOpinion: p.skyOpinion, grabCount: p.grabCount, sick: p.sick, wetUntil: p.wetUntil,
@@ -60,6 +62,17 @@ IS.Save = (() => {
       p.lastChatAt = s.lastChatAt || 0;
       p.idleUntil = 0;
       p.thought = 'Where was I?';
+      p.mourning = s.mourning || {}; p.revivedAt = s.revivedAt || 0; p.welcomedBack = s.welcomedBack || {};
+    }
+    // The dead stay dead
+    sim.deaths = d.deaths || 0;
+    sim.lastDeathAt = d.lastDeathAt ?? -1e9;
+    for (const sg of d.graves || []) {
+      const p = sim.everyone.find(x => x.name === sg.name);
+      if (!p) continue;
+      p.dead = true; p.mode = 'dead'; p.stash = sg.stash || {};
+      sim.people = sim.people.filter(x => x !== p);
+      sim.graves.push({ ...sg, p, building: sg.stage === 'body' ? sim.world.buildingAt(Math.floor(sg.x / IS.TILE), Math.floor((sg.y - 6) / IS.TILE)) : null, born: performance.now() - 60000, stash: undefined });
     }
   };
 

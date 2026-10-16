@@ -1102,6 +1102,64 @@ IS.Talk = (() => {
     if (sim.lore.length > 20) sim.lore.shift();
   };
 
+  // ------------------------------------------------------------ death (see gods.js)
+  // Talking about someone who died
+  def('mourn', {
+    key: 'mourn', w: 1,
+    setup: ctx => {
+      ctx.vars.dead = ctx.dead;
+      const e = ctx.b.mourning && ctx.b.mourning[ctx.dead];
+      ctx.bFelt = !e ? 'meh' : e.partner || e.f > 50 ? 'close' : e.f > 10 ? 'sad' : e.f < -30 ? 'cold' : 'meh';
+    },
+    beats: [
+      { by: 'a', say: { any: ['I keep thinking about {dead}.', 'It doesn\'t feel real. {dead} is just... gone.', 'I walked past {dead}\'s place today. Out of habit.', 'Do you ever just... forget? And then remember {dead} is gone?'], Iroh: ['I had a joke ready for {dead}. A good one. Now what do I do with it?'], Lynn: ['I keep making two cups of tea.'], Egg: ['Even {cat} seems sad about {dead}.'], Jude: ['Feels wrong without {dead} around, man.'], Beach: ['Not that I care, but... it\'s quiet without {dead}.'], Forest: ['{dead} would have hated how quiet it is now.'] } },
+      { by: 'b', pick: ctx => ctx.bFelt, say: {
+        close: ['Me too. Every single day.', 'I can\'t even go near the grave yet.', 'I still hear their voice sometimes.'],
+        sad: ['Yeah. It\'s strange without them.', 'I know. I didn\'t expect it to hit this hard.', 'Same. It\'s just... wrong.'],
+        meh: ['Yeah. It\'s strange.', 'I didn\'t know them that well, but still.', 'Mm. Life is short, huh.'],
+        cold: ['I\'m not going to pretend I\'ll miss them.', '...I don\'t really know what to say.', 'Honestly? I\'m fine.'],
+      } },
+      { by: 'a', pick: ctx => ctx.cause || 'fall', say: {
+        smite: ['Lightning. From a CLEAR sky.', 'The Sky just... struck them down. Why them?', 'I can still see the flash when I close my eyes.'],
+        meteor: ['A rock. From SPACE. Who even dies like that?', 'There wasn\'t even enough left to bury properly.', 'I still find bits of... never mind.'],
+        fire: ['The screaming. I can still hear the screaming.', 'If someone had just gotten water...', 'I can\'t look at the bonfire anymore.'],
+        fall: ['The Sky threw them. Just THREW them.', 'That sound when they landed... I\'ll never forget it.', 'One second they were flying, and then...'],
+      } },
+      { by: 'b', if: ctx => ctx.bFelt !== 'cold', judge: 'comfort', say: { pos: ['Hey. Come here. We\'ll get through it.', 'At least we still have each other.', 'They\'d want us to keep going. Probably with snacks.'], neu: ['Don\'t say that too loud. It might be listening.', 'Whatever is up there, it isn\'t kind.', 'Maybe they\'ll come back. Stranger things have happened.'], neg: ['I really don\'t want to talk about this.', 'Can we not? Please?'] } },
+    ],
+    after: ctx => {
+      if (ctx.bFelt === 'cold') { ctx.a.changeRel(ctx.b.name, -4); return; }
+      ctx.a.changeRel(ctx.b.name, 3); ctx.b.changeRel(ctx.a.name, 3);
+      ctx.a.addMood('Shared the grief', 3, 300);
+    },
+  });
+
+  // Is the Sky out to get us?
+  def('skyFear', {
+    key: 'skyFear', w: 1,
+    beats: [
+      { by: 'a', say: { any: ['Do you ever feel like something up there is watching us?', 'Is it just me, or is the sky angry lately?', 'Be careful today. The Sky has been... hungry.', 'I keep looking up. Every time a cloud moves.'], Iroh: ['Theory: the Sky is just bored and we\'re its TV.'], Beach: ['If the Sky touches me, I\'m suing.'] } },
+      { by: 'b', pick: ctx => (ctx.b.skyOpinion > 30 ? 'faith' : ctx.b.skyOpinion < -40 ? 'fear' : 'unsure'), say: {
+        faith: ['The Sky is just. We must have deserved it.', 'Pray and it will spare you. It spared me.', 'It blessed me once, you know. It\'s not all bad.'],
+        fear: ['I barely sleep anymore.', 'Every time it thunders I hide under my bed.', 'We need to stay together. Safety in numbers.'],
+        unsure: ['Accidents happen. Probably.', 'I try not to think about it.', 'Maybe it\'s testing us?'],
+      } },
+      { by: 'a', say: ['Let\'s just... stay away from open fields.', 'If I go, you can have my stuff. Except the good stuff.', 'Well, if it comes for us, at least we\'ll go together.', 'Maybe we should pray. Just in case.'] },
+    ],
+    after: ctx => { ctx.a.changeRel(ctx.b.name, 1); },
+  });
+
+  // Talking to someone who came back from the dead
+  def('backFromDead', {
+    key: 'backFromDead', w: 1,
+    beats: [
+      { by: 'a', say: { any: ['You... you were DEAD.', 'Is it really you?! I saw your grave!', 'Okay, I have to ask. What was it like?', 'You\'re not a ghost, right? Let me poke you.'], Iroh: ['So. Death. Five stars or one star?'], Beach: ['You were dead for a WHOLE day and nobody took your stuff. You\'re welcome.'] } },
+      { by: 'b', say: { any: ['I know. Trust me, I know.', 'It was dark. And quiet. And then... a hand.', 'Being dead was very boring. Would not recommend.', 'I don\'t really want to talk about it.'], Egg: ['Honestly? Best nap of my life.'], Forest: ['Death was just a warm-up.'] } },
+      { by: 'a', judge: 'comfort', say: { pos: ['Don\'t ever do that again.', 'I\'m so glad you\'re back. Seriously.', 'I missed you. Like, a lot.'], neu: ['Well. Welcome back, I guess.', 'Weird. But okay.'], neg: ['Great. You\'re back.', 'Huh. And here I was enjoying the quiet.'] } },
+    ],
+    after: (ctx, sim) => { (ctx.a.welcomedBack = ctx.a.welcomedBack || {})[ctx.b.name] = sim.clock.abs; if (ctx.v === 'pos') { ctx.a.changeRel(ctx.b.name, 4); ctx.b.changeRel(ctx.a.name, 6); } },
+  });
+
   // ------------------------------------------------------------ choosing
   const BYKEY = {};
   for (const t of Object.values(TH)) (BYKEY[t.key] = BYKEY[t.key] || []).push(t);
@@ -1127,6 +1185,7 @@ IS.Talk = (() => {
     if (topic === 'eventRecap' && !extra.recap) return null;
     if (topic === 'teach' && !extra.teachLove) return null;
     if (topic === 'hangout' && !extra.hangDef) return null;
+    if (topic === 'mourn' && !extra.dead) return null;
     if (topic === 'askAbout' && (!extra.subject || extra.subject === a || extra.subject === b)) return null;
     if (topic === 'crushAdvice' && !extra.crush) { extra.crush = IS.Dialogue.crushOf(a); if (!extra.crush || extra.crush === b) return null; }
     const ctx = T.ctx(sim, a, b, extra);
@@ -1142,6 +1201,11 @@ IS.Talk = (() => {
     const heard = (sp.heardFuture = sp.heardFuture || {});
     const now = sim.clock.abs, min = sim.clock.min, t = sp.traits;
     const ev = sp.memories.find(m => m.tag === 'event' && now - m.t < 1080 && li.memories.some(x => x.tag === 'event' && x.text === m.text));
+    // Death and the Sky
+    const grief = IS.Gods.mournTopic(sim, sp);
+    if (grief && grief.name !== li.name) add('mourn', 2.2 + grief.f / 30 + (grief.partner ? 2 : 0), { dead: grief.name, cause: grief.cause });
+    if (li.revivedAt && now - li.revivedAt < 2880 && !(sp.welcomedBack && sp.welcomedBack[li.name] > li.revivedAt)) add('backFromDead', 8);
+    if (sim.deaths && now - sim.lastDeathAt < 2880) add('skyFear', 0.9 + Math.max(0, -sp.skyOpinion) / 50);
     if (ev) { const name = ev.text.replace('Went to ', ''); const evObj = sim.events.list.find(e => e.name === name); add('eventRecap', 2.2, { recap: name, recapHost: evObj && evObj.host }); }
     if (sim.weather !== 'sunny') add('weather', 0.9);
     add('debate', 0.8);

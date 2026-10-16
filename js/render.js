@@ -17,8 +17,9 @@ IS.FX = class {
   update(rdt) {
     for (const q of this.p) {
       q.life += rdt;
-      if (q.kind === 'ring') continue;
+      if (q.kind === 'ring' || q.landed) continue;
       q.vy += q.g * rdt;
+      if (q.stick && q.vy > 0 && q.y >= q.gy) { q.y = q.gy; q.landed = true; continue; }
       q.x += q.vx * rdt; q.y += q.vy * rdt;
     }
     this.p = this.p.filter(q => q.life < q.max);
@@ -32,7 +33,7 @@ IS.FX = class {
         ctx.beginPath(); ctx.ellipse(Math.round(q.x - ox) + 0.5, Math.round(q.y - oy) + 0.5, 3 + t * 10, 1.5 + t * 5, 0, 0, Math.PI * 2); ctx.stroke();
         continue;
       }
-      ctx.globalAlpha = q.fade ? 0.85 * (1 - t) : 1;
+      ctx.globalAlpha = q.fade ? 0.85 * (1 - t) : q.stick ? Math.min(1, (1 - t) * 4) : 1;
       ctx.fillStyle = q.color;
       const s = q.grow ? Math.round(q.size + t * 5) : q.size;
       ctx.fillRect(Math.round(q.x - ox - s / 2), Math.round(q.y - oy - s / 2), s, s);
@@ -201,7 +202,8 @@ IS.Renderer = class {
     const vw = this.vw, vh = this.vh, cam = sim.cam;
     cam.x = vw >= I.W ? I.W / 2 : IS.clamp(cam.x, vw / 2, I.W - vw / 2);
     cam.y = vh >= I.H ? I.H / 2 : IS.clamp(cam.y, vh / 2, I.H - vh / 2);
-    const ox = Math.round(cam.x - vw / 2), oy = Math.round(cam.y - vh / 2);
+    const shk = sim.shake || 0;
+    const ox = Math.round(cam.x - vw / 2 + (shk ? IS.rand(-shk, shk) : 0)), oy = Math.round(cam.y - vh / 2 + (shk ? IS.rand(-shk, shk) : 0));
     this.ox = ox; this.oy = oy;
     const t = now / 1000;
     const amb = this.ambient(sim.clock.min);
@@ -235,6 +237,7 @@ IS.Renderer = class {
       const st = cr.growth >= 1 ? 3 : cr.growth < 0.15 ? 0 : cr.growth < 0.55 ? 1 : 2;
       ctx.drawImage(IS.Sprites.crops[cr.kind][st], Math.round(s.x - 9 - ox), Math.round(s.y - 14 - oy));
     }
+    IS.Gods.drawDecals(this, ctx, ox, oy, t);
     const bot = sim.events.bottle;
     if (bot) {
       const s = I.g2s(bot.tx + 0.5, bot.ty + 0.5);
@@ -279,6 +282,7 @@ IS.Renderer = class {
       const gx = p.x / T, gy = (p.y - 6) / T;
       list.push({ d: (p.mode === 'carried' || p.mode === 'air' || p.mode === 'hop') ? 1e6 : this.depthAt(gx, gy), p, kind: 'person' });
     }
+    for (const g of sim.graves) if (g.stage !== 'lost') list.push({ d: this.depthAt(g.x / T, (g.y - 6) / T), g, kind: 'grave' });
     const boat = sim.events.boat;
     if (boat) list.push({ d: boat.x / T + (boat.y - 6) / T, kind: 'boat' });
     if (sim.cat) list.push({ d: this.depthAt(sim.cat.x / T, (sim.cat.y - 6) / T), kind: 'cat' });
@@ -302,6 +306,8 @@ IS.Renderer = class {
         }
       } else if (it.kind === 'person') {
         this.drawPerson(ctx, it.p, ox, oy, t);
+      } else if (it.kind === 'grave') {
+        IS.Gods.drawGrave(this, ctx, it.g, ox, oy, t);
       } else if (it.kind === 'cat') {
         sim.cat.draw(ctx, ox, oy, now);
       } else if (it.kind === 'boat') {
@@ -310,6 +316,8 @@ IS.Renderer = class {
       }
     }
     sim.fx.draw(ctx, ox, oy);
+    IS.Gods.drawFx(this, ctx, ox, oy, now);
+    IS.Gods.drawReticle(this, ctx, ox, oy, t);
     this.drawPendants(ctx, ox, oy);
     this.drawStringLights(ctx, ox, oy, t);
     this.drawGulls(ctx, ox, oy, rdt, t);
@@ -441,6 +449,7 @@ IS.Renderer = class {
       ctx.restore();
       if (p.mode === 'carried' && Math.random() < 0.35) { ctx.fillStyle = '#fff6c8'; ctx.fillRect(sx + IS.randi(-14, 14), sy - z - IS.randi(10, 40), 1, 1); }
       ctx.globalAlpha = 1;
+      IS.Gods.drawOnPerson(this, ctx, p, sx, sy - z, t);
       return;
     }
     if (p.pose === 'sleep') {
@@ -473,6 +482,7 @@ IS.Renderer = class {
     }
     if (p.pose === 'fish' && !p.chat) this.drawRod(ctx, p, sx, sy, t);
     ctx.globalAlpha = 1;
+    IS.Gods.drawOnPerson(this, ctx, p, sx, sy, t);
   }
 
   drawRod(ctx, p, sx, sy, t) {

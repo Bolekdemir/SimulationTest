@@ -395,6 +395,45 @@ IS.Actions = (() => {
     },
   });
 
+  // --- Grief and fear (see gods.js): visiting graves, praying to the Sky
+  def({
+    id: 'mourn', label: 'Visiting a grave', outdoor: true,
+    can: (p, c) => between(c.min, H(7), H(20)) && !!IS.Gods.graveToVisit(p),
+    score: p => { const m = IS.Gods.graveToVisit(p); return m ? 1.8 + Math.max(0, m.f) / 25 + (m.partner ? 2.5 : 0) : 0; },
+    plan: p => {
+      const m = IS.Gods.graveToVisit(p);
+      if (!m) return null;
+      const W = p.world, gx = Math.floor(m.grave.x / IS.TILE), gy = Math.floor((m.grave.y - 6) / IS.TILE);
+      const spot = W.findNear(gx, gy + 1, (x, y) => W.walkable(x, y) && !(x === gx && y === gy) && W.reach[W.idx(x, y)] === 1, 3);
+      return spot ? { tx: spot.x, ty: spot.y, face: 'up', duration: IS.rand(15, 30), grave: m.grave, mourn: m } : null;
+    },
+    start: (p, a) => {
+      p.faceToward(a.grave.x, a.grave.y);
+      p.emote('sad', 3);
+      const n = a.grave.name, close = a.mourn.f > 50 || a.mourn.partner;
+      p.say(IS.pick(close ? [`I miss you, ${n}.`, `It's not the same without you, ${n}.`, 'I brought you flowers. Your favourite. Probably.', `I keep turning around to tell you things, ${n}.`] : [`Rest easy, ${n}.`, 'Didn\'t think it would end like this.', 'Flowers. It\'s the least I can do.']), 3.2);
+      a.grave.flowers = Math.min(8, (a.grave.flowers || 0) + 1);
+    },
+    tick: (p, a, dt) => { if (Math.random() < dt * 0.05) p.emote('sad', 2); },
+    finish: (p, a) => { a.mourn.entry.visited = true; p.addMood(`Said goodbye to ${a.grave.name}`, 5, 720); },
+    thought: (p, a) => (a.mourn.partner ? `I need to see ${a.grave.name}. Even if it's just a stone.` : `I should pay my respects to ${a.grave.name}.`),
+  });
+
+  def({
+    id: 'pray', label: 'Praying to the Sky', outdoor: true, pose: 'sit',
+    can: (p, c) => between(c.min, H(7), H(21)) && IS.Gods.fearful(p),
+    score: p => 0.5 + Math.min(2, -p.skyOpinion / 40) + p.traits.kind * 0.3,
+    plan: p => {
+      const W = p.world, poi = W.pois.find(x => x.name === 'the plaza') || IS.pick(W.pois);
+      const spot = W.findNear(poi.x, poi.y, (x, y) => W.walkable(x, y) && W.reach[W.idx(x, y)] === 1 && !p.sim.people.some(o => o !== p && o.tx === x && o.ty === y), 4);
+      return spot ? { tx: spot.x, ty: spot.y, face: 'down', duration: IS.rand(15, 25) } : null;
+    },
+    start: p => p.say(IS.pick(['Please, Sky. Spare us.', 'Whatever we did, we\'re sorry!', 'I\'ll be good. I promise. Just no more lightning.', 'Take someone ELSE next. Kidding! ...Mostly.']), 3),
+    tick: (p, a, dt) => { if (Math.random() < dt * 0.04) p.emote('sparkle', 1.5); },
+    finish: p => { p.skyOpinion = Math.min(100, p.skyOpinion + 4); p.addMood('Prayed to the Sky', 3, 300); },
+    thought: () => IS.pick(['Please, Sky. Spare us.', 'I\'ll be good. I promise.', 'Whatever we did, we\'re sorry.']),
+  });
+
   A.list = Object.values(A).filter(d => typeof d === 'object' && d.id);
   return A;
 })();

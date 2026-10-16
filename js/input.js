@@ -43,8 +43,10 @@ IS.Input = class {
     if (e.button === 2 || e.button === 1) { this.press = { pan: true, cx: e.clientX, cy: e.clientY, camX: this.sim.cam.x, camY: this.sim.cam.y }; return; }
     const i = this.toIso(e.clientX, e.clientY);
     this.sim.hoverIso = i;
-    const p = this.personAt(i.x, i.y);
     this.canvas.setPointerCapture?.(e.pointerId);
+    // God powers: a click casts, a drag still pans the camera
+    if (this.sim.power && this.sim.power !== 'hand') { this.press = { pan: true, cast: true, cx: e.clientX, cy: e.clientY, camX: this.sim.cam.x, camY: this.sim.cam.y, moved: false }; return; }
+    const p = this.personAt(i.x, i.y);
     if (p) this.press = { person: p, cx: e.clientX, cy: e.clientY, t: performance.now(), grabbed: false };
     else this.press = { pan: true, cx: e.clientX, cy: e.clientY, camX: this.sim.cam.x, camY: this.sim.cam.y, moved: false };
   }
@@ -56,7 +58,7 @@ IS.Input = class {
     sim.hoverIso = i;
     sim.hover = this.press && this.press.grabbed ? this.press.person : this.personAt(i.x, i.y);
     const pr = this.press;
-    if (!pr) { this.canvas.style.cursor = sim.hover ? 'grab' : 'default'; return; }
+    if (!pr) { this.canvas.style.cursor = sim.power && sim.power !== 'hand' ? 'crosshair' : sim.hover ? 'grab' : 'default'; return; }
     if (pr.pan) {
       const z = sim.cam.zoom;
       const dx = e.clientX - pr.cx, dy = e.clientY - pr.cy;
@@ -99,6 +101,7 @@ IS.Input = class {
     if (!pr) return;
     const sim = this.sim;
     if (pr.pan) {
+      if (pr.cast && !pr.moved && e.type === 'pointerup') { IS.Gods.cast(sim, this.toIso(e.clientX, e.clientY)); this.canvas.style.cursor = 'crosshair'; return; }
       if (!pr.moved && e.type === 'pointerup' && e.button === 0) sim.select(null);
       this.canvas.style.cursor = 'default';
       return;
@@ -126,6 +129,9 @@ IS.Input = class {
     if (!isDown) return;
     const sim = this.sim;
     if (sim.menu && sim.menu.isOpen) { if (k === 'escape' && sim.menu.mode === 'pause') sim.menu.primary(); return; }
+    if (k === 'escape' && sim.power !== 'hand') { IS.Gods.setPower(sim, 'hand'); return; }
+    const pw = IS.Gods.POWERS.find(x => x.key === k);
+    if (pw) { IS.Gods.setPower(sim, pw.id); return; }
     if (k === 'escape' && !sim.selected) { sim.menu && sim.menu.open('pause'); return; }
     if (k === ' ') { e.preventDefault(); sim.setSpeed(sim.speedIdx === 0 ? (sim.lastSpeed || 1) : 0); }
     if (k >= '1' && k <= '5') sim.setSpeed(+k - 1);
@@ -140,6 +146,7 @@ IS.Input = class {
     if (k === 'tab') {
       e.preventDefault();
       const ppl = sim.people;
+      if (!ppl.length) return;
       const i = sim.selected ? ppl.indexOf(sim.selected) : -1;
       sim.select(ppl[(i + 1) % ppl.length]); sim.follow = true; sim.ui.syncToggles();
     }
