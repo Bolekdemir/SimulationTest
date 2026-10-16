@@ -257,13 +257,14 @@ IS.Dialogue = (() => {
   const recentBy = new Map();
   const fresh = (pool, who) => {
     if (!pool || !pool.length) return null;
+    pool = IS.more(pool);
     const mine = who ? (recentBy.get(who) || []) : [];
     // Nobody talks about themselves in the third person ("Lynn's soup" from Lynn)
     if (who) { const own = pool.filter(l => !l.includes(who)); if (own.length) pool = own; }
     let cands = pool.filter(l => !mine.includes(l) && !recentAll.includes(l));
     if (!cands.length) cands = pool.filter(l => !mine.includes(l));
     if (!cands.length) cands = pool;
-    const line = IS.pick(cands);
+    const line = cands[Math.floor(Math.random() * cands.length)];
     if (who) { mine.push(line); if (mine.length > 40) mine.shift(); recentBy.set(who, mine); }
     recentAll.push(line); if (recentAll.length > 50) recentAll.shift();
     return line;

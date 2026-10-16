@@ -68,7 +68,7 @@ IS.Talk = (() => {
   const resolve = (say, ctx, sp, beat) => {
     if (typeof say === 'function') return resolve(say(ctx, sp), ctx, sp, beat);
     if (typeof say === 'string') return [say];
-    if (Array.isArray(say)) return say;
+    if (Array.isArray(say)) return IS.more(say);
     if (say && typeof say === 'object') {
       // Personal lines win often, but a tiny personal pool shouldn't drown out the shared one
       const own = say[sp.name];
@@ -1323,7 +1323,8 @@ IS.Talk = (() => {
         if (out.endsChat) run.endsAfter = true;
       }
       const pool = resolve(beat.say, ctx, sp, beat);
-      let text = pool.length ? pick(pool.map(l => fill(l, ctx, sp)), sp.name) : null;
+      const filled = pool.map(l => fill(l, ctx, sp)); filled._more = true;
+      let text = pool.length ? pick(filled, sp.name) : null;
       if (!text && stock && stock.text) text = stock.text;
       if (!text) continue;
       return { sp, text, emote: stock && stock.emote };

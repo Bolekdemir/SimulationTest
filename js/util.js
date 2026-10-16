@@ -6,7 +6,19 @@ IS.TILE = 24;
 IS.rand = (a, b) => a + Math.random() * (b - a);
 IS.randi = (a, b) => Math.floor(IS.rand(a, b + 1));
 IS.chance = p => Math.random() < p;
-IS.pick = arr => arr[Math.floor(Math.random() * arr.length)];
+// Extra lines (js/lines.js) join any pool whose first line they're keyed by
+IS.MoreLines = IS.MoreLines || {};
+const moreCache = new Map();
+IS.more = arr => {
+  if (!arr || arr._more || !arr.length || typeof arr[0] !== 'string') return arr;
+  const ex = IS.MoreLines[arr[0]];
+  if (!ex) return arr;
+  const key = arr[0] + '\u0000' + arr[arr.length - 1] + '\u0000' + arr.length;
+  let m = moreCache.get(key);
+  if (!m) { m = arr.concat(ex); m._more = true; moreCache.set(key, m); }
+  return m;
+};
+IS.pick = arr => { arr = IS.more(arr); return arr[Math.floor(Math.random() * arr.length)]; };
 IS.clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 IS.lerp = (a, b, t) => a + (b - a) * t;
 IS.dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
