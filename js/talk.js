@@ -70,7 +70,9 @@ IS.Talk = (() => {
     if (typeof say === 'string') return [say];
     if (Array.isArray(say)) return say;
     if (say && typeof say === 'object') {
-      if (say[sp.name] && Math.random() < 0.7) return resolve(say[sp.name], ctx, sp, beat);
+      // Personal lines win often, but a tiny personal pool shouldn't drown out the shared one
+      const own = say[sp.name];
+      if (own && Math.random() < (Array.isArray(own) ? Math.min(0.7, own.length * 0.15) : 0.5)) return resolve(own, ctx, sp, beat);
       const key = beat.pick ? beat.pick(ctx, sp) : ctx.v;
       return resolve(say[key] || say.any || say.neu || [], ctx, sp, beat);
     }
@@ -123,13 +125,13 @@ IS.Talk = (() => {
   def('plans', {
     key: 'plans', w: 1,
     beats: [
-      { by: 'a', say: ['What are you doing later?', 'Got plans this {partofday}?', 'What\'s the move later?'] },
+      { by: 'a', say: ['What are you doing later?', 'Got plans this {partofday}?', 'What\'s the move later?', 'Busy rest of the day?', 'What\'s next on your list?'] },
       { by: 'b', say: ctx => [`Thinking I'll ${ctx.vars.bNext}.`, `Probably ${ctx.vars.bNext}. You?`, `I really need to ${ctx.vars.bNext}.`] },
       { by: 'a', judge: 'plans', say: {
         pos: ctx => ctx.vars.aNext === ctx.vars.bNext ? ['Wait, me too! Let\'s go together.', 'Same! Meet you there?'] : [`Nice. I'm gonna ${ctx.vars.aNext}.`, `Fun. I should ${ctx.vars.aNext} at some point.`],
         neu: [`Cool. I'll probably ${'{aNext}'}.`, 'Fair.'],
         neg: ['Sounds like a lot of effort.', 'Have fun with that.'] } },
-      { by: 'b', if: ctx => ctx.v === 'pos', say: ctx => ctx.vars.aNext === ctx.vars.bNext ? ['Deal. Don\'t be late.', 'It\'s a date. A friend date. A frate.'] : ['Have fun!', 'Look at you, with a plan.', 'Don\'t work too hard.'] },
+      { by: 'b', if: ctx => ctx.v === 'pos', say: ctx => ctx.vars.aNext === ctx.vars.bNext ? ['Deal. Don\'t be late.', 'It\'s a date. A friend date. A frate.', 'Race you there.'] : ['Have fun!', 'Look at you, with a plan.', 'Don\'t work too hard.', 'Ooh, nice. Tell me how it goes.', 'Save some fun for the rest of us.'] },
     ],
   });
 
@@ -352,7 +354,7 @@ IS.Talk = (() => {
   def('flirt', {
     key: 'flirt', w: 1,
     beats: [
-      { by: 'a', say: { any: ['The sunset\'s nicer when you\'re around.', 'You look really good today.', 'I keep finding reasons to walk past wherever you are.'], Jude: ['Careful. You\'re staring again.', 'You know you can\'t resist me, right?'], Forest: ['You look... good. That\'s all.'], Iroh: ['Is it hot out here or is it just you? Wait. Don\'t answer.'], Egg: ['You\'re like a cat in a sunbeam. In a good way.'] } },
+      { by: 'a', say: { any: ['The sunset\'s nicer when you\'re around.', 'You look really good today.', 'I keep finding reasons to walk past wherever you are.'], Jude: ['Careful. You\'re staring again.', 'You know you can\'t resist me, right?'], Forest: ['You look... good. That\'s all.', 'I like when you\'re around. You make the work go faster.', 'You\'ve got dirt on your face. ...It suits you.', 'I saved you the best spot by the water.'], Iroh: ['Is it hot out here or is it just you? Wait. Don\'t answer.'], Egg: ['You\'re like a cat in a sunbeam. In a good way.'] } },
       { by: 'b', judge: 'flirt', say: { pos: ['...Stop. You\'re making me blush.', 'Smooth. Really smooth.', 'Oh? Tell me more.'], neu: ['Haha... thanks?', 'Okay?'], neg: ['Uh. Thanks. I guess.', 'Let\'s stay friends, yeah?'] } },
       { by: 'a', if: ctx => ctx.v === 'pos', say: ['Want to watch the stars with me sometime?', 'So... walk with me later?', 'I saved you the best seat at dinner, by the way.'] },
       { by: 'b', if: ctx => ctx.v === 'pos', say: ['...I\'d like that.', 'Maybe. If you\'re lucky.', 'It\'s a date. Maybe.'] },
@@ -465,6 +467,9 @@ IS.Talk = (() => {
     { q: 'Is a nap a waste of time or a gift?', side: p => (p.loves.includes('napping') ? 'A gift. A sacred gift.' : p.hates.includes('napping') ? 'Waste of time.' : 'Depends on the nap.'), tag: p => (p.loves.includes('napping') ? 'yes' : 'no') },
     { q: 'Stars or sunsets?', side: p => (p.loves.includes('stargazing') ? 'Stars. They go on forever.' : 'Sunsets. They\'re warmer.'), tag: p => (p.loves.includes('stargazing') ? 'stars' : 'sunsets') },
     { q: 'Would you rather never swim again, or never eat fish again?', side: p => (p.loves.includes('swimming') ? 'Never eat fish. Easy.' : 'Never swim. Who needs it.'), tag: p => (p.loves.includes('swimming') ? 'swim' : 'fish') },
+    { q: 'Rain or sunshine?', side: p => (p.loves.includes('reading') || p.loves.includes('gardening') ? 'Rain. Cozy and the plants love it.' : 'Sunshine. Obviously.'), tag: p => (p.loves.includes('reading') || p.loves.includes('gardening') ? 'rain' : 'sun') },
+    { q: 'Breakfast: big and early, or skip it?', side: p => (p.traits.hardworking > 0.6 ? 'Big and early. Fuel.' : 'Skip it. Sleep is breakfast.'), tag: p => (p.traits.hardworking > 0.6 ? 'big' : 'skip') },
+    { q: 'Would you rather be a seagull or a fish?', side: p => (p.loves.includes('swimming') || p.loves.includes('fishing') ? 'Fish. The ocean is huge.' : 'Seagull. Steal sandwiches, no consequences.'), tag: p => (p.loves.includes('swimming') || p.loves.includes('fishing') ? 'fish' : 'gull') },
     { q: 'Hardest worker on the island. Go.', side: p => (p.name === 'Forest' ? 'Me. Obviously.' : p.name === 'Lynn' ? 'Forest. Though I do a lot.' : 'Forest. Or Lynn. Definitely not Egg.'), tag: () => 'x' },
   ];
   def('debate', {
@@ -662,9 +667,9 @@ IS.Talk = (() => {
   def('island', {
     key: 'island', w: 1,
     beats: [
-      { by: 'a', say: ['I found a new path behind the greenhouse.', 'Have you been to the north cliffs lately? The view is unreal.', 'The lighthouse looks so pretty at night.', 'Someone should name the big rock by the beach.'] },
+      { by: 'a', say: ['I found a new path behind the greenhouse.', 'Have you been to the north cliffs lately? The view is unreal.', 'The lighthouse looks so pretty at night.', 'Someone should name the big rock by the beach.', 'There\'s a tide pool by the south rocks with tiny crabs in it.', 'The big oak in the forest has a hollow you can sit in.', 'I think the well echoes if you say your name into it.', 'The flowers by the plaza are blooming like crazy.', 'Someone carved initials into the dock. Old ones.'] },
       { by: 'b', judge: 'island', say: { pos: ['No way, show me!', 'Ooh, I love that.', 'I\'ve been meaning to go!'], neu: ['Huh, cool.', 'Nice.'], neg: ['It\'s a small island. It\'s all the same.', 'Thrilling.'] } },
-      { by: 'a', say: ['I\'ll take you sometime.', 'I vote we call the rock Steve.', 'This place keeps surprising me.'] },
+      { by: 'a', say: ['I\'ll take you sometime.', 'I vote we call the rock Steve.', 'This place keeps surprising me.', 'Let\'s go look later.', 'Every time I think I\'ve seen it all, I find something new.'] },
       { by: 'b', if: ctx => ctx.v === 'pos', say: ['Deal.', 'Steve. Perfect.', 'Same.'] },
     ],
   });
@@ -773,7 +778,7 @@ IS.Talk = (() => {
     key: 'sickVisit', w: 1,
     beats: [
       { by: 'a', say: ['Soup delivery! Don\'t argue, just eat.', 'I brought you some soup. How are you feeling?', 'Knock knock. I brought tea and terrible jokes.'] },
-      { by: 'b', judge: 'sickVisit', say: ['You\'re the best. Seriously.', 'You didn\'t have to... thank you.', 'Ugh. Awful. But better now.'] },
+      { by: 'b', judge: 'sickVisit', say: ['You\'re the best. Seriously.', 'You didn\'t have to... thank you.', 'Ugh. Awful. But better now.', 'My head is pounding. Soup helps.', '*cough* You\'re an angel.', 'Bless you. Wait, that\'s my line.', 'I feel like a wet sock. Thanks for coming.'] },
       { by: 'a', say: ['Rest up, okay? We miss you out there.', 'Get better. That\'s an order.', 'I\'ll check on you tomorrow.'] },
     ],
   });
@@ -829,7 +834,7 @@ IS.Talk = (() => {
     beats: [
       { by: 'a', say: ctx => [`You love ${ctx.vars.shared} too, right?`, `Okay, real talk. ${cap(ctx.vars.shared)}. Best thing on the island?`] },
       { by: 'b', say: ['Obviously.', 'Don\'t even start, I could talk about it for hours.', 'Is that even a question?'] },
-      { by: 'a', say: ['We should go together sometime.', 'Next time I go, you\'re coming.', 'We should make it a weekly thing.'] },
+      { by: 'a', say: ['We should go together sometime.', 'Next time I go, you\'re coming.', 'We should make it a weekly thing.', 'We should start a club. Two members. Very exclusive.', 'You and me. Tomorrow. Be there.'] },
       { by: 'b', judge: 'sharedLove', say: { pos: ['Deal. No backing out.', 'Yes! Finally, someone who gets it.'], neu: ['Maybe. If I\'m free.', 'Sure, sometime.'], neg: ['I kind of like doing it alone.', 'Eh. Maybe.'] } },
     ],
     setup: ctx => { const l = ctx.a.loves.find(x => ctx.b.loves.includes(x)) || 'fishing'; ctx.vars.shared = IS.Dialogue.activityWord[l] || l; },
@@ -841,8 +846,8 @@ IS.Talk = (() => {
     beats: [
       { by: 'a', say: ['Look at {third}. {ThirdNow}.', 'Is {third} seriously {thirdNow} right now?', 'Ha. There goes {third}, {thirdNow}.'] },
       { by: 'b', judge: 'observe', pick: ctx => (ctx.b.relTo(ctx.vars.third).friendship > 30 ? 'fond' : ctx.b.relTo(ctx.vars.third).friendship < -10 ? 'cold' : 'neu'), say: { fond: ['Classic {third}. Love that.', 'Honestly, {third} is the best.', 'Leave {third} alone, they\'re happy.'], neu: ['Huh. Good for them.', 'Typical.'], cold: ['Ugh. {third}.', 'Don\'t get me started on {third}.'] } },
-      { by: 'a', say: ['Should we go bother them?', 'Bet you they\'ll be doing that for hours.', 'I wish I had that energy.'] },
-      { by: 'b', say: ['Later. I\'m comfy.', 'Nah, let them be.', 'Ha, maybe.'] },
+      { by: 'a', say: ['Should we go bother them?', 'Bet you they\'ll be doing that for hours.', 'I wish I had that energy.', 'Every single day, same thing.', 'Honestly, kind of iconic.', 'Do you think they ever get bored?'] },
+      { by: 'b', say: ['Later. I\'m comfy.', 'Nah, let them be.', 'Ha, maybe.', 'Never. It\'s their whole personality.', 'Leave them alone, they\'re happy.', 'I\'d join, but effort.'] },
     ],
     setup: ctx => { ctx.vars.ThirdNow = cap(ctx.vars.thirdNow); },
   });
@@ -878,7 +883,7 @@ IS.Talk = (() => {
     beats: [
       { by: 'a', say: ['Hey you.', 'There you are. Missed you.', 'Hi. Hi hi.'] },
       { by: 'b', say: ['Hey. Missed you too.', 'Oh, hi. You\'re cute today.', 'Hi.'] },
-      { by: 'a', say: ['Walk with me later? Just us?', 'Dinner together tonight?', 'I was just thinking about you.'] },
+      { by: 'a', say: ['Walk with me later? Just us?', 'Dinner together tonight?', 'I was just thinking about you.', 'You looked really happy earlier. I liked that.', 'Can we watch the sunset tonight?', 'I made you something. It\'s a rock. It\'s a nice rock.'] },
       { by: 'b', judge: 'couple', say: { pos: ['Always.', 'You\'re ridiculous. Yes.', 'Stop, people are looking. ...Don\'t stop.'], neu: ['Maybe. I\'ve got stuff to do.'], neg: ['Not tonight. I\'m tired.'] } },
     ],
   });
@@ -988,7 +993,7 @@ IS.Talk = (() => {
   // "What are you doing" greetings, each with answers that fit that question
   const DOING = {
     fish: [['Catch anything?', ['A couple. You?', 'Nothing. The fish are on strike.', 'One. It was tiny. I let it go.', 'Three! Don\'t ask how big.']], ['Fishing again?', ['Always.', 'You know it.', 'It\'s basically my job now.']], ['Biting today?', ['Not even a nibble.', 'Like crazy!', 'Slowly.']], ['Still waiting on the big one?', ['Any minute now.', 'It\'s out there. I can feel it.']]],
-    garden: [['How\'s the garden?', ['Growing! Slowly.', 'Weeds are winning.', 'The carrots are being stubborn.']], ['Those tomatoes look close!', ['Two more days, I think.', 'Don\'t jinx it!']], ['Need a hand with the weeds?', ['Please. They grow back out of spite.', 'I\'ve got it, thanks!']], ['Talking to the plants again?', ['They\'re good listeners.', 'They started it.']]],
+    garden: [['How\'s the garden?', ['Growing! Slowly.', 'Weeds are winning.', 'The carrots are being stubborn.', 'Thriving. Unlike me.']], ['Those tomatoes look close!', ['Two more days, I think.', 'Don\'t jinx it!']], ['Need a hand with the weeds?', ['Please. They grow back out of spite.', 'I\'ve got it, thanks!']], ['Talking to the plants again?', ['They\'re good listeners.', 'They started it.']], ['Getting your hands dirty?', ['Always.', 'Best kind of dirty.']], ['What are you planting?', ['Cabbages. Again.', 'Hope, mostly.']], ['Still out here?', ['Plants don\'t water themselves.', 'Can\'t leave them now.']], ['The garden looks amazing.', ['Thanks! It\'s been a lot of work.', 'Tell the cabbages, they\'ll be thrilled.']]],
     chop: [['Saving some trees for the rest of us?', ['A few. Maybe.', 'No promises.']], ['Need a hand with that?', ['Grab an axe.', 'I\'m good. Almost done.']], ['How many logs is that?', ['Twelve. Not that I\'m counting.', 'Enough for a week.']], ['Careful with that axe!', ['I\'m always careful.', 'Says the person standing right there.']]],
     read: [['Good book?', ['So good. Don\'t spoil it.', 'Can\'t put it down.']], ['What are you reading?', ['Something with a map in the front. The best kind.', 'A mystery. Everyone\'s lying.']], ['How far in are you?', ['Halfway. It\'s getting wild.', 'Last chapter. Go away.']]],
     beach: [['Working on that tan?', ['Every day.', 'It\'s a full-time job.']], ['Comfy down there?', ['Extremely comfy.', 'Peak relaxation.']], ['Room for one more?', ['Always.', 'If you bring snacks.']], ['Are you asleep?', ['...No.', 'Not anymore.']]],
@@ -1000,7 +1005,7 @@ IS.Talk = (() => {
   const GREET_BACK = {
     warm: ['Hey yourself!', 'Oh, hi!', 'Hey hey!', 'Hi! What\'s up?', 'Good to see you.', 'Oh, perfect timing!', 'Hi! I was just thinking about you.', 'There you are!', 'Oh, yay, company.', 'Hiii.', 'Look who it is!', 'Hey! How\'s it going?'],
     neutral: ['Hey.', 'Hi.', 'Oh, hey.', 'Yo.', 'Mm, hi.', 'Hey there.', 'Oh. Hi.', 'What\'s up?'],
-    grumpy: ['What.', 'Hm.', 'Yeah, hi.', 'Make it quick.'],
+    grumpy: ['What.', 'Hm.', 'Yeah, hi.', 'Make it quick.', 'Oh. You.', 'I\'m busy.', 'Mm.'],
     partner: ['Hi, you.', 'There you are.', 'Missed you too.'],
     crush: ['Oh! Hi! Hey.', 'H-hey!', 'Oh, hi! Cool. Hi.'],
   };
@@ -1047,8 +1052,8 @@ IS.Talk = (() => {
     a: ['Anyway, I should {aNext}.', 'Okay, I gotta {aNext}. Later!', 'I\'ll let you go. Gonna {aNext}.', 'Alright, I\'m gonna {aNext}. See you!', 'Okay, {aNext} time. Bye!', 'I\'d better {aNext} before it gets late.', 'Right. I really need to {aNext}.'],
     night: ['Okay, I\'m heading to bed. Night!', 'I can barely keep my eyes open. Night!', 'Bedtime for me. Sleep well!'],
     event: ['See you at the {event}!', 'Save me a seat at the {event}!', 'Okay, see you {when}!'],
-    partner: ['Okay. Bye, you.', 'See you later. Miss me.', 'Bye! Don\'t go flirting with anyone.'],
-    b: { warm: ['See you later!', 'Bye! Don\'t be a stranger.', 'Later!', 'Have fun!', 'Bye bye!', 'See ya!', 'Don\'t work too hard!', 'Catch you later!'], cool: ['Bye.', 'See ya.', 'Mm. Bye.', 'Later.', 'Okay.'], partner: ['Bye, you.', 'Miss you already.', 'Don\'t be long.'], night: ['Night!', 'Sleep well!', 'Night night.'] },
+    partner: ['Okay. Bye, you.', 'See you later. Miss me.', 'Bye! Don\'t go flirting with anyone.', 'I\'ll come find you later.', 'Okay, go. Before I make you stay.', 'Bye. Think about me.', 'See you tonight?'],
+    b: { warm: ['See you later!', 'Bye! Don\'t be a stranger.', 'Later!', 'Have fun!', 'Bye bye!', 'See ya!', 'Don\'t work too hard!', 'Catch you later!'], cool: ['Bye.', 'See ya.', 'Mm. Bye.', 'Later.', 'Okay.'], partner: ['Bye, you.', 'Miss you already.', 'Don\'t be long.', 'Later, cutie.', 'Go, go. Have fun.', 'I\'ll be thinking about you.', 'Come back soon.'], night: ['Night!', 'Sleep well!', 'Night night.'] },
   };
 
   // ------------------------------------------------------------ lore

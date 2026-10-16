@@ -63,7 +63,9 @@ async function runSim(page, { seed, days, tune }) {
       IS.Social.update(sim, dt); IS.Mind.tick(sim, dt); sim.cropGrowth(dt);
       if (k % 20 === 0) Critic.sample(10);
     }
-    return Critic.report();
+    const rep = Critic.report();
+    rep.m.tuneChat = IS.Tune.chatRate;
+    return rep;
   }, { days, tune });
 }
 
@@ -108,7 +110,8 @@ const avg = rs => {
   const t0 = Date.now();
   if (mode === 'eval') {
     const sims = opt('sims', 8), days = opt('days', 3), seed0 = opt('seed', 1000);
-    const tune = fs.existsSync(path.join(OUT, 'best.json')) && args.includes('--best') ? toTune(JSON.parse(fs.readFileSync(path.join(OUT, 'best.json'))).flat) : null;
+    const tf = args.includes('--tune') ? args[args.indexOf('--tune') + 1] : (args.includes('--best') ? 'best.json' : null);
+    const tune = tf ? toTune(JSON.parse(fs.readFileSync(path.join(OUT, tf))).flat) : null;
     const rs = await pool(Array.from({ length: sims }, (_, i) => ({ seed: seed0 + i, days, tune })));
     const a = avg(rs);
     console.log(JSON.stringify(a.m, null, 1));
