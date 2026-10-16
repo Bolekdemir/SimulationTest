@@ -55,6 +55,7 @@ IS.Talk = (() => {
     const other = sp === ctx.a ? ctx.b : ctx.a;
     return text.replace(/\{(\w+)\}/g, (m, k) => {
       if (k === 'other') return other.name;
+      if (k === 'pet') return IS.Love ? IS.Love.pet(sp, other) : other.name;
       // "Egg is going to see Forest" said by Forest -> "going to see me"
       if (k === 'thirdNow' && ctx.vars.thirdNow) return ctx.vars.thirdNow.replace(new RegExp(`\\b${sp.name}\\b`, 'g'), 'me').replace(new RegExp(`\\b${other.name}\\b`, 'g'), 'you');
       if (k === 'event' && ctx.vars.eventBday === sp.name) return 'my birthday party';
@@ -400,6 +401,11 @@ IS.Talk = (() => {
     kitten: ['{na} adopted a kitten! It\'s called {detail}.', 'There\'s a new kitten on the island. {na} named it {detail}.'],
     painting: ['{na} painted "{detail}". It\'s honestly beautiful.', 'Have you seen {na}\'s new painting? "{detail}". Stunning.'],
     concert: ['{na} played guitar earlier and people actually stopped to listen.', 'Did you hear {na} play? They\'re good now!'],
+    engaged: ['{na} and {nb} are ENGAGED! There\'s going to be a wedding!', '{na} got down on one knee for {nb}. ONE KNEE.'],
+    wedding: ['{na} and {nb} got married! I cried the whole time.', 'The wedding! {na} and {nb}! Did you see?'],
+    makeup: ['{na} and {nb} made up. Kissed right there by the path.', 'Good news: {na} and {nb} are talking again.'],
+    gift: ['{na} gave {nb} {detail}. For no reason. Just love.', 'Did you see what {na} got {nb}? {detail}!'],
+    notYet: ['{na} proposed to {nb}... and {nb} said "not yet". Oof.', 'Don\'t say anything, but {nb} turned down a proposal from {na}.'],
   };
   const RUMOR_R = {
     fight: { pos: ['Yikes. About what?', 'Again? Those two...'], neu: ['Oof.', 'Huh.'], neg: ['I\'m staying out of that.', 'Not my business.'] },
@@ -424,6 +430,11 @@ IS.Talk = (() => {
     kitten: { pos: ['A KITTEN?! I need to meet it.', 'Stop. That\'s adorable.'], neu: ['Oh, cute.'], neg: ['More fur everywhere. Great.'] },
     painting: { pos: ['I want to see it!', 'We should hang it in the Hall.'], neu: ['Nice.'], neg: ['I\'ve seen better.'] },
     concert: { pos: ['I need to hear this!', 'Our own island musician!'], neu: ['Huh, cool.'], neg: ['My ears disagree.'] },
+    engaged: { pos: ['A WEDDING?! I\'m crying already.', 'Finally! I need an outfit.'], neu: ['Wow. Fast.'], neg: ['...Good for them. I guess.'] },
+    wedding: { pos: ['Our first island wedding!', 'Stop, I\'m going to cry again.'], neu: ['Nice.'], neg: ['Give it a month.'] },
+    makeup: { pos: ['Oh thank goodness.', 'Good. They\'re better together.'], neu: ['Huh, okay.'], neg: ['Until the next fight.'] },
+    gift: { pos: ['Aww! Why does nobody get ME stuff?', 'Okay, that\'s adorable.'], neu: ['Cute.'], neg: ['Show-offs.'] },
+    notYet: { pos: ['Oh no. Poor thing.', 'Ouch. On one knee and everything?'], neu: ['Yikes.'], neg: ['Smart, honestly.'] },
   };
   def('rumor', {
     key: 'rumor', w: 1,
@@ -439,6 +450,9 @@ IS.Talk = (() => {
 
   // --- Your own big news, told in first person
   const MINE = {
+    engaged: ['{partner} and I are getting MARRIED!', 'Guess who\'s engaged? Me! To {partner}!'],
+    wedding: ['I got married! To {partner}! It\'s real!', 'Hi. I\'m a married person now. {partner} and I did it.'],
+    makeup: ['{partner} and I made up. We\'re good again.', 'We sorted it out, {partner} and me. All good.'],
     couple: ['Okay, so... {partner} and I are together now.', 'I have news. {partner} and I are a thing.', 'Don\'t freak out. {partner} and I are dating.'],
     won: ['I won the fishing contest. Just saying.', 'You\'re looking at the fishing champion.'],
     breakup: ['{partner} and I broke up.', 'So... {partner} and I aren\'t together anymore.'],
@@ -977,6 +991,170 @@ IS.Talk = (() => {
     ],
   });
 
+  // --- Couples (see love.js)
+  const LV = () => IS.Love;
+  def('gift', {
+    key: 'gift', w: 1,
+    setup: ctx => {
+      const g = ctx.gift || { what: 'a little something', line: 'I got you a little something. Don\'t make it weird.' };
+      ctx.gift = g; ctx.vars.gift = g.what; ctx.vars.giftLine = g.line; ctx.verdict = LV().giftVerdict(ctx.b, g);
+    },
+    beats: [
+      { by: 'a', say: ['I got you something.', 'Close your eyes. No peeking, {pet}.', 'Hold out your hands. Trust me.'] },
+      { by: 'b', say: ['What? For me?', '...Okay, they\'re closed.', 'Is it a bug? It better not be a bug.'] },
+      { by: 'a', say: ctx => [ctx.vars.giftLine] },
+      { by: 'b', pick: ctx => ctx.verdict, say: { love: ['I LOVE it. How did you know?!', 'Stop. This is perfect.', 'I\'m keeping this forever. FOREVER.'], like: ['Aww. Thank you, {pet}.', 'That\'s really sweet of you.', 'You\'re ridiculous. Thank you.'], meh: ['Oh. {gift}. ...Thanks.', 'Huh. Okay. It\'s the thought that counts, right?'] } },
+      { by: 'a', if: ctx => ctx.verdict !== 'meh', say: ['You\'re worth it.', 'Okay, now I\'m blushing.', 'Happy no-reason day.'] },
+      { by: 'a', if: ctx => ctx.verdict === 'meh', say: ['...I\'ll do better next time.', 'Noted. No more of those.'] },
+    ],
+    after: (ctx, sim) => {
+      const { a, b, gift, verdict } = ctx;
+      if (a.giftFor && a.giftFor.to === b.name) a.giftFor = null;
+      const d = { love: 6, like: 3, meh: 0 }[verdict];
+      b.changeRel(a.name, d, d + 1); a.changeRel(b.name, 1, 1);
+      b.remember(`${a.name} gave me ${gift.what}`, { tag: 'gift', about: a.name, mood: verdict === 'meh' ? 1 : 8, moodDuration: 600 });
+      a.addMood(verdict === 'meh' ? 'Gift flopped a bit' : `${b.name} loved my gift`, verdict === 'meh' ? -2 : 5, 300);
+      if (verdict === 'love') { b.emote('heart', 2.4); IS.Love.hearts(sim, b, 10); }
+      if (a.relTo(b.name).partner) IS.Mind.news(sim, 'gift', a, b, { detail: gift.what });
+      sim.log(`${a.name} gave ${b.name} ${gift.what}. ${verdict === 'love' ? `${b.name} loved it. ♥` : verdict === 'meh' ? 'It... could have gone better.' : 'Sweet.'}`, verdict === 'meh' ? 'social' : 'love', [a, b]);
+    },
+  });
+
+  const US = {
+    new: [['I still can\'t believe we\'re a thing.', 'Me neither. In a good way.'], ['So... are we telling people? I already told people.', 'You told EVERYONE, didn\'t you.'], ['Is it weird that I miss you when you\'re two houses away?', 'Not weird. Cute.']],
+    dating: [['Remember when you tripped on the dock and pretended it was on purpose?', 'It WAS on purpose. Mostly.'], ['You know what I like about you? Everything. It\'s annoying.', 'Stop. ...No, keep going.'], ['Honest question. Pancakes or waffles. This decides our future.', 'Pancakes. Is that the right answer?'], ['I caught myself smiling at nothing today. It was you. You\'re the nothing.', 'That\'s the worst compliment and I love it.'], ['We should have a song. Like, a couple song.', 'As long as it\'s not one {third} sings.']],
+    serious: [['Do you ever think about... us? Like, long term?', 'All the time, honestly.'], ['I think I want to grow old on this island. With you.', 'Old and grumpy together. Deal.'], ['I don\'t think I\'ve ever been this happy, {pet}.', 'Me neither. It\'s a little scary.'], ['You\'re my favourite person. Don\'t tell {third}.', 'Your secret\'s safe. I\'m telling everyone.']],
+    engaged: [['We\'re getting MARRIED. Say it with me.', 'We\'re getting married! Ahh!'], ['I keep looking at you and thinking: fiancé. FIANCÉ.', 'Ugh, I love that word.'], ['Who\'s doing the speech? Not {third}. Anyone but {third}.', 'Agreed. Absolutely not {third}.'], ['Should we invite {cat} to the wedding?', '{cat} is the ring bearer. Non-negotiable.']],
+    married: [['Morning, my favourite person. Legally.', 'Legally obligated to say good morning back.'], ['Being married to you is just a sleepover that never ends.', 'Best sleepover. Worst blanket hog.'], ['I still look at you and think: wow. I married that.', 'You did. No refunds.'], ['Do you ever miss being single?', 'Not for one second, {pet}.']],
+  };
+  def('us', {
+    key: 'us', w: 1,
+    setup: ctx => { ctx.stage = LV().stage(ctx.a, ctx.b) || 'dating'; const list = US[ctx.stage]; ctx.pair = list[Math.floor(Math.random() * list.length)]; },
+    beats: [
+      { by: 'a', say: ctx => [ctx.pair[0]] },
+      { by: 'b', say: ctx => [ctx.pair[1]] },
+      { by: 'a', if: ctx => ctx.a.relTo(ctx.b.name).romance > 60, say: ['Love you, {pet}.', 'Okay, go. Before I get sappy.', '*bumps your shoulder*', 'You\'re the best part of this island.'] },
+    ],
+    after: (ctx) => { ctx.a.changeRel(ctx.b.name, 0.5, 1); ctx.b.changeRel(ctx.a.name, 0.5, 1); },
+  });
+
+  def('anniversary', {
+    key: 'anniversary', w: 1,
+    setup: ctx => {
+      const d = ctx.days || 1;
+      ctx.vars.days = String(d); ctx.vars.dayword = d === 1 ? 'one whole day' : d === 7 ? 'one whole week' : d === 14 ? 'two whole weeks' : `${d} days`;
+      const r = ctx.b.relTo(ctx.a.name);
+      ctx.remembers = r.romance > 70 && Math.random() < 0.7 - ctx.b.traits.grumpy * 0.3;
+    },
+    beats: [
+      { by: 'a', say: ['Do you know what today is?', 'Guess what today is, {pet}.', 'Big day today. You know why?'] },
+      { by: 'b', pick: ctx => (ctx.remembers ? 'yes' : 'no'), say: { yes: ['Of course I know. {dayword}. Us.', 'It\'s been {dayword}! Of us!'], no: ['Uh... laundry day?', 'Is it... someone\'s birthday?', 'Fish day? Every day is fish day.'] } },
+      { by: 'a', pick: ctx => (ctx.remembers ? 'yes' : 'no'), say: { yes: ['You remembered!', 'Happy anniversary, {pet}. Our {days}-day-iversary.'], no: ['It\'s been {dayword}, you goof. Of US.', '{dayword}! Together! Hello?!'] } },
+      { by: 'b', if: ctx => !ctx.remembers, say: ['OH. Oh no. Happy anniversary! I love you!', 'I knew that. I was testing you. Happy anniversary!'] },
+      { by: 'b', if: ctx => ctx.remembers, say: ['Here\'s to {dayword} more. At least.', 'Best {dayword} of my life.'] },
+    ],
+    after: (ctx, sim) => {
+      const { a, b } = ctx, d = ctx.days || 1;
+      for (const [p, o] of [[a, b], [b, a]]) { p.relTo(o.name).annivSaid = d; p.addMood(`${d} day${d > 1 ? 's' : ''} with ${o.name}`, ctx.remembers ? 8 : 4, 600); p.changeRel(o.name, 1, ctx.remembers ? 3 : 1); }
+      if (!ctx.remembers) a.changeRel(b.name, -0.5);
+      if (d >= 3) sim.log(`${a.name} and ${b.name} celebrated ${ctx.vars.dayword} together.${ctx.remembers ? '' : ` ${b.name} forgot. Almost.`}`, 'love', [a, b]);
+    },
+  });
+
+  def('propose', {
+    key: 'propose', w: 1,
+    setup: ctx => { ctx.yes = LV().wouldMarry(ctx.b, ctx.a); },
+    beats: [
+      { by: 'a', say: ['Can I ask you something? It\'s kind of big.', 'Okay. Don\'t freak out. I\'m about to do a thing.', '{B}. Stay right there. Don\'t move.'] },
+      { by: 'b', say: ['...Okay? You\'re scaring me.', 'Why are you kneeling?', 'What thing? What are you doing?'] },
+      { by: 'a', say: ['*kneels* {B}, will you marry me?', '*holds out a ring made of seaweed* Marry me?', 'I want every sunset with you. Will you marry me?'] },
+      { by: 'b', pick: ctx => (ctx.yes ? 'yes' : 'no'), say: { yes: ['YES. Yes yes yes!', 'Oh my gosh. YES. Obviously yes!', 'I... yes. A thousand times yes.'], no: ['I... I love you. But it\'s too soon.', 'Can we wait a little? I\'m not ready.', 'Oh no. Get up. I can\'t. Not yet.'] } },
+      { by: 'a', pick: ctx => (ctx.yes ? 'yes' : 'no'), say: { yes: ['We\'re getting MARRIED!', 'I can\'t feel my legs.', 'Best. Day. Ever.'], no: ['Oh. No, I get it. I do.', 'Okay. That\'s okay. I\'ll ask again someday.'] } },
+    ],
+    after: (ctx, sim) => {
+      const { a, b } = ctx;
+      a.relTo(b.name).proposedAt = sim.clock.abs;
+      if (ctx.yes) return LV().engage(sim, a, b);
+      a.addMood(`${b.name} said "not yet"`, -12, 720); a.changeRel(b.name, 0, -3);
+      IS.Mind.feel(a, 'sulking', b.name, 6);
+      IS.Mind.news(sim, 'notYet', a, b);
+      sim.log(`${a.name} proposed to ${b.name}. ${b.name} said "not yet". Ouch.`, 'warn', [a, b]);
+    },
+  });
+
+  def('weddingTalk', {
+    key: 'weddingTalk', w: 1,
+    setup: ctx => { const d = (ctx.a.relTo(ctx.b.name).weddingDay || ctx.sim.clock.day + 1) - ctx.sim.clock.day; ctx.vars.wday = d <= 0 ? 'today' : d === 1 ? 'tomorrow' : `${IS.WEEKDAYS[ctx.sim.weekdayOf(ctx.sim.clock.day + d)]}`; },
+    beats: [
+      { by: 'a', say: ['Are you nervous about {wday}?', 'The wedding is {wday}. THE WEDDING.', 'I\'m going to cry at the wedding. Fair warning.'] },
+      { by: 'b', say: ['Only that you\'ll come to your senses.', 'Nervous? No. Terrified? A little.', 'You cry at sunsets. I\'d expect nothing less.'] },
+      { by: 'a', say: ['I can\'t wait to marry you, {pet}.', 'See you at the Hall. Don\'t be late.', 'Practise your "I do". Mine\'s ready.'] },
+    ],
+  });
+
+  def('coupleFight', {
+    key: 'coupleFight', w: 1,
+    setup: ctx => {
+      ctx.vars.rival = ctx.rival || 'them';
+      const rv = ctx.sim.byName(ctx.vars.rival);
+      ctx.vars.guilty = !!(rv && ctx.b.relTo(rv.name).romance > 40);
+      const r = ctx.a.relTo(ctx.b.name);
+      ctx.vars.soften = ctx.vars.guilty ? Math.random() < 0.25 : (ctx.a.traits.kind > 0.5 || r.romance > 82 || Math.random() < 0.4);
+    },
+    beats: [
+      { by: 'a', say: ['So. You and {rival}. Want to explain?', 'I saw you with {rival}. Laughing. Flirting.', 'Fun chat with {rival} earlier, huh?'] },
+      { by: 'b', pick: ctx => (ctx.vars.guilty ? 'guilty' : 'innocent'), say: { innocent: ['What? It was nothing! We were just talking.', 'Are you jealous? Of {rival}? Seriously?', '{pet}, no. You\'re the only one.'], guilty: ['...It\'s not what it looks like.', 'Okay, I MAYBE flirted a little. It meant nothing.'] } },
+      { by: 'a', pick: ctx => (ctx.vars.soften ? 'soft' : 'storm'), say: { soft: ['...Okay. I believe you. I just got scared.', 'Fine. Sorry. I hate feeling like this.'], storm: ['Whatever. I need some space.', 'Don\'t "{pet}" me right now.', 'I can\'t even look at you.'] } },
+      { by: 'b', pick: ctx => (ctx.vars.soften ? 'soft' : 'storm'), say: { soft: ['Come here. Nobody else, okay?', 'Hey. I\'m yours. Dork.'], storm: ['Wait, please!', 'Fine! Go, then!'] } },
+    ],
+    after: (ctx, sim) => LV().fightOutcome(sim, ctx.a, ctx.b, ctx),
+  });
+
+  def('makeUp', {
+    key: 'makeUp', w: 1,
+    beats: [
+      { by: 'a', say: ['Hey. About earlier...', 'Can we talk? I hate this.', 'I\'ve been miserable all day. You?'] },
+      { by: 'b', say: ['Yeah. Me too.', 'I\'m sorry. I really am.', 'Miserable. Completely.'] },
+      { by: 'a', say: ['I hate fighting with you.', 'I overreacted. A little. Okay, a lot.', 'Nothing\'s fun when we\'re not talking.'] },
+      { by: 'b', say: ['Kiss and make up?', 'Come here, {pet}.', 'Truce? Truce. Come here.'] },
+    ],
+    after: (ctx, sim) => LV().madeUp(sim, ctx.a, ctx.b),
+  });
+
+  def('kiss', {
+    key: 'kiss', w: 1,
+    setup: ctx => {
+      const r = ctx.b.relTo(ctx.a.name);
+      ctx.kind = ctx.a.relTo(ctx.b.name).partner ? 'partner' : r.romance > 55 && r.friendship > 25 && !ctx.a.partner() && !ctx.b.partner() ? 'yes' : 'no';
+    },
+    beats: [
+      { by: 'a', pick: ctx => (ctx.kind === 'partner' ? 'p' : 'x'), say: { p: ['C\'mere, {pet}.', 'Hey. Come here a sec.'], x: ['Can I try something?', 'Okay. Don\'t move.'] } },
+      { by: 'b', say: ['Mm? What?', '...What are you doing?'] },
+      { by: 'a', say: ['*kiss*', '*leans in and kisses {B}*'] },
+      { by: 'b', pick: ctx => ctx.kind, say: { partner: ['...What was that for?', 'Do that again.', 'Hi to you too.'], yes: ['...Wait. Does this mean...?', 'Oh. OH. Okay. Wow.'], no: ['WHAT are you DOING?!', 'Whoa! Personal space!', 'Did the sky put you up to this?!'] } },
+      { by: 'a', pick: ctx => ctx.kind, say: { partner: ['Just because.', 'You looked kissable.'], yes: ['It means I like you. A lot.', 'Yeah. It means that.'], no: ['I... sorry. The sky made me do it.', 'That was a mistake. A huge one.'] } },
+    ],
+    after: (ctx, sim) => {
+      const { a, b } = ctx;
+      if (ctx.kind === 'partner') { LV().kiss(sim, a, b); a.changeRel(b.name, 1, 2); b.changeRel(a.name, 1, 2); return; }
+      if (ctx.kind === 'yes') {
+        a.relTo(b.name).partner = true; b.relTo(a.name).partner = true;
+        a.relTo(b.name).romance = Math.max(a.relTo(b.name).romance, 60);
+        LV().begin(sim, a, b); LV().kiss(sim, a, b);
+        for (const [p, o] of [[a, b], [b, a]]) p.remember(`Started dating ${o.name}!`, { tag: 'romance', mood: 25, moodDuration: 1440, about: o.name });
+        IS.Mind.news(sim, 'couple', a, b);
+        sim.log(`${a.name} kissed ${b.name} out of nowhere... and now they're dating! ♥`, 'love', [a, b]);
+        sim.toast(`${a.name} and ${b.name} are now a couple!`);
+        return;
+      }
+      b.changeRel(a.name, -8, -10); b.emote('anger', 2);
+      a.addMood(`${b.name} did NOT want that kiss`, -10, 600);
+      const g = IS.Mind.led(b, a.name); g.grudge += 6; g.why = 'that kiss';
+      IS.Mind.news(sim, 'rejected', a, b);
+      sim.log(`${a.name} tried to kiss ${b.name}. ${b.name} was not having it.`, 'warn', [a, b]);
+    },
+  });
+
   // --- Sky Hand stories
   def('skyhand', {
     key: 'skyhand', w: 1,
@@ -1044,7 +1222,7 @@ IS.Talk = (() => {
   def('congrats', {
     key: 'congrats', w: 1,
     beats: [
-      { by: 'a', say: ctx => ctx.news && ctx.news.kind === 'won' ? ['Champion of the dock! Congrats!', 'You actually won! Congrats!'] : ['You and {partnerOf}?! Congrats!! Finally!', 'Okay, you two are adorable. Congrats!'] },
+      { by: 'a', say: ctx => ctx.news && ctx.news.kind === 'engaged' ? ['You two are getting MARRIED! Congrats!!', 'Engaged! I need to hear the whole proposal.'] : ctx.news && ctx.news.kind === 'wedding' ? ['Married! You two! Congrats!!', 'That wedding. I\'m still crying.'] : ctx.news && ctx.news.kind === 'won' ? ['Champion of the dock! Congrats!', 'You actually won! Congrats!'] : ['You and {partnerOf}?! Congrats!! Finally!', 'Okay, you two are adorable. Congrats!'] },
       { by: 'b', judge: 'congrats', say: ['Hehe, thanks!', 'Thank you!!', 'Aww, thanks!'] },
       { by: 'a', say: ctx => ctx.news && ctx.news.kind === 'won' ? ['Teach me your secrets.', 'Don\'t let it go to your head.'] : ['Be nice to each other.', 'I want details. Later.'] },
     ],
@@ -1075,7 +1253,7 @@ IS.Talk = (() => {
     fog: ['Oh! You came out of the fog like a ghost.', 'Hey, I almost didn\'t see you there.', 'Is that you? Hard to tell in this soup.', 'Spooky out, huh?'],
     cloudy: ['Grey one today, huh?', 'Hey! Think it\'ll rain?'],
     best: ['{OTHER}! My favourite person.', 'There\'s my guy.', 'Ayy, look who it is!', 'Hey, you!'],
-    partner: ['Hey, you. Hi.', 'There you are. Missed you.', 'Hi, cutie.', 'Oh, hi. Hi hi.'],
+    partner: ['Hey, you. Hi.', 'There you are. Missed you.', 'Hi, cutie.', 'Oh, hi. Hi hi.', 'Hey, {pet}.', 'There\'s my {pet}.', '{pet}! Come here.'],
     crush: ['Oh! H-hey, {other}.', 'Hey! Hi. Hello. Hey.', 'Oh, it\'s you! Cool. Hi.'],
     rival: ['Oh. It\'s you.', '...{other}.', 'Great. You.', 'Hm. Hi.'],
   };
@@ -1095,7 +1273,7 @@ IS.Talk = (() => {
     warm: ['Hey yourself!', 'Oh, hi!', 'Hey hey!', 'Hi! What\'s up?', 'Good to see you.', 'Oh, perfect timing!', 'Hi! I was just thinking about you.', 'There you are!', 'Oh, yay, company.', 'Hiii.', 'Look who it is!', 'Hey! How\'s it going?'],
     neutral: ['Hey.', 'Hi.', 'Oh, hey.', 'Yo.', 'Mm, hi.', 'Hey there.', 'Oh. Hi.', 'What\'s up?'],
     grumpy: ['What.', 'Hm.', 'Yeah, hi.', 'Make it quick.', 'Oh. You.', 'I\'m busy.', 'Mm.'],
-    partner: ['Hi, you.', 'There you are.', 'Missed you too.'],
+    partner: ['Hi, you.', 'There you are.', 'Missed you too.', 'Hi, {pet}.', 'Hey yourself, {pet}.'],
     crush: ['Oh! Hi! Hey.', 'H-hey!', 'Oh, hi! Cool. Hi.'],
   };
 
@@ -1131,6 +1309,13 @@ IS.Talk = (() => {
       second = Math.random() < 0.6 ? pick(bp, b.name) : IS.Dialogue.as(b).line('greet', t2);
     }
     const f = (t, sp) => IS.Dialogue.fill(fill(t, ctx, sp), IS.Social.ctx(sim, sp, sp === a ? b : a));
+    // A couple in the middle of a fight (or about to have one)
+    if (r.partner && ((r.tiff && !r.tiff.talked) || IS.Love.tiff(a, b))) {
+      const stormed = IS.Love.tiff(a, b);
+      const out = [{ sp: a, text: f(IS.pick(stormed ? ['Hey.', '...Hi.', 'Can I talk to you?'] : ['Hey. We need to talk.', '...Hi.', 'Oh. It\'s you.']), a) }, { sp: b, text: f(IS.pick(stormed ? ['...Hi.', 'Hey.', 'Oh. Hi.'] : ['Uh oh.', 'Okay... what?', 'That doesn\'t sound good.']), b) }];
+      out.askedDoing = true;
+      return out;
+    }
     if (IS.Gods.inMourning(a) || IS.Gods.inMourning(b)) {
       first = IS.pick(['Hey.', 'Hi.', `Hey, {other}.`, '...hi.', 'How are you holding up?']);
       second = IS.pick(['Hey.', 'Hi.', 'I\'ve been better.', 'Barely.', '...']);
@@ -1148,7 +1333,7 @@ IS.Talk = (() => {
     a: ['Anyway, I should {aNext}.', 'Okay, I gotta {aNext}. Later!', 'I\'ll let you go. Gonna {aNext}.', 'Alright, I\'m gonna {aNext}. See you!', 'Okay, {aNext} time. Bye!', 'I\'d better {aNext} before it gets late.', 'Right. I really need to {aNext}.'],
     night: ['Okay, I\'m heading to bed. Night!', 'I can barely keep my eyes open. Night!', 'Bedtime for me. Sleep well!'],
     event: ['See you at the {event}!', 'Save me a seat at the {event}!', 'Okay, see you {when}!'],
-    partner: ['Okay. Bye, you.', 'See you later. Miss me.', 'Bye! Don\'t go flirting with anyone.', 'I\'ll come find you later.', 'Okay, go. Before I make you stay.', 'Bye. Think about me.', 'See you tonight?'],
+    partner: ['Okay. Bye, you.', 'See you later. Miss me.', 'Bye! Don\'t go flirting with anyone.', 'I\'ll come find you later.', 'Okay, go. Before I make you stay.', 'Bye. Think about me.', 'See you tonight?', 'Bye, {pet}.', 'Later, {pet}. Love you.'],
     b: { warm: ['See you later!', 'Bye! Don\'t be a stranger.', 'Later!', 'Have fun!', 'Bye bye!', 'See ya!', 'Don\'t work too hard!', 'Catch you later!'], cool: ['Bye.', 'See ya.', 'Mm. Bye.', 'Later.', 'Okay.'], partner: ['Bye, you.', 'Miss you already.', 'Don\'t be long.', 'Later, cutie.', 'Go, go. Have fun.', 'I\'ll be thinking about you.', 'Come back soon.'], night: ['Night!', 'Sleep well!', 'Night night.'] },
   };
 
@@ -1343,7 +1528,7 @@ IS.Talk = (() => {
     let list = (BYKEY[topic] || []).filter(t => !t.who || t.who.includes(a.name));
     if (topic === 'catchphrase' && !list.length) list = [];
     if (!list.length) return null;
-    if ((topic === 'congrats') && !extra.news) extra.news = (sim.news || []).slice().reverse().find(n => a.knows.has(n.id) && (n.kind === 'couple' || n.kind === 'won') && (n.a === b.name || n.b === b.name) && n.a !== a.name && n.b !== a.name);
+    if ((topic === 'congrats') && !extra.news) extra.news = (sim.news || []).slice().reverse().find(n => a.knows.has(n.id) && ['couple', 'won', 'engaged', 'wedding'].includes(n.kind) && (n.a === b.name || n.b === b.name) && n.a !== a.name && n.b !== a.name);
     if (topic === 'myNews' && !extra.news) return null;
     if (topic === 'congrats' && !extra.news) return null;
     if (topic === 'congratsSour' && !extra.news) return null;
@@ -1382,6 +1567,7 @@ IS.Talk = (() => {
     const now = sim.clock.abs, min = sim.clock.min, t = sp.traits;
     const ev = sp.memories.find(m => m.tag === 'event' && now - m.t < 1080 && li.memories.some(x => x.tag === 'event' && x.text === m.text));
     // Death and the Sky
+    if (IS.Love) IS.Love.topics(sim, sp, li, add);
     const tell = IS.Gods.newsToBreak(sim, sp, li);
     if (tell) add('breakNews', 9, { dead: tell.name, cause: tell.cause });
     const shock = IS.Gods.shockTopic(sim, sp, li);
@@ -1508,6 +1694,12 @@ IS.Talk = (() => {
     const warm = b.relTo(a.name).friendship > 20 && b.traits.grumpy < 0.5;
     // After bad news, or while grieving: no chirpy goodbyes
     const heavy = IS.Social.HEAVY.has(conv.lastTopic) || IS.Gods.inMourning(a) || IS.Gods.inMourning(b);
+    if (conv.lastTopic === 'coupleFight' || conv.lastTopic === 'makeUp') {
+      const sore = IS.Love.tiff(a, b);
+      return sore
+        ? [{ sp: a, text: pick(['I can\'t do this right now.', 'I\'m going for a walk.', 'Don\'t follow me.'], a.name) }, { sp: b, text: pick(['...Okay.', 'Fine.', '*sighs*'], b.name) }]
+        : [{ sp: a, text: fill(pick(['Okay. Come here, you.', 'Love you, {pet}.', 'No more fighting. Deal?'], a.name), ctx, a) }, { sp: b, text: fill(pick(['Deal.', 'Love you too.', 'Never again. Probably.'], b.name), ctx, b) }];
+    }
     if (heavy && !['apology', 'argue'].includes(conv.lastTopic)) {
       const told = conv.lastTopic === 'breakNews';
       return [

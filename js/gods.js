@@ -317,6 +317,7 @@ IS.Gods = (() => {
       o.remember('Was blessed by the Sky. Felt incredible.', { tag: 'blessed', news: true });
     }
     IS.Mind.news(sim, 'blessed', targets[0]);
+    IS.Love.onBless(sim, targets);
     G.witness(sim, targets[0], ['Did you SEE that light?!', 'Whoa... it\'s glowing!', 'Why does nobody bless ME?', 'Is that... a good sign?'], 10, targets);
     sim.log(targets.length === 1 ? `The Sky blessed ${targets[0].name}.` : `The Sky blessed ${targets.map(o => o.name).join(', ')}.`, 'sky', targets);
   };

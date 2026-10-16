@@ -92,7 +92,7 @@ IS.Content = (() => {
 
   // ------------------------------------------------------------ world objects
   // Sandcastles on the beach, an X where treasure is buried, finished paintings
-  C.objects = sim => (sim.sandcastles || []).concat(sim.treasure && !sim.treasure.dug ? [sim.treasure] : []);
+  C.objects = sim => (sim.sandcastles || []).concat(sim.treasure && !sim.treasure.dug ? [sim.treasure] : [], IS.Love ? IS.Love.objects(sim) : []);
   C.addSandcastle = (p, size) => {
     const sim = p.sim;
     sim.sandcastles = sim.sandcastles || [];
@@ -121,7 +121,9 @@ IS.Content = (() => {
       if (k >= 3) block(-1, -11 - h, 2, 6);
       px(-1, -3 - Math.round(h / 3), 3, 4, '#5a3a22');
       if (melt < 0.5) { const fy = k >= 3 ? -18 - h : -12 - h; px(0, fy, 1, 6, '#4a3020'); px(1, fy, 5, 3, o.flag); }
-    } else if (o.kind === 'x') {    } else if (o.kind === 'x') {
+    } else if (o.kind === 'blanket') {
+      IS.Love.drawObj(R, ctx, o, x, y, t);
+    } else if (o.kind === 'x') {
       ctx.globalAlpha = 0.85;
       for (let i = -3; i <= 3; i++) { px(i, i - 1, 2, 1, '#c8443a'); px(i, -i - 1, 2, 1, '#c8443a'); }
       ctx.globalAlpha = 1;
@@ -130,6 +132,7 @@ IS.Content = (() => {
 
   // ------------------------------------------------------------ props held while doing things
   C.drawProp = (R, ctx, p, sx, sy, t) => {
+    if (IS.Love) IS.Love.drawProp(R, ctx, p, sx, sy, t);
     const a = p.action;
     if (!a || a.phase !== 'do') return;
     const id = a.def.id;

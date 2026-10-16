@@ -98,7 +98,7 @@ IS.Mind = (() => {
   // The speaker's own news that the listener hasn't heard yet (told in first person)
   M.ownNews = (sim, sp, li) => {
     const now = sim.clock.abs;
-    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected', 'burned', 'blessed', 'flung', 'nearMiss', 'levelUp', 'rareFind', 'bonk', 'treasure', 'kitten'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
+    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected', 'burned', 'blessed', 'flung', 'nearMiss', 'levelUp', 'rareFind', 'bonk', 'treasure', 'kitten', 'engaged', 'wedding', 'makeup'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
   };
   const RUMOR = {
     fight: ['Did you hear {a} and {b} got into it?', '{a} and {b} had a HUGE fight earlier.', 'So... {a} and {b} aren\'t talking right now.'],
@@ -123,6 +123,11 @@ IS.Mind = (() => {
     kitten: ['{a} adopted a kitten! It\'s called {detail}.', 'There\'s a new kitten on the island. {a} named it {detail}.'],
     painting: ['{a} painted "{detail}". It\'s honestly beautiful.', 'Have you seen {a}\'s new painting? "{detail}". Stunning.'],
     concert: ['{a} played guitar earlier and people actually stopped to listen.', 'Did you hear {a} play? They\'re good now!'],
+    engaged: ['{a} and {b} are ENGAGED! Wedding at the Hall!', '{a} proposed to {b}! There was kneeling!'],
+    wedding: ['{a} and {b} got married! I cried. Everyone cried.', 'Did you see the wedding? {a} and {b}, married!'],
+    makeup: ['{a} and {b} made up. Kissed in public and everything.', 'Good news: {a} and {b} are talking again.'],
+    gift: ['{a} gave {b} {detail}. Just because.', 'Did you see what {a} got {b}? {detail}! So sweet.'],
+    notYet: ['{a} proposed to {b}... and {b} said "not yet". Oof.', 'Don\'t say anything, but {b} turned down {a}\'s proposal.'],
   };
 
   // ------------------------------------------------------------ plans
@@ -231,6 +236,7 @@ IS.Mind = (() => {
 
   M.onStart = (sim, p, a) => {
     const def = a.def;
+    if (def.couple && !a.invitedBy) return IS.Love.invite(sim, p, a);
     if (!INVITE[def.id] || a.invitedBy || p.noAutoInvite || p.mode !== 'normal' || p.sick) return;
     const min = sim.clock.min;
     const partner = p.partner();
@@ -323,7 +329,7 @@ IS.Mind = (() => {
     const own = M.ownNews(sim, sp, li);
     if (own) add('myNews', 2.6 + t.sociable, { news: own });
     const known = (sim.news || []).filter(x => sp.knows.has(x.id) && (x.a === li.name || x.b === li.name) && x.a !== sp.name && x.b !== sp.name && sim.clock.abs - x.t < 1440 * 2);
-    const congrats = known.find(x => (x.kind === 'couple' || x.kind === 'won') && !(sp.congratulated || new Set()).has(x.id));
+    const congrats = known.find(x => ['couple', 'won', 'engaged', 'wedding'].includes(x.kind) && !(sp.congratulated || new Set()).has(x.id));
     if (congrats) {
       const e = M.feeling(sp);
       add(e && (e.type === 'jealous' || e.type === 'heartbroken') ? 'congratsSour' : 'congrats', 3, { news: congrats });
@@ -456,7 +462,7 @@ IS.Mind = (() => {
       // Anyone nearby who likes either of them notices
       for (const w of sim.people) {
         if (w === sp || w === li || w.pose === 'sleep' || (w.building || null) !== (sp.building || null) || IS.dist(w.x, w.y, sp.x, sp.y) > IS.TILE * 9) continue;
-        if (w.relTo(li.name).romance > 40 || w.relTo(li.name).partner) { M.feel(w, 'jealous', sp.name, w.relTo(li.name).partner ? 10 : 6); w.thought = `Why is ${sp.name} flirting with ${li.name}?!`; M.led(w, sp.name).grudge += w.relTo(li.name).partner ? 8 : 3; M.led(w, sp.name).why = `flirting with ${li.name}`; }
+        if (w.relTo(li.name).romance > 40 || w.relTo(li.name).partner) { M.feel(w, 'jealous', sp.name, w.relTo(li.name).partner ? 10 : 6); w.thought = `Why is ${sp.name} flirting with ${li.name}?!`; M.led(w, sp.name).grudge += w.relTo(li.name).partner ? 8 : 3; M.led(w, sp.name).why = `flirting with ${li.name}`; IS.Love.onFlirtSeen(sim, w, sp, li, true); }
       }
     }
     if (topic === 'myNews' && t.extra && t.extra.news) M.learn(sim, li, t.extra.news, sp);
@@ -473,6 +479,7 @@ IS.Mind = (() => {
   };
 
   M.breakup = (sim, a, b) => {
+    IS.Love.end(sim, a, b);
     a.relTo(b.name).partner = false; b.relTo(a.name).partner = false;
     a.relTo(b.name).romance *= 0.4; b.relTo(a.name).romance *= 0.4;
     M.news(sim, 'breakup', a, b);
@@ -484,6 +491,7 @@ IS.Mind = (() => {
   // ------------------------------------------------------------ ticking
   M.tick = (sim, dt) => {
     IS.Command.tick(sim);
+    IS.Love.tick(sim, dt);
     const now = sim.clock.abs, min = sim.clock.min;
     for (const p of sim.people) {
       const e = M.feeling(p);

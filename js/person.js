@@ -103,7 +103,7 @@ IS.Person = class {
   }
   relLabel(name) {
     const r = this.relTo(name);
-    if (r.partner) return 'Partner';
+    if (r.partner) return IS.Love ? IS.Love.label(this, name) : 'Partner';
     const f = r.friendship;
     let l = f >= 70 ? 'Best friend' : f >= 35 ? 'Friend' : f >= 10 ? 'Friendly' : f > -10 ? 'Acquaintance' : f > -40 ? 'Rival' : 'Enemy';
     if (r.romance >= 40) l += ' · crush';
@@ -200,7 +200,7 @@ IS.Person = class {
       if (plan.spot) {
         const near = (this.world.spots[plan.spot.kind] || []).filter(s => !s.takenBy && IS.dist(s.x, s.y, jn.x, jn.y) < 7).sort((a, b) => IS.dist(a.x, a.y, jn.x, jn.y) - IS.dist(b.x, b.y, jn.x, jn.y))[0];
         if (near) plan.spot = near;
-      } else if (plan.tx !== undefined) {
+      } else if (plan.tx !== undefined && !plan.fixed) {
         const g = this.world.findNear(jn.x, jn.y, (x, y) => this.world.walkable(x, y) && !(x === jn.x && y === jn.y), 3);
         if (g) { plan.tx = g.x; plan.ty = g.y; }
       }

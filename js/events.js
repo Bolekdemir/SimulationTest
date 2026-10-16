@@ -46,6 +46,7 @@ IS.Events = class {
     if (wd === 3) mk({ kind: 'story', name: 'Story Night', start: H(20), end: H(21.5), seat: 'hallSeat', place: 'the Hall' });
     if (wd === 5) mk({ kind: 'bonfire', name: 'Beach Bonfire', start: H(20), end: H(23), seat: 'bonfireSeat', place: 'the beach', outdoor: true });
     if (wd === 6) mk({ kind: 'picnic', name: 'Sunday Picnic', start: H(12), end: H(14), seat: 'picnicSeat', place: 'the west meadow', outdoor: true });
+    for (const w of sim.weddings || []) if (w.day === day && !w.done) this.addWedding(w);
     for (const b of bdays) {
       if (dinner) { dinner.name = `${b.name}'s Birthday Dinner`; dinner.birthday = b.name; continue; }
       const early = wd === 3 || wd === 5;
@@ -53,7 +54,27 @@ IS.Events = class {
     }
   }
 
+  addWedding(w) {
+    if (this.list.some(e => e.kind === 'wedding' && e.day === w.day && e.couple.includes(w.a))) return;
+    const ev = { id: 'wedding-' + w.day, kind: 'wedding', day: w.day, state: 'upcoming', attendees: new Map(), scores: {}, announced: false, name: `${w.a} & ${w.b}'s Wedding`, start: 16.5 * 60, end: 18.5 * 60, seat: 'hallSeat', place: 'the Hall', couple: [w.a, w.b] };
+    ev.thought = p => this.thoughtFor(ev, p);
+    this.list.push(ev);
+  }
+  // The bride or groom can't make it: same time tomorrow
+  postponeWedding(ev, why) {
+    const sim = this.sim;
+    ev.state = 'done'; ev.postponed = true;
+    const w = (sim.weddings || []).find(x => !x.done && ev.couple.includes(x.a) && ev.couple.includes(x.b));
+    if (!w) return;
+    w.day = sim.clock.day + 1;
+    for (const n of ev.couple) { const q = sim.byName(n); const o = sim.byName(ev.couple.find(m => m !== n)); if (q && o) q.relTo(o.name).weddingDay = w.day; }
+    if (this.scheduled.has(w.day)) this.addWedding(w);
+    sim.log(`${why} The wedding is moved to tomorrow.`, 'warn');
+    sim.toast(`Wedding postponed: ${why}`);
+  }
+
   decideAttendance(ev) {
+    if (ev.kind === 'wedding') return this.weddingGuests(ev);
     for (const p of this.sim.people) {
       if (ev.noSeats) continue;
       const t = p.traits;
@@ -92,7 +113,9 @@ IS.Events = class {
   }
   eventFor(p) {
     const { day, min } = this.sim.clock;
-    for (const e of this.list) {
+    // A wedding beats everything else on the calendar
+    const order = this.list.some(e => e.kind === 'wedding') ? this.list.slice().sort((a, b) => (b.kind === 'wedding') - (a.kind === 'wedding')) : this.list;
+    for (const e of order) {
       if (e.day !== day || e.state === 'done' || e.noSeats) continue;
       if (!e.attendees.get(p.name)) continue;
       if (p.sick) continue;
@@ -113,6 +136,7 @@ IS.Events = class {
       case 'contest': return 'This year the trophy is MINE.';
       case 'story': return ev.storyteller === p.name ? 'Gather round, I have a tale for you.' : 'Story time! I hope it\'s the squid one.';
       case 'bonfire': return ev.indoor ? 'Rained out... game night it is!' : 'Fire, stars, and friends.';
+      case 'wedding': return ev.couple.includes(p.name) ? 'I\'m getting married today. Breathe. Just breathe.' : `${ev.couple.join(' and ')} are getting married! I\'m going to cry.`;
       case 'picnic': return ev.indoor ? 'Picnic indoors. Still counts.' : 'Sandwiches in the sunshine!';
       default: return 'Fun times!';
     }
@@ -138,7 +162,7 @@ IS.Events = class {
     if (min < ev.start) return;
     p.needs.social = Math.min(100, p.needs.social + 0.07 * dt);
     p.needs.fun = Math.min(100, p.needs.fun + 0.05 * dt);
-    if ((ev.kind === 'dinner' || ev.kind === 'party' || ev.kind === 'picnic') && p.needs.hunger < 100) {
+    if ((ev.kind === 'dinner' || ev.kind === 'party' || ev.kind === 'picnic' || ev.kind === 'wedding') && p.needs.hunger < 100) {
       p.needs.hunger = Math.min(100, p.needs.hunger + 0.9 * dt);
     }
     if (ev.kind === 'contest') {
@@ -163,6 +187,35 @@ IS.Events = class {
       }
     }
     if (ev.kind === 'bonfire' && !ev.indoor && Math.random() < dt * 0.02) p.emote('note', 1.5);
+    if (ev.kind === 'wedding') this.weddingTick(p, ev, dt);
+  }
+
+  // Everyone who doesn't hate them comes. The couple always does.
+  weddingGuests(ev) {
+    for (const p of this.sim.people) {
+      if (ev.couple.includes(p.name)) { ev.attendees.set(p.name, true); continue; }
+      const f = ev.couple.reduce((s, n) => s + p.relTo(n).friendship, 0) / 2;
+      const sore = ev.couple.some(n => p.relTo(n).romance > 50);
+      ev.attendees.set(p.name, f > -15 && Math.random() < (sore ? 0.5 : 0.92 + f / 400));
+    }
+  }
+
+  // Vows, then the kiss, then the Hall loses it
+  weddingTick(p, ev, dt) {
+    const sim = this.sim, min = sim.clock.min;
+    if (p.name !== ev.couple[0]) { if (!ev.couple.includes(p.name) && Math.random() < dt * 0.02) p.emote(IS.pick(['heart', 'sparkle', 'note']), 1.5); return; }
+    const b = sim.byName(ev.couple[1]);
+    if (!b || !b.action || b.action.event !== ev) return;
+    ev.step = ev.step || 0;
+    const VOW = ['I promise to love you on good days and on fishing-contest days.', 'I promise to share my snacks. Most of them.', 'You\'re my favourite person on this whole island. I do.', 'I promise to always come find you at sunset.', 'I do. Obviously. Always.'];
+    if (ev.step === 0 && min >= ev.start + 12) { ev.step = 1; p.say(IS.pick(VOW), 4); p.faceToward(b.x, b.y); }
+    else if (ev.step === 1 && min >= ev.start + 18) { ev.step = 2; b.say(IS.pick(VOW), 4); b.faceToward(p.x, p.y); }
+    else if (ev.step === 2 && min >= ev.start + 24) {
+      ev.step = 3;
+      IS.Love.kiss(sim, p, b); IS.Love.hearts(sim, p, 20); IS.Love.hearts(sim, b, 20);
+      for (const o of sim.people) if (o !== p && o !== b && o.action && o.action.event === ev) setTimeout(() => { if (o.mode === 'normal') { o.say(IS.pick(['WOOOO!', '*sobbing*', 'KISS! Oh, they did.', 'I\'m not crying, YOU\'RE crying.', 'Best wedding ever!']), 2.4); o.emote(IS.pick(['heart', 'sparkle']), 2); } }, 400 + Math.random() * 1500);
+      sim.log(`${p.name} and ${b.name} said their vows and kissed. The Hall went wild.`, 'love', [p, b]);
+    }
   }
 
   // ------------------------------------------------------------ main loop
@@ -216,7 +269,7 @@ IS.Events = class {
     for (const p of this.sim.people) {
       if (!ev.attendees.get(p.name) || p.sick || p.mode !== 'normal' || p.chat) continue;
       const a = p.action;
-      if (a && (a.event === ev || a.def.id === 'cook' || a.def.id === 'attend')) continue;
+      if (a && (a.event === ev || a.def.id === 'cook' || (a.def.id === 'attend' && ev.kind !== 'wedding'))) continue;
       if (a && a.def.id === 'sleep' && a.night) continue;
       if (a && a.forced) continue;
       if (this.cookingFor(p)) continue;
@@ -290,12 +343,18 @@ IS.Events = class {
       sim.log(`Rain moved the ${ev.kind === 'bonfire' ? 'bonfire' : 'picnic'} indoors: ${ev.name} at the Hall!`, 'event');
     }
     if (ev.kind === 'boatDay') return;
+    if (ev.kind === 'wedding') {
+      const [a, b] = ev.couple.map(n => sim.byName(n));
+      if (!a || !b || !a.relTo(b.name).engaged) { ev.state = 'done'; return; }
+      const sick = [a, b].find(q => q.sick);
+      if (sick) return this.postponeWedding(ev, `${sick.name} is sick in bed.`);
+    }
     if (ev.kind === 'bonfire' && !ev.indoor) {
       sim.world.bonfire.lit = true;
       if (sim.world.wood >= 3) sim.world.wood -= 3;
       else sim.log('Not much firewood left, so the bonfire is a small one.', 'warn');
     }
-    if (ev.kind === 'dinner' || ev.kind === 'party' || ev.kind === 'picnic') {
+    if (ev.kind === 'dinner' || ev.kind === 'party' || ev.kind === 'picnic' || ev.kind === 'wedding') {
       const cost = [...ev.attendees.values()].filter(Boolean).length;
       if (sim.world.food >= cost) { sim.world.food -= cost; ev.feast = true; }
       else { ev.feast = false; sim.log('The pantry is low, so the meal is a modest one.', 'warn'); }
@@ -309,6 +368,14 @@ IS.Events = class {
     ev.state = 'done';
     const went = sim.people.filter(p => ev.attendees.get(p.name) && p.action && p.action.event === ev);
     if (ev.kind === 'bonfire') sim.world.bonfire.lit = false;
+    if (ev.kind === 'wedding') {
+      const [a, b] = ev.couple.map(n => sim.byName(n));
+      if (a && b && a.relTo(b.name).engaged) {
+        const missing = [a, b].find(q => !went.includes(q));
+        if (missing) { this.postponeWedding(ev, `${missing.name} never made it to the altar.`); return; }
+        IS.Love.marry(sim, a, b);
+      }
+    }
     if (ev.kind === 'contest') {
       const ranked = Object.entries(ev.scores).sort((a, b) => b[1] - a[1]);
       if (ranked.length) {

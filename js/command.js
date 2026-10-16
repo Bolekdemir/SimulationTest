@@ -257,7 +257,7 @@ IS.Command = (() => {
     'look looks see sees saw watch find found keep let lets put run runs walk walks talk talks try tries help leave left right new old young happy sad mad angry upset scared afraid ' +
     'friend friends people person guy guys girl girls boy boys everyone everybody anyone anybody nobody ur u ya youre im ill its thats whats wheres hows whos dont doesnt cant wont ' +
     'house home place woods forest trail meadow field beach sea ocean water island sky hand god cat dog fish food dinner lunch breakfast party song song ' +
-    'hug hugs kiss kisses date dating crush single taken partner boyfriend girlfriend best worst hungry tired bored lonely sick wrong matter secret hobby hobbies age name yourself').split(' ');
+    'hug hugs kiss kisses date dating gift gifts present flowers flower propose marry married wedding sunset picnic smooch romantic shell crush single taken partner boyfriend girlfriend best worst hungry tired bored lonely sick wrong matter secret hobby hobbies age name yourself').split(' ');
   let VOCAB = null;
   const vocab = () => {
     if (VOCAB) return VOCAB;
@@ -517,6 +517,8 @@ IS.Command = (() => {
     if (named && /\b(break up|breakup|dump|leave)\b/.test(t)) return { kind: 'social', topic: 'breakup', target: named, extra: {}, what: `break up with ${named.name}` };
     if (named && /\b(avoid|ignore|stay away from|keep away from|stop talking to|block)\b/.test(t)) return { kind: 'avoid', target: named, what: `stay away from ${named.name}` };
     if (/\b(wake up|get up|rise and shine)\b/.test(t)) return { kind: 'wake', what: 'wake up' };
+    const love = named && C.loveOrder(t, actor, named);
+    if (love) return love;
     const house = people.find(o => o !== actor && new RegExp(` ${o.name.toLowerCase()} s? ?(house|home|place)\\b`).test(t));
     if (house && /\b(go|walk|run|head|get|move|come|travel|visit)\b/.test(t)) return { kind: 'goto', place: 'house', of: house, what: `go to ${house.name}'s house` };
     const acts = scoreAll(t, ACTS).filter(a => a.k !== 'wander' && !(a.ph === 'farm' && / to the farm /.test(t)));
@@ -528,6 +530,20 @@ IS.Command = (() => {
     if (!named && SOOTHE.test(t)) return { kind: 'soothe', what: 'feel a bit better' };
     if (!named && !acts.length) for (const [k, e] of Object.entries(EMOTES)) if (e.re.test(t) && !/\b(with|to|at)\b/.test(t.replace(/ (go|want) to /, ' '))) return { kind: 'emote', k, what: k === 'flex' ? 'show off' : k };
     return null;
+  };
+
+  // Couple stuff: kisses, dates, gifts, proposals, making up (love.js)
+  C.loveOrder = (t, actor, who) => {
+    const partner = actor.relTo(who.name).partner;
+    const so = { kind: 'social', target: who, extra: {} };
+    if (/\b(propose|marry|proposal|pop the question|engaged)\b/.test(t)) return { ...so, topic: 'propose', what: `propose to ${who.name}` };
+    if (/\b(make up|kiss and make up|patch (it|things) up)\b/.test(t)) return { ...so, topic: 'makeUp', what: `make up with ${who.name}` };
+    if (/\b(kiss|kisses|smooch|peck|snog|make out)\b/.test(t)) return { ...so, topic: 'kiss', what: `kiss ${who.name}` };
+    if (/\b(gift|present|flowers|flower|surprise|shell)\b/.test(t) || / give .+ something /.test(t)) return { ...so, topic: 'gift', extra: { gift: IS.Love.giftFor(actor, who) }, what: `give ${who.name} a gift` };
+    const act = /\b(sunset|hold hands|holding hands)\b/.test(t) ? 'sunsetWalk' : /\bpicnic\b/.test(t) ? 'picnicDate' : /\b(slow dance|dance with|dance together)\b/.test(t) ? 'slowDance' : /\b(date|take .+ out|romantic|cuddle)\b/.test(t) ? 'any' : null;
+    if (!act) return null;
+    if (!partner) return act === 'slowDance' ? null : { ...so, topic: 'flirt', what: `ask ${who.name} out` };
+    return { kind: 'date', act, target: who, what: act === 'any' ? `take ${who.name} on a date` : `${{ sunsetWalk: 'watch the sunset with', picnicDate: 'have a picnic with', slowDance: 'slow dance with' }[act]} ${who.name}` };
   };
 
   // Pronouns: "find Lynn and hug her" / "hug her" after talking about Lynn
@@ -658,12 +674,39 @@ IS.Command = (() => {
       p.say(line, 3);
       return { ok: true, text: `${p.name} will keep away from ${order.target.name} for half a day. “${line}”` };
     }
+    if (order.kind === 'date') return C.runDate(sim, p, order);
+    if (order.kind === 'social' && order.topic === 'makeUp' && !p.relTo(order.target.name).partner) order = { ...order, topic: 'apology' };
+    if (order.kind === 'social' && order.topic === 'propose' && !p.relTo(order.target.name).partner) {
+      const line = `Propose?! ${order.target.name} and I aren't even dating!`;
+      p.say(line, 3); p.emote('question', 1.6);
+      return { ok: false, text: `${p.name} and ${order.target.name} aren't a couple. “${line}”` };
+    }
+    if (order.kind === 'social' && order.topic === 'makeUp' && !IS.Love.tiff(p, order.target)) order = { ...order, topic: 'couple' };
     if (order.kind === 'social' && order.topic === 'breakup' && !p.relTo(order.target.name).partner) {
       p.say(`Break up? ${order.target.name} and I aren't even together.`, 3);
       return { ok: false, text: `${p.name} and ${order.target.name} aren't a couple.` };
     }
     const legacy = C.runLegacy(sim, p, order, queued);
     return legacy;
+  };
+
+  // A date the sky asked for: the best one the time and weather allow
+  C.runDate = (sim, p, order) => {
+    const o = order.target, c = sim.clock;
+    if (p.sick || o.sick) return { ok: false, text: `${p.sick ? p.name : o.name} is sick in bed. No dates today.` };
+    const ids = order.act === 'any' ? ['sunsetWalk', 'slowDance', 'picnicDate'] : [order.act];
+    const def = ids.map(id => IS.Actions[id]).find(d => d.can(p, c));
+    if (!def) {
+      const when = order.act === 'sunsetWalk' ? 'in the evening (5-8pm), when it\'s not raining' : order.act === 'picnicDate' ? 'around midday (11am-4pm), in nice weather, with food in the pantry' : order.act === 'slowDance' ? 'at night (7:30pm onwards), when it\'s dry' : 'when the time and weather are right: picnics at midday, sunsets in the evening, dancing at night';
+      p.say(IS.pick(['Not really date weather...', 'Now? Hmm. Later would be better.']), 2.4);
+      return { ok: false, text: `Dates work ${when}.` };
+    }
+    if (p.chat) p.chat.end(true);
+    p.cancelAction(); p.idleUntil = 0;
+    p.dateCmd = true; p.startAction(def, c); p.dateCmd = false;
+    if (!p.heardSky) { p.heardSky = true; p.remember('Heard a voice from the sky', { tag: 'sky', news: true }); }
+    if (p.action && p.action.with) { p.action.cmd = true; return { ok: true, text: `${p.name} asked ${o.name}: ${def.label.toLowerCase()}. ${o.name} said yes. ♥` }; }
+    return { ok: false, text: `${p.name} asked, but ${o.name} said not now.` };
   };
 
   C.runLegacy = (sim, p, order, queued) => {
@@ -763,6 +806,10 @@ IS.Command = (() => {
       if (order.topic === 'argue') return t.kind > 0.7 ? 'I really don\'t want to fight...' : 'Oh, gladly.';
       if (order.topic === 'roast') return p.cfg.humor === 'roast' ? 'Oh, I\'ve been WAITING for this.' : 'Okay, let me cook.';
       if (order.topic === 'teach') return 'Lessons! I\'m going to be so good at this.';
+      if (order.topic === 'kiss') return r.partner ? IS.pick(['Gladly.', 'Say less.', 'You don\'t have to tell me twice.']) : r.romance > 40 ? 'Oh no. Okay. Okay okay okay.' : `Kiss ${order.target.name}?! This is a terrible idea.`;
+      if (order.topic === 'propose') return IS.pick(['Okay. This is it. Where\'s a ring? Is seaweed a ring?', 'I\'m going to throw up. In a good way.']);
+      if (order.topic === 'gift') return IS.pick([`${order.target.name} is going to love this.`, 'Ooh, a surprise!']);
+      if (order.topic === 'makeUp') return 'Yeah. I miss them. Okay.';
       if (order.topic === 'breakup') return r.partner ? IS.pick(['...Okay. It\'s time.', 'This is going to hurt.']) : `Break up? We're not even together.`;
       return r.friendship > 40 ? `Yeah, I miss ${order.target.name}.` : r.friendship < -10 ? `${order.target.name}? Really?` : 'Sure, why not.';
     }

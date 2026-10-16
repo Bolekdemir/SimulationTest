@@ -116,13 +116,22 @@ IS.Social = (() => {
     }
   };
 
-  const HEAVY = new Set(['breakNews', 'mourn', 'shockTalk', 'mournCorrected', 'skyFear', 'comfort', 'vent', 'breakup', 'apology', 'argue']);
+  const HEAVY = new Set(['breakNews', 'mourn', 'shockTalk', 'mournCorrected', 'skyFear', 'comfort', 'vent', 'breakup', 'apology', 'argue', 'propose', 'coupleFight', 'makeUp']);
   S.HEAVY = HEAVY;
   S.passBy = (sim, a, b) => {
     if (IS.Gods.inMourning(a) || IS.Gods.inMourning(b)) {
       a.faceToward(b.x, b.y);
       a.say(IS.pick(['...', `Hey, ${b.name}.`, '*nods*']));
       setTimeout(() => { if (!b.chat && b.mode === 'normal') b.say(IS.pick(['*nods*', '...', 'Hey.'])); }, 900);
+      return;
+    }
+    // Couples: a cold shoulder mid-fight, otherwise a wink and a blown kiss
+    if (a.relTo(b.name).partner) {
+      a.faceToward(b.x, b.y);
+      if (IS.Love.tiff(a, b)) { a.say(IS.pick(['...', 'Hmph.', '*looks away*'])); return; }
+      a.say(IS.pick([`Hey, ${IS.Love.pet(a, b)}!`, '*blows a kiss*', `There's my ${IS.Love.pet(a, b) === b.name ? 'favourite' : IS.Love.pet(a, b)}.`, '*winks*']));
+      a.emote('heart', 1.4);
+      setTimeout(() => { if (!b.chat && b.mode === 'normal') { b.say(IS.pick(['*catches it*', `Hi, ${IS.Love.pet(b, a)}!`, '*blows one back*', 'Stop it. ...Don\'t stop.'])); b.emote('heart', 1.2); } }, 900);
       return;
     }
     const tone = IS.Dialogue.tone(a, b);
@@ -176,6 +185,7 @@ IS.Social = (() => {
       sim.conversations.push(this);
       this.segs = this.compose();
       this.segIdx = 0;
+      IS.Love.onChatStart(sim, this);
     }
     other(p) { return p === this.a ? this.b : this.a; }
 
@@ -435,7 +445,7 @@ IS.Social = (() => {
     if (sp.needs.hunger < 35) add('hungry', 2);
     if (r.friendship > 45 && sim.clock.min > 1140) add('deep', 1.3);
     if (sp.canFallFor(li.name) && r.romance > 25 && !r.partner && !sp.partner()) add('flirt', r.romance / 30 * (0.5 + S.attraction(sp, li)) * (li.partner() ? 0.3 : 1));
-    if (r.partner) add('flirt', 1.2);
+    if (r.partner && !IS.Love.tiff(sp, li)) add('flirt', 1.2);
     if (sp.canFallFor(li.name) && r.romance > 70 && r.friendship > 40 && !r.partner && !sp.partner() && !li.partner() && (sp.confessedTo || {})[li.name] === undefined) add('confess', 4);
     if (r.friendship < -25 || (t.grumpy > 0.6 && sp.mood() < 35)) add('argue', 1.5 + t.grumpy + (r.friendship < -40 ? 1.5 : 0));
     else {
@@ -458,7 +468,7 @@ IS.Social = (() => {
     }
     const crush = IS.Dialogue.crushOf(li);
     if (crush && crush !== sp && r.friendship > 25) add('tease', 1 + t.energetic * 0.6 + (sp.cfg.humor === 'roast' ? 0.8 : 0), { crush });
-    if (r.partner) add('couple', 2.2);
+    if (r.partner && !IS.Love.tiff(sp, li)) add('couple', 2.2);
     const mem = sp.memories.find(m => m.about === li.name && sim.clock.abs - m.t < 2880 && sim.clock.abs - m.t > 30 && ['chat', 'argue', 'care'].includes(m.tag) && !m.toldTo.has(li.name));
     if (mem) add(mem.tag === 'argue' ? 'memoryBad' : mem.tag === 'care' ? 'memoryCare' : 'memoryGood', mem.tag === 'argue' ? 1.2 + t.kind : 0.9, { memory: mem });
 
@@ -501,7 +511,7 @@ IS.Social = (() => {
       case 'birthday': li.visitedBy.add('bday:' + sp.name); text = D.line('birthday'); break;
       case 'question': { const q = D.question(); extra.answer = q.a; text = q.q; break; }
       case 'congrats': case 'congratsSour': {
-        if (!extra.news) extra.news = (sim.news || []).slice().reverse().find(n => sp.knows.has(n.id) && (n.kind === 'couple' || n.kind === 'won') && (n.a === li.name || n.b === li.name));
+        if (!extra.news) extra.news = (sim.news || []).slice().reverse().find(n => sp.knows.has(n.id) && ['couple', 'won', 'engaged', 'wedding'].includes(n.kind) && (n.a === li.name || n.b === li.name));
         text = extra.news ? IS.Mind.lineFor(sim, sp, li, topic, extra, ctx) : D.line('compliment');
         if (!extra.news) topic = 'compliment';
         break;
@@ -564,6 +574,7 @@ IS.Social = (() => {
       sp.confessedTo[li.name] = accept;
       if (accept) {
         sp.relTo(li.name).partner = true; li.relTo(sp.name).partner = true;
+        IS.Love.begin(sim, sp, li);
         for (const [p, o] of [[sp, li], [li, sp]]) { p.remember(`Started dating ${o.name}!`, { tag: 'romance', mood: 25, moodDuration: 1440, about: o.name }); p.emote('heart', 3); }
         sim.log(`${sp.name} confessed to ${li.name}... and ${li.name} said yes! ♥`, 'love', [sp, li]);
         sim.toast(`${sp.name} and ${li.name} are now a couple!`);

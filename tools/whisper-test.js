@@ -43,6 +43,10 @@ const CASES = [
   ['say "hello everyone"', { k: 'say' }], ['shout "I LOVE FISH"', { k: 'say' }],
   ['avoid beach', { k: 'avoid', to: 'Beach' }], ['stay away from jude', { k: 'avoid', to: 'Jude' }], ['break up with lynn', { k: 'social', t: 'breakup', to: 'Lynn' }],
   ['pray', { k: 'act', act: 'pray' }],
+  // Couple stuff (Iroh is single in the test, so dates turn into asking someone out)
+  ['kiss lynn', { k: 'social', t: 'kiss', to: 'Lynn' }], ['propose to jude', { k: 'social', t: 'propose', to: 'Jude' }], ['ask beach to marry you', { k: 'social', t: 'propose', to: 'Beach' }],
+  ['give forest a gift', { k: 'social', t: 'gift', to: 'Forest' }], ['bring egg some flowers', { k: 'social', t: 'gift', to: 'Egg' }], ['make up with jude', { k: 'social', t: 'makeUp', to: 'Jude' }],
+  ['take lynn on a date', { k: 'social', t: 'flirt', to: 'Lynn' }], ['watch the sunset with beach', { k: 'social', t: 'flirt', to: 'Beach' }],
   // Still the classics
   ['chat with Lynn about Forest', { k: 'social', t: 'askAbout', to: 'Lynn', ab: 'Forest' }], ['go fishing with Egg', { k: 'actWith', act: 'fish', w: 'Egg' }],
   ['what does Lynn think of Jude', { k: 'social', t: 'askAbout', to: 'Lynn', ab: 'Jude' }], ['flirt', { k: 'needWho' }], ['juggle', { k: 'unknown' }],
