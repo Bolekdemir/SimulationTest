@@ -76,6 +76,8 @@ IS.UI = class {
     this.$('btn-powers').addEventListener('click', () => this.togglePowers());
     this.$('btn-collection').addEventListener('click', () => this.showCollection(this.$('collection').hidden));
     this.$('collection-close').addEventListener('click', () => this.showCollection(false));
+    this.$('collection-x').addEventListener('click', () => this.showCollection(false));
+    this.$('collection').addEventListener('click', e => { if (e.target.id === 'collection') this.showCollection(false); });
     this.togglePowers(!!IS.Settings.get('powers'));
     document.querySelectorAll('[data-power]').forEach(b => b.addEventListener('click', () => IS.Gods.setPower(sim, b.dataset.power)));
     // Whispers from the sky
