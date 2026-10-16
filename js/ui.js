@@ -72,6 +72,8 @@ IS.UI = class {
       const p = sim.byName(row.dataset.person);
       if (p) { sim.select(p); sim.follow = true; this.syncToggles(); }
     });
+    this.$('btn-powers').addEventListener('click', () => this.togglePowers());
+    this.togglePowers(!!IS.Settings.get('powers'));
     document.querySelectorAll('[data-power]').forEach(b => b.addEventListener('click', () => IS.Gods.setPower(sim, b.dataset.power)));
     // Whispers from the sky
     const form = this.$('cmd'), input = this.$('cmd-in');
@@ -109,7 +111,16 @@ IS.UI = class {
     document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.speed === sim.speedIdx));
     document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === this.tab));
     document.querySelectorAll('[data-power]').forEach(b => b.setAttribute('aria-pressed', b.dataset.power === sim.power));
+    this.$('btn-powers').setAttribute('aria-pressed', !this.$('powers').hidden);
     document.body.classList.toggle('casting', sim.power !== 'hand');
+  }
+
+  // The god powers toolbar is tucked away until you ask for it
+  togglePowers(on = this.$('powers').hidden) {
+    this.$('powers').hidden = !on;
+    IS.Settings.set('powers', on);
+    if (!on && this.sim.power && this.sim.power !== 'hand') IS.Gods.setPower(this.sim, 'hand');
+    this.syncToggles();
   }
 
   // Someone died: hide their speech bubble and name tag
