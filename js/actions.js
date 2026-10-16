@@ -396,6 +396,16 @@ IS.Actions = (() => {
   });
 
   // --- Grief and fear (see gods.js): visiting graves, praying to the Sky
+  // "Go to the dock": only ever chosen by a whisper (command.js)
+  def({
+    id: 'goto', label: 'Visiting',
+    score: () => 0,
+    plan: p => (p.gotoTarget ? { tx: p.gotoTarget.x, ty: p.gotoTarget.y, duration: IS.rand(20, 40), face: IS.pick(['down', 'left', 'right']) } : null),
+    label2: p => `Visiting ${p.gotoTarget ? p.gotoTarget.name : 'somewhere'}`,
+    tick: (p, a, dt) => { p.needs.fun = Math.min(100, p.needs.fun + 0.05 * dt); },
+    thought: p => `The sky wants me at ${p.gotoTarget ? p.gotoTarget.name : 'somewhere'}. Here I am.`,
+  });
+
   // Near a spot by a body or grave (gods.js), never on top of it
   const nearGrave = (p, g, r = 2, useGrave) => {
     const W = p.world, x0 = Math.floor((useGrave ? g.gx : g.x) / IS.TILE), y0 = Math.floor(((useGrave ? g.gy : g.y) - 6) / IS.TILE);

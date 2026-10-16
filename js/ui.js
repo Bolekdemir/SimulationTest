@@ -95,7 +95,7 @@ IS.UI = class {
   ideas(p, force) {
     if (!force && this.ideasFor === p) return;
     this.ideasFor = p;
-    this.$('cmd-in').placeholder = `Tell ${p.name} what to do…`;
+    this.$('cmd-in').placeholder = `Tell or ask ${p.name} anything…`;
     this.$('cmd-label').textContent = `Whisper to ${p.name}`;
     if (!force) this.$('cmd-out').textContent = '';
     this.$('cmd-ideas').innerHTML = IS.Command.suggestions(p).map(t => `<button type="button" class="idea">${this.esc(t)}</button>`).join('');

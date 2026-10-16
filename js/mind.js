@@ -466,6 +466,7 @@ IS.Mind = (() => {
 
   // ------------------------------------------------------------ ticking
   M.tick = (sim, dt) => {
+    IS.Command.tick(sim);
     const now = sim.clock.abs, min = sim.clock.min;
     for (const p of sim.people) {
       const e = M.feeling(p);

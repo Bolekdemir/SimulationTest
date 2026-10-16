@@ -95,7 +95,7 @@ const HELDOUT = [
   ['harvest the crops', { k: 'act', act: 'garden' }], ['go get some wood', { k: 'act', act: 'chop' }], ['wander around', { k: 'act', act: 'wander' }],
   ['stargaze tonight', { k: 'act', act: 'stargaze' }], ['cuddle the cat', { k: 'act', act: 'petCat' }], ['head home', { k: 'act', act: 'home' }],
   ['quit fishing', { k: 'stop' }], ['freeze', { k: 'stop' }],
-  ['talk to lynn', { k: 'social', t: null, to: 'Lynn' }], ['go chat w Egg', { k: 'social', t: null, to: 'Egg' }], ['hang with jude', { k: 'social', t: null, to: 'Jude' }],
+  ['talk to lynn', { k: 'social', t: null, to: 'Lynn' }], ['go chat w Egg', { k: 'social', t: null, to: 'Egg' }], ['hang with jude', { k: 'social', t: 'hangout', to: 'Jude' }],
   ['ask lynn what she thinks about forest', { k: 'social', t: 'askAbout', to: 'Lynn', ab: 'Forest' }],
   ['go ask Egg about Jude', { k: 'social', t: 'askAbout', to: 'Egg', ab: 'Jude' }],
   ['chat with forest about lynn', { k: 'social', t: 'askAbout', to: 'Forest', ab: 'Lynn' }],

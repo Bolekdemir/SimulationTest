@@ -55,6 +55,8 @@ IS.Talk = (() => {
     const other = sp === ctx.a ? ctx.b : ctx.a;
     return text.replace(/\{(\w+)\}/g, (m, k) => {
       if (k === 'other') return other.name;
+      // "Egg is going to see Forest" said by Forest -> "going to see me"
+      if (k === 'thirdNow' && ctx.vars.thirdNow) return ctx.vars.thirdNow.replace(new RegExp(`\\b${sp.name}\\b`, 'g'), 'me').replace(new RegExp(`\\b${other.name}\\b`, 'g'), 'you');
       if (k === 'event' && ctx.vars.eventBday === sp.name) return 'my birthday party';
       if (k === 'event' && ctx.vars.eventBday === other.name) return 'your birthday party';
       if (k === 'self') return sp.name;
@@ -1144,6 +1146,18 @@ IS.Talk = (() => {
     },
   });
 
+  // "Break up with Jude" (a whisper)
+  def('breakup', {
+    key: 'breakup', w: 1,
+    beats: [
+      { by: 'a', say: ['We need to talk.', 'Can we talk? Like, actually talk?', 'I\'ve been thinking. About us.'] },
+      { by: 'b', say: ['...Uh oh.', 'That doesn\'t sound good.', 'Okay... what\'s up?'] },
+      { by: 'a', say: ['I think we should break up.', 'I don\'t think this is working anymore.', 'I think we\'re better as friends.'] },
+      { by: 'b', pick: ctx => (ctx.b.relTo(ctx.a.name).romance > 60 ? 'hurt' : 'fine'), say: { hurt: ['What? Why?!', 'Wow. Okay. I didn\'t see that coming.', 'Did I do something wrong?'], fine: ['...Yeah. I kind of felt it too.', 'Honestly? Fair.', 'Okay. No hard feelings.'] } },
+    ],
+    after: (ctx, sim) => { if (ctx.a.relTo(ctx.b.name).partner) IS.Mind.breakup(sim, ctx.a, ctx.b); },
+  });
+
   // Breaking the news to someone who hasn't heard
   def('breakNews', {
     key: 'breakNews', w: 1,
@@ -1382,6 +1396,7 @@ IS.Talk = (() => {
     ];
   };
   T.has = topic => !!BYKEY[topic];
+  T.hangFor = love => HANG[love] || null;
 
   return T;
 })();
