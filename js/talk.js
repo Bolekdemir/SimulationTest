@@ -385,6 +385,12 @@ IS.Talk = (() => {
     won: ['{na} won the fishing contest. We will never hear the end of it.'],
     dunk: ['{na} got thrown into the SEA earlier. By the sky!'],
     date: ['{na} and {nb} were on a little date earlier. So cute.'],
+    burned: ['{na} got set on FIRE today. They lived, somehow.', 'So {na} was literally on fire earlier. Like, flames.'],
+    blessed: ['The sky blessed {na}. There was a golden beam and everything.', '{na} got hit by this glowing light and now they\'re all smiley.'],
+    flung: ['A meteor nearly flattened {na}. They went FLYING.', '{na} got blasted across the island. By a METEOR.'],
+    nearMiss: ['Lightning struck right next to {na}. Like, inches away.', 'The sky almost fried {na} today.'],
+    meteor: ['A meteor crashed down near {na}. There\'s a crater now. A CRATER.', 'Did you hear that boom? A rock fell out of the sky near {na}.'],
+    weird: ['{na} started {detail} out of nowhere. Just... {detail}.', 'Is {na} okay? I saw them {detail} for no reason at all.'],
   };
   const RUMOR_R = {
     fight: { pos: ['Yikes. About what?', 'Again? Those two...'], neu: ['Oof.', 'Huh.'], neg: ['I\'m staying out of that.', 'Not my business.'] },
@@ -394,10 +400,16 @@ IS.Talk = (() => {
     won: { pos: ['Ha! Good for them.', 'Honestly, deserved.'], neu: ['Hm.'], neg: ['Ugh. Rigged.'] },
     dunk: { pos: ['THE SEA?!', 'The sky did WHAT?'], neu: ['...What?'], neg: ['Sounds made up.'] },
     date: { pos: ['Aww!', 'Stop, that\'s so cute.'], neu: ['Oh, nice.'], neg: ['Ew. Get a room.'] },
+    burned: { pos: ['WHAT?! Are they okay?!', 'On FIRE? Poor thing.'], neu: ['...On fire? Like, actual fire?'], neg: ['Huh. Toasty.'] },
+    blessed: { pos: ['Lucky! Why don\'t I get beams?', 'Aww, that\'s kind of beautiful.'], neu: ['Weird. Good weird, I guess.'], neg: ['Of course it was them.'] },
+    flung: { pos: ['Are they hurt?!', 'This island is getting dangerous.'], neu: ['A METEOR?'], neg: ['Sounds made up.'] },
+    nearMiss: { pos: ['That\'s terrifying.', 'I\'m staying indoors.'], neu: ['Yikes.'], neg: ['Shame it missed. Kidding!'] },
+    meteor: { pos: ['A CRATER?! I have to see this.', 'Okay, the sky is officially out of control.'], neu: ['Wow.'], neg: ['Probably a big hailstone.'] },
+    weird: { pos: ['Honestly? Iconic.', 'Haha, I love that.'], neu: ['...Huh.'], neg: ['Weirdo.'] },
   };
   def('rumor', {
     key: 'rumor', w: 1,
-    setup: ctx => { const n = ctx.news; ctx.vars.na = n.a; ctx.vars.nb = n.b || ''; },
+    setup: ctx => { const n = ctx.news; ctx.vars.na = n.a; ctx.vars.nb = n.b || ''; ctx.vars.detail = n.detail || 'acting weird'; },
     beats: [
       { by: 'a', say: ['Okay, have you heard?', 'You will NOT believe what happened.', 'Did you hear the news?'] },
       { by: 'b', say: ['Heard what?', 'No? What happened?', 'Ooh. Tell me.'] },
@@ -414,6 +426,10 @@ IS.Talk = (() => {
     breakup: ['{partner} and I broke up.', 'So... {partner} and I aren\'t together anymore.'],
     dunk: ['The sky threw me in the sea today.', 'I got dropped in the ocean. By the SKY.'],
     rejected: ['I told {partner} how I feel. They said no.', 'I confessed to {partner}. It did not go well.'],
+    burned: ['I got set on fire today. Actual fire.', 'The sky set me on FIRE. I\'m still smoking a bit.'],
+    blessed: ['The sky blessed me! There was this golden light...', 'Something up there likes me. I got a whole beam.'],
+    flung: ['A meteor nearly hit me. I flew. Like, FLEW.', 'I got blasted by a meteor and I\'m somehow fine.'],
+    nearMiss: ['Lightning hit right next to me. I can still hear it.', 'The sky almost fried me today.'],
   };
   const MINE_R = {
     couple: { pos: ['WHAT?! Finally! I\'m so happy for you!', 'I KNEW it! Congrats!!'], neu: ['Oh! Wow. Congrats.', 'Huh. Didn\'t see that coming.'], neg: ['...Oh. Cool.', 'Great. Good for you.'] },
@@ -421,6 +437,10 @@ IS.Talk = (() => {
     breakup: { pos: ['Oh no. Come here. Are you okay?', 'I\'m so sorry. Want to talk about it?'], neu: ['Oh. That\'s rough.'], neg: ['Saw that coming, honestly.'] },
     dunk: { pos: ['WHAT?! Are you okay?!', 'The sea?! Do you need a towel?'], neu: ['...The sky did?'], neg: ['Sure it did.'] },
     rejected: { pos: ['Oh no. Their loss. Seriously.', 'Ouch. I\'m sorry. You were brave.'], neu: ['Oof.'], neg: ['Bold move.'] },
+    burned: { pos: ['WHAT?! Are you okay?! Let me see!', 'Oh my gosh. Do you need anything?'], neu: ['...Fire? Really?'], neg: ['You do smell a bit burnt.'] },
+    blessed: { pos: ['That\'s amazing! You deserve it.', 'Wait, really? What did it feel like?'], neu: ['Huh. Lucky.'], neg: ['Must be nice.'] },
+    flung: { pos: ['Are you hurt?! Sit down!', 'That\'s terrifying. I\'m so glad you\'re okay.'], neu: ['A meteor? Wow.'], neg: ['Sure it did.'] },
+    nearMiss: { pos: ['That\'s so scary. Are you okay?', 'Stay close to me, okay?'], neu: ['Yikes.'], neg: ['Close one.'] },
   };
   def('myNews', {
     key: 'myNews', w: 1,
@@ -430,7 +450,7 @@ IS.Talk = (() => {
       { by: 'b', say: ['Of course. What?', 'Ooh. Tell me.', 'Uh oh. What happened?'] },
       { by: 'a', say: ctx => MINE[ctx.news.kind] || ['Things have been eventful.'] },
       { by: 'b', judge: 'myNews', say: ctx => MINE_R[ctx.news.kind] || { pos: ['Wow!'], neu: ['Huh.'], neg: ['Hm.'] } },
-      { by: 'a', say: ctx => ({ couple: ['I\'m kind of freaking out. In a good way.', 'Don\'t tell everyone. ...Okay, you can tell everyone.'], won: ['I\'ll sign autographs later.', 'Thank you. Thank you.'], breakup: ['I\'ll be okay. Probably.', 'Thanks for listening.'], dunk: ['I\'m still finding seaweed in my hair.', 'I think the sky has it out for me.'], rejected: ['Yeah. I\'ll live.', 'Thanks. Really.'] }[ctx.news.kind] || ['Yeah.']) },
+      { by: 'a', say: ctx => ({ couple: ['I\'m kind of freaking out. In a good way.', 'Don\'t tell everyone. ...Okay, you can tell everyone.'], won: ['I\'ll sign autographs later.', 'Thank you. Thank you.'], breakup: ['I\'ll be okay. Probably.', 'Thanks for listening.'], dunk: ['I\'m still finding seaweed in my hair.', 'I think the sky has it out for me.'], rejected: ['Yeah. I\'ll live.', 'Thanks. Really.'], burned: ['My eyebrows will grow back. Probably.', 'Never again.'], blessed: ['I feel like I could fly.', 'Best day ever.'], flung: ['My ears are still ringing.', 'I\'m staying indoors forever.'], nearMiss: ['I keep checking the sky now.', 'I don\'t like it up there.'] }[ctx.news.kind] || ['Yeah.']) },
     ],
   });
 
@@ -1458,6 +1478,15 @@ IS.Talk = (() => {
     const evSoon = ev && ev.day === sim.clock.day && ev.start - min < 180 && ev.start > min && ev.attendees && ev.attendees.get(a.name) && ev.attendees.get(b.name);
     const partners = a.relTo(b.name).partner;
     const warm = b.relTo(a.name).friendship > 20 && b.traits.grumpy < 0.5;
+    // After bad news, or while grieving: no chirpy goodbyes
+    const heavy = IS.Social.HEAVY.has(conv.lastTopic) || IS.Gods.inMourning(a) || IS.Gods.inMourning(b);
+    if (heavy && !['apology', 'argue'].includes(conv.lastTopic)) {
+      const told = conv.lastTopic === 'breakNews';
+      return [
+        { sp: a, text: pick(told ? ['I\'m sorry you had to hear it like this.', 'I just thought you should know.', 'Take care of yourself, okay?'] : ['I need some time alone.', 'Let\'s stick together today, okay?', 'Take care of yourself.', 'I\'m going to go sit somewhere quiet.', 'Come find me if you need me.'], a.name) },
+        { sp: b, text: pick(told ? ['Thanks for telling me.', 'I need a minute.', '...Yeah. Thanks.'] : ['You too.', 'Yeah. Okay.', 'Stay safe.', 'I will. You too.'], b.name) },
+      ];
+    }
     const first = late ? BYE.night : evSoon && Math.random() < 0.7 ? BYE.event : partners && Math.random() < 0.6 ? BYE.partner : BYE.a;
     const second = late ? BYE.b.night : partners ? BYE.b.partner : warm ? BYE.b.warm : BYE.b.cool;
     return [

@@ -116,6 +116,8 @@ IS.Social = (() => {
     }
   };
 
+  const HEAVY = new Set(['breakNews', 'mourn', 'shockTalk', 'mournCorrected', 'skyFear', 'comfort', 'vent', 'breakup', 'apology', 'argue']);
+  S.HEAVY = HEAVY;
   S.passBy = (sim, a, b) => {
     if (IS.Gods.inMourning(a) || IS.Gods.inMourning(b)) {
       a.faceToward(b.x, b.y);
@@ -265,6 +267,12 @@ IS.Social = (() => {
           return this.legacy(seg, null);
         }
         case 'segue': {
+          // Nobody goes from "Iroh is dead" to "pizza?": heavy talks don't drift
+          if (HEAVY.has(this.lastTopic) || IS.Gods.inMourning(a) || IS.Gods.inMourning(b)) {
+            const nxt = this.segs[this.segIdx + 1];
+            if (nxt && nxt.kind === 'auto') this.segs.splice(this.segIdx + 1, 1);
+            return false;
+          }
           // Whoever didn't just talk changes the subject and leads the next topic
           const sp = this.lastSpeaker ? this.other(this.lastSpeaker) : seg.sp;
           seg.lines = [{ sp, text: IS.Talk.segue(this, sp) }];

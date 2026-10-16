@@ -98,7 +98,7 @@ IS.Mind = (() => {
   // The speaker's own news that the listener hasn't heard yet (told in first person)
   M.ownNews = (sim, sp, li) => {
     const now = sim.clock.abs;
-    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
+    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected', 'burned', 'blessed', 'flung', 'nearMiss'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
   };
   const RUMOR = {
     fight: ['Did you hear {a} and {b} got into it?', '{a} and {b} had a HUGE fight earlier.', 'So... {a} and {b} aren\'t talking right now.'],
@@ -108,6 +108,12 @@ IS.Mind = (() => {
     won: ['{a} won the fishing contest. We will never hear the end of it.', 'Did you see {a} win the contest?'],
     dunk: ['{a} got thrown into the SEA earlier. By the sky!', 'The Sky Hand dropped {a} in the ocean. I saw it.'],
     date: ['{a} and {b} were on a little date earlier. So cute.', 'I saw {a} and {b} stargazing together...'],
+    burned: ['{a} got set on FIRE today. By the sky. They lived, somehow.', 'Did you hear? {a} was literally on fire earlier.'],
+    blessed: ['The sky blessed {a}. Golden light and everything.', '{a} got hit by this glowing beam and now they\'re all happy.'],
+    flung: ['A meteor nearly flattened {a}. They went FLYING.', '{a} got blasted across the island by a meteor.'],
+    nearMiss: ['Lightning hit right next to {a}. Like, RIGHT next to them.', 'The sky almost fried {a} today.'],
+    meteor: ['A meteor crashed down near {a}. There\'s a crater now.', 'Did you hear the boom? A rock fell from the sky near {a}.'],
+    weird: ['{a} started {detail} out of nowhere earlier. Just... {detail}.', 'Is {a} okay? I saw them {detail} for no reason.'],
   };
 
   // ------------------------------------------------------------ plans
@@ -283,8 +289,8 @@ IS.Mind = (() => {
   };
 
   // A friend got dunked or flung: the people who care come running
-  M.rally = (sim, victim) => {
-    const n = M.news(sim, 'dunk', victim);
+  M.rally = (sim, victim, kind = 'dunk') => {
+    const n = M.news(sim, kind, victim);
     for (const o of sim.people) {
       if (o === victim || !IS.Social.isFree(o)) continue;
       const f = o.relTo(victim.name).friendship;
@@ -357,7 +363,7 @@ IS.Mind = (() => {
     switch (topic) {
       case 'rumor': {
         const n = extra.news;
-        return pick(RUMOR[n.kind], who).replace('{a}', n.a).replace('{b}', n.b || '');
+        return pick(RUMOR[n.kind], who).replace('{a}', n.a).replace('{b}', n.b || '').replace(/{detail}/g, n.detail || 'acting weird');
       }
       case 'congrats': case 'congratsSour': {
         const n = extra.news;

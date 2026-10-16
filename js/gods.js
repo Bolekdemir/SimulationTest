@@ -104,11 +104,14 @@ IS.Gods = (() => {
     if (sim.world.isWater(tx, ty)) sim.fx.splash(x, y, 18);
     else G.decal(sim, 'scorch', x, y, 11);
     if (p) G.kill(sim, p, 'smite');
+    let close = null;
     for (const o of sim.people.slice()) {
       const d = IS.dist(o.x, o.y, x, y);
-      if (d < TL() * 1.7 && (o.mode === 'normal' || o.mode === 'recover')) G.fling(sim, o, x, y, 140, 230);
+      if (d < TL() * 1.7 && (o.mode === 'normal' || o.mode === 'recover')) { G.fling(sim, o, x, y, 140, 230); if (!close) close = o; }
+      else if (!close && d < TL() * 4) close = o;
     }
     G.scare(sim, x, y, 9);
+    if (close && !p) IS.Mind.news(sim, 'nearMiss', close);
   };
 
   // ------------------------------------------------------------ meteor
@@ -149,6 +152,22 @@ IS.Gods = (() => {
       }
     }
     G.scare(sim, x, y, 15);
+    // Survivors get talked about
+    const flung = sim.people.filter(o => o.mode === 'air' && IS.dist(o.x, o.y, x, y) < TL() * 7);
+    if (flung.length) for (const o of flung.slice(0, 2)) IS.Mind.rally(sim, o, 'flung');
+    else { const near = sim.people.slice().sort((a, b) => IS.dist(a.x, a.y, x, y) - IS.dist(b.x, b.y, x, y))[0]; if (near && IS.dist(near.x, near.y, x, y) < TL() * 12) IS.Mind.news(sim, 'meteor', near); }
+  };
+
+  // A few onlookers say something about what just happened
+  G.witness = (sim, about, lines, radius, skip = []) => {
+    let n = 0;
+    const now = performance.now();
+    for (const o of sim.people) {
+      if (o === about || skip.includes(o) || !awake(o) || o.burning || IS.dist(o.x, o.y, about.x, about.y) > TL() * radius || !sameSpace(o, about.x, about.y, about.building)) continue;
+      if (o.bubble && o.bubble.until > now) continue;
+      if (n++ > 2 || Math.random() < 0.3) continue;
+      setTimeout(() => { if (!o.chat) { o.say(IS.pick(lines), 2.4); o.emote('exclaim', 1.4); } }, 400 + Math.random() * 900);
+    }
   };
 
   // Send someone flying away from a point
@@ -221,6 +240,8 @@ IS.Gods = (() => {
     p.addMood('Nearly burned alive', -18, 720);
     p.remember('Got set on fire by the Sky. Survived. Barely.', { tag: 'burned', news: true });
     sim.log(`${p.name} put the fire out. Singed, but alive.`, 'sky', [p]);
+    IS.Mind.rally(sim, p, 'burned');
+    G.witness(sim, p, ['Phew! They made it!', `${p.name}! Are you okay?!`, 'That was close...'], 9);
     if (p.mode === 'panic') { p.path = []; p.mode = 'recover'; p.recoverUntil = sim.clock.abs + 4; p.pose = 'stand'; }
   };
 
@@ -295,6 +316,8 @@ IS.Gods = (() => {
       if (!o.sick) o.say(IS.pick(o.skyOpinion < -40 ? ['...why are you being nice now?', 'Is this a trick?', 'I don\'t trust this. But I feel AMAZING.'] : ['I feel... AMAZING!', 'Warm. So warm.', 'Thank you, Sky!', 'Is this what heaven feels like?', 'I could run a marathon. I won\'t. But I could.']), 2.6);
       o.remember('Was blessed by the Sky. Felt incredible.', { tag: 'blessed', news: true });
     }
+    IS.Mind.news(sim, 'blessed', targets[0]);
+    G.witness(sim, targets[0], ['Did you SEE that light?!', 'Whoa... it\'s glowing!', 'Why does nobody bless ME?', 'Is that... a good sign?'], 10, targets);
     sim.log(targets.length === 1 ? `The Sky blessed ${targets[0].name}.` : `The Sky blessed ${targets.map(o => o.name).join(', ')}.`, 'sky', targets);
   };
 

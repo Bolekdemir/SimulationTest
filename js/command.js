@@ -618,6 +618,12 @@ IS.Command = (() => {
       p.say(IS.pick(e.say), 3); p.emote(e.emote, 2);
       p.needs.fun = Math.min(100, p.needs.fun + 4);
       p.cmdWait = sim.clock.abs + 4;
+      const ing = { dance: 'dancing', sing: 'singing', laugh: 'laughing', cry: 'crying', wave: 'waving at the sky', jump: 'jumping around', scream: 'screaming', clap: 'clapping', flex: 'flexing', stretch: 'stretching' }[order.k];
+      const seenBy = sim.people.filter(o => o !== p && o.pose !== 'sleep' && (o.building || null) === (p.building || null) && IS.dist(o.x, o.y, p.x, p.y) < IS.TILE * 8);
+      if (ing && seenBy.length) {
+        IS.Mind.news(sim, 'weird', p, null, { detail: ing });
+        IS.Gods.witness(sim, p, [`...${p.name}?`, 'What are they DOING?', 'Is this a bit?', 'Okay, I love this.'], 8);
+      }
       return { ok: true, text: `${p.name} will ${order.what}.` };
     }
     if (order.kind === 'soothe') {

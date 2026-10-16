@@ -106,7 +106,7 @@ IS.World = class {
     for (let i = 0; i < 4; i++) {
       this.addBuilding({ id: 'house' + i, kind: 'house', x0: houseX[i], y0: 26, w: 6, h: 5, doorCols: [2], roof: roofs[i], wall: walls[i], index: i });
     }
-    this.addBuilding({ id: 'hall', kind: 'hall', x0: 35, y0: 23, w: 10, h: 7, doorCols: [4, 5], roof: '#e0703a', wall: '#f6dcae' });
+    this.addBuilding({ id: 'hall', kind: 'hall', x0: 35, y0: 23, w: 10, h: 7, doorCols: [4, 5], roof: '#c25a3c', wall: '#f4e2bc' });
 
     // 5. Village ground: plaza, road, connectors
     const paint = (x, y, t, onlyLand = true) => {
@@ -467,15 +467,20 @@ IS.World = class {
       this.addSpot('cookHome', b.x0 + 2, b.y0 + 2, 'up', 'stand', { building: b.id });
       b.wallpaper = IS.mix(b.wall, b.roof, 0.12);
     } else {
-      add('counter', 1, 1, { w: 3 });
-      add('fireplace', 6, 1, { w: 2 });
-      add('shelf', 8, 1);
-      add('shelf', 4, 1);
-      add('table', 2, 3, { w: 6, cloth: true });
-      add('plant', 1, 5); add('plant', 8, 5);
-      add('rug', 3, 5, { w: 4, color: '#a8463a' });
-      for (let c = 3; c <= 7; c++) { add('chair', c, 2); this.addSpot('hallSeat', b.x0 + c, b.y0 + 2, 'down', 'sit', { building: b.id }); }
-      for (let c = 2; c <= 7; c++) { add('chair', c, 4); this.addSpot('hallSeat', b.x0 + c, b.y0 + 4, 'up', 'sit', { building: b.id }); }
+      // Purely decorative pieces (drawn by IS.Iso's hall interior); none of them block tiles.
+      add('hallRug', 1.6, 1.95, { w: 6.8, d: 3.1, color: '#a8463a' });
+      add('hallRug', 4.15, 5.05, { w: 1.7, d: 0.95, color: '#a8463a', runner: true });
+      add('kitchen', 1, 1, { w: 3 });
+      add('bookcase', 4, 1, { top: 'plant' });
+      add('logBasket', 5, 1);
+      add('hearth', 6, 1, { w: 2 });
+      add('bookcase', 8, 1, { top: 'globe' });
+      add('teaTable', 1, 3);
+      add('banquet', 2, 3, { w: 6 });
+      add('lectern', 8, 3);
+      add('bigPlant', 1, 5); add('bigPlant', 8, 5);
+      for (let c = 3; c <= 7; c++) { add('hallChair', c, 2, { face: 'down' }); this.addSpot('hallSeat', b.x0 + c, b.y0 + 2, 'down', 'sit', { building: b.id }); }
+      for (let c = 2; c <= 7; c++) { add('hallChair', c, 4, { face: 'up' }); this.addSpot('hallSeat', b.x0 + c, b.y0 + 4, 'up', 'sit', { building: b.id }); }
       this.addSpot('cook', b.x0 + 2, b.y0 + 2, 'up', 'stand', { building: b.id });
       this.addSpot('read', b.x0 + 8, b.y0 + 2, 'up', 'stand', { building: b.id, hall: true });
       this.addSpot('shelter', b.x0 + 6, b.y0 + 2, 'up', 'stand', { building: b.id });
