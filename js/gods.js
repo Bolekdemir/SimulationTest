@@ -462,6 +462,7 @@ IS.Gods = (() => {
   G.learnDeath = (sim, o, N, how, from) => {
     const e = o.mourning && o.mourning[N];
     if (!e || e.aware) return false;
+    if (sim.byName(N)) { delete o.mourning[N]; return false; } // they're alive again: old news
     e.aware = true; e.t = sim.clock.abs; e.how = how;
     e.sawBody = how === 'saw' || how === 'found';
     const g = sim.graves.find(x => x.name === N);
@@ -528,6 +529,30 @@ IS.Gods = (() => {
           o.emote('anger', 2.4);
           o.skyOpinion = IS.clamp(o.skyOpinion - 2, -100, 100);
         }
+      }
+    }
+    // Spreading good news: the revived person looks for the people they love,
+    // and anyone who knows tells whoever is still grieving
+    for (const o of sim.people) {
+      if (!awake(o) || o.chat || !IS.Social.isFree(o) || o.mode !== 'normal' || Math.random() > 0.05) continue;
+      const fresh = o.revivedAt && now - o.revivedAt > 30 && now - o.revivedAt < 1440;
+      const pairs = [];
+      if (fresh) for (const x of sim.people) if (x !== o && x.revived && x.revived[o.name] && !x.revived[o.name].aware && !x.revived[o.name].never) pairs.push({ to: x, topic: 'imBack', w: x.relTo(o.name).friendship + 30 });
+      for (const [N, e] of Object.entries(o.revived || {})) {
+        if (!e.aware || e.never || now - e.t > 1440) continue;
+        for (const x of sim.people) if (x !== o && x.name !== N && x.revived && x.revived[N] && !x.revived[N].aware && !x.revived[N].never) pairs.push({ to: x, topic: 'reviveNews', dead: N, w: x.relTo(N).friendship });
+      }
+      const pick = pairs.filter(q => q.to.pose !== 'sleep' && q.to.mode === 'normal' && q.to.canBeVisited(o)).sort((a, b) => b.w - a.w)[0];
+      if (pick) { IS.Social.approach(sim, o, pick.to, pick.topic, true, pick.dead ? { dead: pick.dead } : {}); o.thought = pick.topic === 'imBack' ? `${pick.to.name} still thinks I'm dead. I have to find them.` : `${pick.to.name} doesn't know ${pick.dead} is back!`; }
+    }
+    // Running into someone you thought was dead
+    for (const o of sim.people) {
+      for (const [N, e] of Object.entries(o.revived || {})) {
+        if (e.aware) continue;
+        const p = sim.byName(N);
+        if (!p) continue;
+        if (awake(o) && awake(p) && sameSpace(o, p.x, p.y, p.building) && IS.dist(o.x, o.y, p.x, p.y) < TL() * 5) G.learnRevive(sim, o, N, 'met');
+        else if (now - e.t > 360 && awake(o) && Math.random() < 0.02) G.learnRevive(sim, o, N, 'heard');
       }
     }
     // Stumbling on a body
@@ -642,7 +667,8 @@ IS.Gods = (() => {
     Object.assign(p.needs, { hunger: 60, energy: 70, social: 35, fun: 50 });
     sim.people.push(p);
     sim.people.sort((a, b) => a.id - b.id);
-    // Bonds come back (unless someone moved on)
+    // Bonds come back (unless someone moved on). Only people who saw it know yet:
+    // everyone else keeps grieving until they meet them, get told, or hear it.
     for (const o of sim.people) {
       if (o === p) continue;
       const r = (p.stash && p.stash[o.name]) || { friendship: 0, romance: 0, label: '', partner: false };
@@ -651,20 +677,12 @@ IS.Gods = (() => {
         const now = o.partner();
         if (now && now !== p) { r.partner = false; p.relTo(o.name).partner = false; }
       }
-      if (o.mourning) delete o.mourning[N];
-      if (IS.Mind.feeling(o) && o.emotion.about === N) IS.Mind.clearFeeling(o);
-      o.memories = o.memories.filter(m => !(m.tag === 'death' && m.about === N));
-      o.moodMods = o.moodMods.filter(m => !m.label.includes(N) || !m.label.match(/died|Lost/));
-      const f = r.friendship;
-      const seen = awake(o) && IS.dist(o.x, o.y, p.x, p.y) < TL() * 13;
-      o.remember(`${N} came back from the dead!`, { tag: 'miracle', about: N, mood: f > 20 ? 14 : 2, news: true });
-      o.skyOpinion = IS.clamp(o.skyOpinion + (f > 20 ? 16 : 5), -100, 100);
-      if (r.partner || f > 50) IS.Mind.feel(o, 'giddy', N, 6);
-      if (seen) {
-        o.emote(f > 20 ? 'heart' : 'exclaim', 2.4);
-        o.say(IS.pick(f > 20 ? [`${N}?! You're ALIVE!`, 'IT\'S A MIRACLE!', `${N}!!! I missed you so much!`] : f < -30 ? ['Oh great. They\'re back.', 'Ugh. Of course.'] : ['GHOST! GHOOOST!', 'That\'s not natural.', 'Did they just... get up?!']), 2.6);
-        if (f < 20 && o.traits.brave < 0.5) G.panicRun(sim, o, p.x, p.y);
-      }
+      o.revived = o.revived || {};
+      o.revived[N] = { aware: false, t: sim.clock.abs, f: r.friendship, partner: !!r.partner };
+      // Never even heard they died: nothing to find out
+      if (!(o.mourning && o.mourning[N] && o.mourning[N].aware)) { if (o.mourning) delete o.mourning[N]; o.revived[N].aware = true; o.revived[N].never = true; continue; }
+      const seen = awake(o) && IS.dist(o.x, o.y, p.x, p.y) < TL() * 13 && !o.building;
+      if (seen) G.learnRevive(sim, o, N, 'saw');
     }
     p.stash = {};
     p.revivedAt = sim.clock.abs;
@@ -679,11 +697,60 @@ IS.Gods = (() => {
       fall: ['My everything hurts. Like, everything.', 'The ground was... very hard.'],
     }[g.cause] || ['Was I... dead?']).concat(['I saw a light. Then a hand.', 'Being dead was very quiet. Would not recommend.']);
     p.say(IS.pick(lines), 3);
+    IS.Mind.feel(p, 'dazed', null, 1.5);
+    p.thought = IS.pick(['Where... am I? Why is there dirt in my hair?', 'I was dead. I was DEAD.', 'Everything is so bright.']);
+    const loved = sim.people.filter(o => o !== p && (p.relTo(o.name).partner || p.relTo(o.name).friendship > 35)).sort((a, b) => p.relTo(b.name).friendship - p.relTo(a.name).friendship);
+    for (const o of loved.slice(0, 3)) IS.Mind.addPlan(p, { kind: 'talk', who: o.name, topic: 'imBack', text: `Find ${o.name} and tell them I'm alive` });
     const s = IS.Iso.w2s(p.x, p.y);
     for (let i = 0; i < 30; i++) sim.fx.add({ x: s.x + IS.rand(-10, 10), y: s.y - IS.rand(0, 30), vx: IS.rand(-20, 20), vy: IS.rand(-60, -20), g: 0, max: IS.rand(0.8, 1.6), color: IS.pick(['#ffffff', '#e8fbff', '#bff6ff']), size: 1, fade: true });
     sim.log(`${N} rose from the grave!`, 'sky', [p]);
     sim.toast(`${N} is back!`);
     if (sim.ui) { sim.ui.panels(); }
+  };
+
+  // Someone finds out a dead friend is back. how: saw | met | told | heard
+  G.learnRevive = (sim, o, N, how, from) => {
+    const e = o.revived && o.revived[N];
+    if (!e || e.aware) return false;
+    const p = sim.byName(N);
+    if (!p) return false;
+    e.aware = true; e.t = sim.clock.abs; e.how = how;
+    const r = o.relTo(N), f = r.friendship, close = r.partner || f > 40;
+    const grieved = o.mourning && o.mourning[N] && o.mourning[N].aware;
+    if (o.mourning) delete o.mourning[N];
+    if (IS.Mind.feeling(o) && o.emotion.about === N) IS.Mind.clearFeeling(o);
+    o.memories = o.memories.filter(m => !(m.tag === 'death' && m.about === N));
+    o.moodMods = o.moodMods.filter(m => !(m.label.includes(N) && /died|Lost|dead|goodbye|Buried|peace/i.test(m.label)));
+    const how2 = { saw: `Watched ${N} rise from the grave!`, met: `Ran into ${N}. ALIVE.`, told: `${from ? from.name : 'Someone'} told me ${N} is alive again!`, heard: `Heard ${N} came back from the dead.` }[how];
+    o.remember(how2, { tag: 'miracle', about: N, news: true, mood: close ? 22 : f > 10 ? 8 : f < -30 ? -3 : 2, moodDuration: close ? 1440 : 600 });
+    o.skyOpinion = IS.clamp(o.skyOpinion + (close ? 18 : f > 10 ? 8 : 2), -100, 100);
+    if (close) IS.Mind.feel(o, 'overjoyed', N, 8);
+    if (how === 'saw' || how === 'met') {
+      o.emote(close ? 'heart' : f < -30 ? 'anger' : 'exclaim', 2.6);
+      o.say(IS.pick(close ? [`${N}?! ${N}!!! You're ALIVE!`, grieved ? 'I buried you! I BURIED you!' : `${N}! I thought I lost you!`, 'IT\'S A MIRACLE!', `Come here, you idiot!`]
+        : f < -30 ? ['Oh great. They\'re back.', 'Of course. Of COURSE.', 'Can\'t even stay dead properly.']
+        : o.traits.brave < 0.45 ? ['GHOST! GHOOOST!', 'Stay back! Are you a zombie?!', 'That\'s not natural!'] : [`${N}? You're... walking?`, 'Wait. WAIT. You were dead!', 'Okay, I need to sit down.']), 3);
+      if (f < 15 && o.traits.brave < 0.45 && how === 'saw') G.panicRun(sim, o, p.x, p.y);
+    }
+    // The people who loved them go and see for themselves
+    if (close && o !== p && !o.chat && IS.Social.isFree(o) && o.mode === 'normal') IS.Social.approach(sim, o, p, 'backFromDead', true);
+    else if (close) IS.Mind.addPlan(o, { kind: 'talk', who: N, topic: 'backFromDead', text: `See ${N} with my own eyes` });
+    if (close && (how === 'told' || how === 'heard')) sim.log(`${o.name} heard ${N} is alive and ran to find them.`, 'good', [o]);
+    return true;
+  };
+  G.reviveToBreak = (sim, sp, li) => {
+    for (const [N, e] of Object.entries(sp.revived || {})) {
+      const le = li.revived && li.revived[N];
+      if (e.aware && le && !le.aware && li.name !== N && sim.byName(N)) return { name: N };
+    }
+    return null;
+  };
+  G.miracleTopic = (sim, sp, li) => {
+    for (const [N, e] of Object.entries(sp.revived || {})) {
+      const le = li.revived && li.revived[N];
+      if (e.aware && le && le.aware && li.name !== N && sim.clock.abs - e.t < 2880 && !(e.talked || {})[li.name]) return { name: N, e };
+    }
+    return null;
   };
 
   // ------------------------------------------------------------ queries used by actions and talk

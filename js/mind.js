@@ -21,6 +21,8 @@ IS.Mind = (() => {
 
   // ------------------------------------------------------------ emotions
   const EMO = {
+    overjoyed: { rank: 6, mood: 18, label: o => `Overjoyed. ${o} is back`, emote: 'heart' },
+    dazed: { rank: 6, mood: -6, label: () => 'Dazed. Just came back from the dead', emote: 'dizzy' },
     shocked: { rank: 6, mood: -12, label: o => `In shock. ${o} is gone`, emote: 'exclaim' },
     furious: { rank: 5, mood: -10, label: o => `Furious at the Sky over ${o}`, emote: 'anger' },
     grieving: { rank: 4, mood: -8, label: o => `Grieving ${o}`, emote: 'sad' },
@@ -500,6 +502,8 @@ IS.Mind = (() => {
       giddy: [`${o}!!! Okay. Breathe.`, `I can't stop smiling.`, `Is this what being happy feels like?`],
       sulking: [`${o} is SO annoying.`, `I'm not talking to ${o}. Not today.`, 'Hmph.'],
       proud: ['I am the best. Objectively.', 'Did everyone see that? I hope everyone saw that.'],
+      overjoyed: [`${o} is ALIVE. I can't stop smiling.`, `I'm never letting ${o} out of my sight again.`, 'Best. Day. Ever.'],
+      dazed: ['Was I really dead?', 'Everything feels too bright.', 'I can still taste the dirt.'],
       shocked: [`${o} can't be gone.`, 'This isn\'t real.', `I just saw ${o}. I JUST saw them.`],
       furious: [`The Sky took ${o}.`, 'I hate it up there. I hate it.', `Why ${o}? Why not anyone else?`],
       grieving: [`I keep thinking about ${o}.`, 'Everything is a bit quieter now.', `I miss ${o}.`],

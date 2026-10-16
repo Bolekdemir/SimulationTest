@@ -20,7 +20,7 @@ IS.Save = (() => {
     deaths: sim.deaths || 0, lastDeathAt: sim.lastDeathAt,
     graves: (sim.graves || []).map(g => ({ name: g.name, cause: g.cause, day: g.day, season: g.season, t: g.t, x: g.x, y: g.y, gx: g.gx, gy: g.gy, stage: g.stage, flowers: g.flowers, flip: g.flip, foundAt: g.foundAt || 0, stash: g.p.stash || {} })),
     people: (sim.everyone || sim.people).map(p => ({
-      name: p.name, x: p.x, y: p.y, dead: !!p.dead, mourning: p.mourning || {}, revivedAt: p.revivedAt || 0, welcomedBack: p.welcomedBack || {},
+      name: p.name, x: p.x, y: p.y, dead: !!p.dead, mourning: p.mourning || {}, revivedAt: p.revivedAt || 0, welcomedBack: p.welcomedBack || {}, revived: p.revived || {}, toldBack: p.toldBack || {},
       needs: p.needs, rel: p.rel, moodMods: p.moodMods,
       memories: p.memories.map(m => ({ ...m, toldTo: [...m.toldTo] })),
       skyOpinion: p.skyOpinion, grabCount: p.grabCount, sick: p.sick, wetUntil: p.wetUntil,
@@ -62,7 +62,7 @@ IS.Save = (() => {
       p.lastChatAt = s.lastChatAt || 0;
       p.idleUntil = 0;
       p.thought = 'Where was I?';
-      p.mourning = s.mourning || {}; p.revivedAt = s.revivedAt || 0; p.welcomedBack = s.welcomedBack || {};
+      p.mourning = s.mourning || {}; p.revivedAt = s.revivedAt || 0; p.welcomedBack = s.welcomedBack || {}; p.revived = s.revived || {}; p.toldBack = s.toldBack || {};
     }
     // The dead stay dead
     sim.deaths = d.deaths || 0;

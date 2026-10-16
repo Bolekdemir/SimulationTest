@@ -1146,6 +1146,66 @@ IS.Talk = (() => {
     },
   });
 
+  // --- Coming back from the dead (gods.js)
+  // Telling someone the good news
+  def('reviveNews', {
+    key: 'reviveNews', w: 1,
+    setup: ctx => { ctx.vars.dead = ctx.dead; const e = ctx.b.revived && ctx.b.revived[ctx.dead]; ctx.bFelt = !e ? 'mid' : e.partner || e.f > 40 ? 'close' : e.f < -30 ? 'cold' : 'mid'; },
+    beats: [
+      { by: 'a', say: ['You will NOT believe this.', 'Okay, sit down. Good news, for once.', 'Have you heard?! About {dead}?', 'Something impossible just happened.'] },
+      { by: 'b', say: ['What? What happened?', 'If this is a joke, I\'m not in the mood.', 'Heard what?'] },
+      { by: 'a', say: ['{dead} is alive. ALIVE. The Sky brought them back.', '{dead} climbed out of the grave. I saw it.', '{dead} is back. Like, walking-around back.'] },
+      { by: 'b', pick: ctx => ctx.bFelt, say: {
+        close: ['...What? WHERE? Where are they?!', 'Don\'t lie to me. Don\'t you DARE lie to me.', 'I have to see them. Right now.'],
+        mid: ['No way. That\'s... that\'s insane.', 'Back from the DEAD? How?!', 'Okay, that\'s actually terrifying.'],
+        cold: ['Great. Wonderful. Fantastic.', 'Of course they are.', 'Huh. So much for peace and quiet.'],
+      } },
+    ],
+    after: (ctx, sim) => IS.Gods.learnRevive(sim, ctx.b, ctx.dead, 'told', ctx.a),
+  });
+
+  // Someone still grieving gets set straight
+  def('mournCorrected', {
+    key: 'mournCorrected', w: 1,
+    setup: ctx => { ctx.vars.dead = ctx.dead; },
+    beats: [
+      { by: 'a', say: ['I keep thinking about {dead}.', 'I miss {dead} so much.', 'It\'s so quiet without {dead}.'] },
+      { by: 'b', say: ['Wait. You didn\'t hear?!', 'Oh my gosh. Nobody told you?', 'Hold on. You don\'t know?'] },
+      { by: 'a', say: ['...Hear what?', 'Know what?', 'What are you talking about?'] },
+      { by: 'b', say: ['{dead} is ALIVE! The Sky brought them back!', '{dead} came back! They\'re walking around and everything!', 'Go look! {dead} is alive!'] },
+    ],
+    after: (ctx, sim) => IS.Gods.learnRevive(sim, ctx.a, ctx.dead, 'told', ctx.b),
+  });
+
+  // Two people who know, trying to make sense of it
+  def('miracleTalk', {
+    key: 'miracleTalk', w: 1,
+    setup: ctx => { ctx.vars.dead = ctx.dead; },
+    beats: [
+      { by: 'a', say: ['So... {dead} came back from the dead. We\'re just okay with that?', 'I still can\'t believe {dead} is alive.', '{dead} being back. What does that even MEAN?'] },
+      { by: 'b', pick: ctx => (ctx.b.skyOpinion > 20 ? 'faith' : ctx.b.skyOpinion < -30 ? 'fear' : 'unsure'), say: {
+        faith: ['Maybe the Sky isn\'t so bad after all.', 'It means the Sky cares. Kind of.', 'Honestly? It\'s beautiful.'],
+        fear: ['It means the Sky decides who lives. That\'s scarier.', 'If it can bring us back, it can take us again.', 'I don\'t trust it.'],
+        unsure: ['I stopped trying to understand this island.', 'I\'m just glad they\'re back.', 'I have no idea. I\'m choosing joy.'],
+      } },
+      { by: 'a', say: ['Did they seem... different to you?', 'They keep talking about a hand. A big hand.', 'Let\'s just be nice to them. Being dead sounds rough.'] },
+    ],
+    after: ctx => { (ctx.a.revived[ctx.dead].talked = ctx.a.revived[ctx.dead].talked || {})[ctx.b.name] = true; ctx.a.changeRel(ctx.b.name, 2); },
+  });
+
+  // The revived person finding the people they love
+  def('imBack', {
+    key: 'imBack', w: 1,
+    setup: ctx => { ctx.vars.dead = ctx.a.name; ctx.knew = !!(ctx.b.revived && ctx.b.revived[ctx.a.name] && ctx.b.revived[ctx.a.name].aware); },
+    beats: [
+      { by: 'a', say: ['Hey... it\'s me. I\'m back.', 'Surprise? I\'m not dead anymore.', 'I came straight to find you.', 'I missed you. Like, from the other side.'] },
+      { by: 'b', pick: ctx => (ctx.knew ? 'knew' : 'shock'), say: { knew: ['I heard! I didn\'t believe it! Come here!', 'You\'re really here. You\'re actually here.', 'Don\'t you EVER do that to me again.'], shock: ['...What. WHAT?!', 'You\'re... you were... I went to your FUNERAL!', 'Am I dreaming? Pinch me.'] } },
+      { by: 'a', say: ['I know. I know. It\'s a lot.', 'The Sky did it. Don\'t ask me how.', 'I\'m okay. I think. Mostly.'] },
+      { by: 'b', pick: ctx => { const f = ctx.b.relTo(ctx.a.name).friendship; return f > 35 ? 'pos' : f > -20 ? 'neu' : 'neg'; }, say: { pos: ['I\'m never letting you out of my sight.', 'Best news I\'ve ever had.', 'Welcome back. For real.'], neu: ['Okay. Okay. This is fine.', 'Welcome back, I guess.'], neg: ['Huh. Welcome back.', 'Great.'] } },
+    ],
+    after: (ctx, sim) => { (ctx.a.toldBack = ctx.a.toldBack || {})[ctx.b.name] = sim.clock.abs; (ctx.b.welcomedBack = ctx.b.welcomedBack || {})[ctx.a.name] = sim.clock.abs; IS.Gods.learnRevive(sim, ctx.b, ctx.a.name, 'met'); ctx.a.changeRel(ctx.b.name, 5); ctx.b.changeRel(ctx.a.name, 6); },
+  });
+
   // "Break up with Jude" (a whisper)
   def('breakup', {
     key: 'breakup', w: 1,
@@ -1221,9 +1281,9 @@ IS.Talk = (() => {
     beats: [
       { by: 'a', say: { any: ['You... you were DEAD.', 'Is it really you?! I saw your grave!', 'Okay, I have to ask. What was it like?', 'You\'re not a ghost, right? Let me poke you.'], Iroh: ['So. Death. Five stars or one star?'], Beach: ['You were dead for a WHOLE day and nobody took your stuff. You\'re welcome.'] } },
       { by: 'b', say: { any: ['I know. Trust me, I know.', 'It was dark. And quiet. And then... a hand.', 'Being dead was very boring. Would not recommend.', 'I don\'t really want to talk about it.'], Egg: ['Honestly? Best nap of my life.'], Forest: ['Death was just a warm-up.'] } },
-      { by: 'a', judge: 'comfort', say: { pos: ['Don\'t ever do that again.', 'I\'m so glad you\'re back. Seriously.', 'I missed you. Like, a lot.'], neu: ['Well. Welcome back, I guess.', 'Weird. But okay.'], neg: ['Great. You\'re back.', 'Huh. And here I was enjoying the quiet.'] } },
+      { by: 'a', pick: ctx => { const f = ctx.a.relTo(ctx.b.name).friendship; return f > 35 ? 'pos' : f > -20 ? 'neu' : 'neg'; }, say: { pos: ['Don\'t ever do that again.', 'I\'m so glad you\'re back. Seriously.', 'I missed you. Like, a lot.'], neu: ['Well. Welcome back, I guess.', 'Weird. But okay.'], neg: ['Great. You\'re back.', 'Huh. And here I was enjoying the quiet.'] } },
     ],
-    after: (ctx, sim) => { (ctx.a.welcomedBack = ctx.a.welcomedBack || {})[ctx.b.name] = sim.clock.abs; if (ctx.v === 'pos') { ctx.a.changeRel(ctx.b.name, 4); ctx.b.changeRel(ctx.a.name, 6); } },
+    after: (ctx, sim) => { (ctx.a.welcomedBack = ctx.a.welcomedBack || {})[ctx.b.name] = sim.clock.abs; if (ctx.a.relTo(ctx.b.name).friendship > 35) { ctx.a.changeRel(ctx.b.name, 4); ctx.b.changeRel(ctx.a.name, 6); } },
   });
 
   // ------------------------------------------------------------ choosing
@@ -1254,7 +1314,10 @@ IS.Talk = (() => {
     if (topic === 'breakNews' && !extra.dead) { const n = IS.Gods.newsToBreak(sim, a, b); if (n) { extra.dead = n.name; extra.cause = n.cause; } }
     // They heard it from someone else on the way over: talk about it instead
     if (topic === 'breakNews' && extra.dead && b.mourning && b.mourning[extra.dead] && b.mourning[extra.dead].aware) return T.threadFor(sim, a, b, 'shockTalk', extra);
-    if ((topic === 'mourn' || topic === 'breakNews' || topic === 'shockTalk') && !extra.dead) return null;
+    if (topic === 'imBack' && !(a.revivedAt && sim.clock.abs - a.revivedAt < 2880)) return null;
+    if (topic === 'reviveNews' && !extra.dead) { const n = IS.Gods.reviveToBreak(sim, a, b); if (n) extra.dead = n.name; }
+    if (topic === 'reviveNews' && extra.dead && b.revived && b.revived[extra.dead] && b.revived[extra.dead].aware) return T.threadFor(sim, a, b, 'miracleTalk', extra);
+    if ((topic === 'mourn' || topic === 'breakNews' || topic === 'shockTalk' || topic === 'reviveNews' || topic === 'mournCorrected' || topic === 'miracleTalk') && !extra.dead) return null;
     if (topic === 'askAbout' && (!extra.subject || extra.subject === a || extra.subject === b)) return null;
     if (topic === 'crushAdvice' && !extra.crush) { extra.crush = IS.Dialogue.crushOf(a); if (!extra.crush || extra.crush === b) return null; }
     const ctx = T.ctx(sim, a, b, extra);
@@ -1275,8 +1338,15 @@ IS.Talk = (() => {
     if (tell) add('breakNews', 9, { dead: tell.name, cause: tell.cause });
     const shock = IS.Gods.shockTopic(sim, sp, li);
     if (shock) add('shockTalk', 4, { dead: shock.name, cause: shock.cause });
+    const back = IS.Gods.reviveToBreak(sim, sp, li);
+    if (back) add('reviveNews', 10, { dead: back.name });
+    const wonder = IS.Gods.miracleTopic(sim, sp, li);
+    if (wonder) add('miracleTalk', 3, { dead: wonder.name });
+    if (sp.revivedAt && now - sp.revivedAt < 1440 && (sp.relTo(li.name).friendship > 35 || sp.relTo(li.name).partner) && !((sp.toldBack || {})[li.name] > sp.revivedAt)) add('imBack', 6);
     const grief = IS.Gods.mournTopic(sim, sp);
-    if (grief && grief.name !== li.name) add('mourn', 2.2 + grief.f / 30 + (grief.partner ? 2 : 0), { dead: grief.name, cause: grief.cause, stage: grief.stage });
+    // Still grieving someone the listener knows is alive again
+    if (grief && li.revived && li.revived[grief.name] && li.revived[grief.name].aware) add('mournCorrected', 12, { dead: grief.name });
+    else if (grief && grief.name !== li.name) add('mourn', 2.2 + grief.f / 30 + (grief.partner ? 2 : 0), { dead: grief.name, cause: grief.cause, stage: grief.stage });
     if (li.revivedAt && now - li.revivedAt < 2880 && !(sp.welcomedBack && sp.welcomedBack[li.name] > li.revivedAt)) add('backFromDead', 8);
     if (sim.deaths && now - sim.lastDeathAt < 2880) add('skyFear', 0.9 + Math.max(0, -sp.skyOpinion) / 50);
     if (ev) { const name = ev.text.replace('Went to ', ''); const evObj = sim.events.list.find(e => e.name === name); add('eventRecap', 2.2, { recap: name, recapHost: evObj && evObj.host }); }
