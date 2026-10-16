@@ -382,7 +382,7 @@ IS.Actions = (() => {
     id: 'approach', label: 'Going to say hi', outdoor: false, social: true,
     can: () => false,
     score: () => 0,
-    plan: p => p.approachTarget ? { follow: p.approachTarget, duration: 5, topic: p.approachTopic } : null,
+    plan: p => p.approachTarget ? { follow: p.approachTarget, duration: 5, topic: p.approachTopic, extra: p.approachExtra } : null,
     label2: (p, a) => a.follow ? `Going over to ${a.follow.name}` : 'Going to say hi',
     thought: (p, a) => {
       const o = a.follow; if (!o) return 'Oh, hey!';

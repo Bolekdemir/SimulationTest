@@ -127,9 +127,9 @@ IS.Social = (() => {
   };
 
   // Walk over to someone and start a conversation (optionally about something)
-  S.approach = (sim, a, b, topic, forced) => {
+  S.approach = (sim, a, b, topic, forced, extra) => {
     if (a.action) a.cancelAction();
-    a.approachTarget = b; a.approachTopic = topic || null;
+    a.approachTarget = b; a.approachTopic = topic || null; a.approachExtra = extra || null;
     const ok = a.startAction(IS.Actions.approach, sim.clock);
     if (ok && forced) a.action.forced = true;
     if (ok && !forced && Math.random() < 0.5) a.say(IS.pick([`Oh, ${b.name}!`, `${b.name}! Wait up!`, `Ooh, there's ${b.name}.`]));
@@ -177,7 +177,7 @@ IS.Social = (() => {
       const segs = [{ kind: 'greet' }];
       const pend = this.pendingFor();
       if (pend) segs.push({ kind: 'resume', pend });
-      if (opts.topic) segs.push({ kind: 'topic', topic: opts.topic, sp: a, li: b });
+      if (opts.topic) segs.push({ kind: 'topic', topic: opts.topic, sp: a, li: b, extra: opts.extra });
       else if (!pend) segs.push({ kind: 'auto', sp: a, li: b });
       // Chatty pairs drift onto a second topic, led by the other person
       const soc = (a.traits.sociable + b.traits.sociable) / 2;
@@ -249,7 +249,7 @@ IS.Social = (() => {
           return true;
         }
         case 'topic': {
-          const run = IS.Talk.threadFor(sim, seg.sp, seg.li, seg.topic, {});
+          const run = IS.Talk.threadFor(sim, seg.sp, seg.li, seg.topic, Object.assign({}, seg.extra || {}));
           if (run) { seg.run = run; this.lastTopic = seg.topic; this.used.add(seg.topic); return true; }
           return this.legacy(seg, seg.topic);
         }
@@ -275,7 +275,7 @@ IS.Social = (() => {
     legacy(seg, topic) {
       const { sim } = this;
       const sp = seg.sp, li = seg.li;
-      const t = topic ? S.topicFor(sim, sp, li, topic) : S.chooseTopic(sim, sp, li, this.used);
+      const t = topic ? S.topicFor(sim, sp, li, topic, seg.extra || {}) : S.chooseTopic(sim, sp, li, this.used);
       this.used.add(t.topic);
       this.lastTopic = t.topic;
       const out = S.react(sim, sp, li, t);

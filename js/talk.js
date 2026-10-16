@@ -60,7 +60,7 @@ IS.Talk = (() => {
       if (k === 'self') return sp.name;
       const v = ctx.vars[k];
       return v !== undefined ? v : m;
-    }).replace(/\{(\w+)\}/g, (m, k) => (ctx.vars[k] !== undefined ? ctx.vars[k] : k));
+    }).replace(/\{(\w+)\}/g, (m, k) => (ctx.vars[k] !== undefined ? ctx.vars[k] : m));
   };
 
   // A beat's lines can be: a list, a function, or an object keyed by the
@@ -791,6 +791,45 @@ IS.Talk = (() => {
     ],
   });
 
+  // --- What do you think of ___? Answered from how they really feel
+  const opinionOf = (b, subj) => {
+    const r = b.relTo(subj.name);
+    if (r.partner) return 'partner';
+    if (r.romance > 45) return 'crush';
+    if (r.friendship > 55) return 'love';
+    if (r.friendship > 20) return 'like';
+    if (r.friendship > -10) return 'meh';
+    return 'dislike';
+  };
+  def('askAbout', {
+    key: 'askAbout', w: 1,
+    setup: ctx => { ctx.vars.subj = ctx.subject.name; ctx.op = opinionOf(ctx.b, ctx.subject); ctx.mine = opinionOf(ctx.a, ctx.subject); },
+    beats: [
+      { by: 'a', say: ['Can I ask you something? What do you think of {subj}?', 'Real talk. How do you feel about {subj}?', 'Okay, honest opinion. {subj}. Go.', 'What\'s your deal with {subj}, anyway?'] },
+      { by: 'b', pick: ctx => ctx.op, say: {
+        partner: ['{subj}? I\'m crazy about them. You know that.', 'Honestly? Best thing that ever happened to me.'],
+        crush: ['W-why are you asking? No reason. They\'re fine. Great. Whatever.', '...Is it that obvious?', 'Uh. They\'re... nice. Really nice. Why?'],
+        love: ['Love them. Best person on this island.', '{subj}? Ride or die.', 'Honestly, one of my favourite people.'],
+        like: ['They\'re great. Bit much sometimes, but great.', 'I like {subj}. Good vibes.', 'Solid. I\'d trust them.'],
+        meh: ['They\'re fine, I guess.', 'Don\'t really know them that well.', 'Eh. No strong feelings.'],
+        dislike: ['Don\'t get me started.', 'Honestly? Not my favourite.', 'Can we talk about literally anyone else?'] } },
+      { by: 'a', judge: 'askAbout', pick: ctx => { if (ctx.op === 'crush' || ctx.op === 'partner') return ctx.op; const pos = x => ['love', 'like', 'partner', 'crush'].includes(x); if (pos(ctx.mine) === pos(ctx.op)) return 'agree'; return ctx.mine === 'love' || ctx.mine === 'partner' ? 'defend' : ctx.mine === 'dislike' ? 'hate' : 'disagree'; }, say: {
+        defend: ['Really? {subj} is one of my favourite people.', 'Hey, that\'s my best friend you\'re talking about.', 'Wow. You don\'t know {subj} like I do.'],
+        hate: ['Really? I can\'t stand them.', 'Huh. You must see something I don\'t.', 'Wait, you LIKE {subj}?'],
+        crush: ['Oh my god. You LIKE {subj}.', 'Wait. Wait wait wait. You have a crush on {subj}!', 'I KNEW it.'],
+        partner: ['Aww. You two are disgusting. In a good way.', 'Okay, that\'s really sweet.'],
+        agree: ['Same, honestly.', 'Yeah, I feel the same way.', 'Okay good, it\'s not just me.'],
+        disagree: ['Huh. I see them really differently.', 'Really? I kind of like them.', 'Wow. Okay. Not how I see it.'] } },
+      { by: 'b', pick: ctx => (ctx.op === 'crush' ? 'crush' : 'any'), say: { crush: ['SHH. Don\'t tell anyone. Especially not {subj}.', 'If you tell {subj}, I will throw you in the sea.', '...Okay, yes. Maybe. Shut up.'], any: ['Anyway. Why do you ask?', 'Don\'t tell them I said that.', 'That\'s just my take.', 'Ask me again in a week.'] } },
+    ],
+    after: (ctx, sim) => {
+      // Opinions rub off a little, and secrets get learned
+      const delta = { partner: 2, crush: 1, love: 2, like: 1, meh: 0, dislike: -2 }[ctx.op] || 0;
+      ctx.a.changeRel(ctx.subject.name, delta * Math.max(0, ctx.a.relTo(ctx.b.name).friendship) / 60);
+      if (ctx.op === 'crush') ctx.a.remember(`Found out ${ctx.b.name} likes ${ctx.subject.name}`, { tag: 'secret', about: ctx.b.name });
+    },
+  });
+
   // --- Inviting someone to do something right after the chat (and then doing it)
   const HANG = { fishing: 'fish', swimming: 'swim', beach: 'beach', stargazing: 'stargaze', wandering: 'wander', gardening: 'garden', foraging: 'forage', reading: 'read', cats: 'petCat' };
   const HANG_GO = { fish: 'fishing', swim: 'swimming', beach: 'to the beach', stargaze: 'stargazing', wander: 'for a walk', garden: 'gardening', forage: 'foraging', read: 'read together', petCat: 'find the cat' };
@@ -1088,6 +1127,7 @@ IS.Talk = (() => {
     if (topic === 'eventRecap' && !extra.recap) return null;
     if (topic === 'teach' && !extra.teachLove) return null;
     if (topic === 'hangout' && !extra.hangDef) return null;
+    if (topic === 'askAbout' && (!extra.subject || extra.subject === a || extra.subject === b)) return null;
     if (topic === 'crushAdvice' && !extra.crush) { extra.crush = IS.Dialogue.crushOf(a); if (!extra.crush || extra.crush === b) return null; }
     const ctx = T.ctx(sim, a, b, extra);
     if (extra.recap) { ctx.vars.recap = extra.recap.replace(/^(\w+)'s/, (m, n) => n === a.name ? 'my' : n === b.name ? 'your' : m); ctx.vars.recapHost = extra.recapHost; }

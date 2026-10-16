@@ -238,6 +238,7 @@ IS.Person = class {
     const a = this.action;
     if (!a) return 'Idle';
     const label = a.def.label2 ? a.def.label2(this, a) : a.def.label;
+    if (a.phase === 'travel' && a.follow && a.wait > 0) return `Waiting to talk to ${a.follow.name}`;
     if (a.phase === 'travel') return (a.follow ? `Heading to ${a.follow.name}` : `On the way: ${label.toLowerCase()}`);
     if (a.date && a.with) return `On a date with ${a.with}`;
     if (a.with) return `${label} with ${a.with}`;
@@ -343,7 +344,7 @@ IS.Person = class {
     const d = IS.dist(this.x, this.y, o.x, o.y);
     if (d <= IS.TILE * (a.near ? 3.2 : 1.6) && (this.building || null) === (o.building || null)) {
       this.faceToward(o.x, o.y);
-      const started = IS.Social.start(this.sim, this, o, a.care ? { topic: 'sickVisit', stationaryB: true } : a.topic ? { topic: a.topic, forced: true } : { forced: true });
+      const started = IS.Social.start(this.sim, this, o, a.care ? { topic: 'sickVisit', stationaryB: true } : a.topic ? { topic: a.topic, forced: true, extra: a.extra } : { forced: true });
       if (started) { this.finishAction(c); return; }
       this.pose = 'stand';
       a.wait = (a.wait || 0) + dt;

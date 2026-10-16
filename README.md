@@ -32,7 +32,7 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
   - **Gossip**: news spreads person to person and shifts opinions; everyone has an island reputation.
   - **Reactions**: friends rush over when someone gets dunked, congratulate new couples, comfort the heartbroken. Couples can break up.
 - **Start menu and saving**: a title journal with Continue / New island / Meet the islanders / How to play. The island autosaves every in-game hour to this browser. Esc or the menu key pauses.
-- **Whispers from the sky**: type an order into the selected islander's page ("go fishing", "flirt with Lynn", "apologize to Beach", "roast Egg", "stop"). They always obey, with an opinion about it.
+- **Whispers from the sky**: type an order in plain words into the selected islander's page. The parser works out who it's for ("with/to Lynn"), who it's about ("about Forest"), what to do, and whether to bring someone along ("go fishing with Egg"). If it doesn't understand, the islander says so instead of guessing. `node tools/command-test.js` checks it against 167 phrasings, 45 of them held out from development.
 - **Weekly calendar**: Tue fishing contest, Wed supply boat, Thu story night, Fri community dinner, Sat beach bonfire, Sun picnic, plus birthday parties.
 - **Random life**: weather (sun, clouds, rain, storms, fog), dolphins, shooting stars, messages in bottles, colds (friends bring soup), food spoilage, firewood running out.
 - **Isometric world**: a raised island slab with cliff edges, 3D buildings with gable roofs and lit/shaded walls, cutaway interiors, market stalls, string lights, hedges, fences and beach umbrellas.

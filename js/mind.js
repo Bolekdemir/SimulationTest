@@ -211,7 +211,7 @@ IS.Mind = (() => {
 
   M.onStart = (sim, p, a) => {
     const def = a.def;
-    if (!INVITE[def.id] || a.invitedBy || p.mode !== 'normal' || p.sick) return;
+    if (!INVITE[def.id] || a.invitedBy || p.noAutoInvite || p.mode !== 'normal' || p.sick) return;
     const min = sim.clock.min;
     const partner = p.partner();
     const plan = (p.plans || []).find(pl => !pl.done && ((pl.kind === 'do' && pl.def === def.id && pl.invite) || pl.kind === 'bros' || (pl.kind === 'date' && DATE.has(def.id) && min >= 17 * 60)));
