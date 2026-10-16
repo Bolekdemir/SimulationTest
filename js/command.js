@@ -147,7 +147,7 @@ IS.Command = (() => {
     const aboutAt = text.indexOf(' about ');
     const aboutText = aboutAt >= 0 ? text.slice(aboutAt + 6) : '';
     const abouts = aboutText ? scoreAll(' ' + aboutText, ABOUT) : [];
-    const bad = find(text, GOSSIP_BAD), good = find(text, GOSSIP_GOOD);
+    let bad = find(text, GOSSIP_BAD), good = find(text, GOSSIP_GOOD);
     const stop = find(text, STOP);
 
     if (negated && !socials.find(s => s.k !== 'talk') || (stop && !acts.length && !socials.length && !target)) return { kind: 'stop', what: 'stay put' };
@@ -174,6 +174,12 @@ IS.Command = (() => {
       if (['sleep', 'eat', 'home'].includes(act.k) && !invite) return { kind: 'act', act: act.k, what: ACT_WHAT[act.k] };
       return { kind: 'actWith', act: act.k, with: friend, what: `go ${ACT_GO[act.k]} with ${friend.name}` };
     }
+    // Sharing an opinion: "tell Lynn what you think of Forest" is telling, not asking
+    const share = /\b(tell|let|show)\b.*\b(what you think|how you feel|what you feel|your opinion|your thoughts|your take)\b|\bshare your (opinion|thoughts|take)\b/.test(text);
+    if (share && subject && !bad && !good) {
+      const rel = actor.relTo ? actor.relTo(subject.name) : null;
+      if (rel && (rel.friendship < 0)) bad = ['share']; else good = ['share'];
+    }
     // Gossip: "trash talk Forest to Lynn", "say nice things about Egg to Jude"
     if ((bad || good) && (subject || (target && extraTargets.length) || (target && /\bto\b/.test(text) === false && !socialIntent))) {
       let subj = subject, who = target;
@@ -183,7 +189,7 @@ IS.Command = (() => {
       if (!who) who = C.confidant(actor, others, subj);
       if (!who) return { kind: 'needWho', what: 'gossip', reason: 'nobody to gossip with' };
       const topic = good && !bad ? 'gossipGood' : 'gossipBad';
-      return { kind: 'social', topic, target: who, extra: { third: subj }, what: `${topic === 'gossipGood' ? 'say nice things about' : 'gossip about'} ${subj.name} with ${who.name}` };
+      return { kind: 'social', topic, target: who, extra: { third: subj }, what: share ? `tell ${who.name} what they think of ${subj.name}` : `${topic === 'gossipGood' ? 'say nice things about' : 'gossip about'} ${subj.name} with ${who.name}` };
     }
     // Asking someone about someone else
     if (subject && !socialIntent) {
