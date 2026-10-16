@@ -26,9 +26,18 @@ IS.Command = (() => {
     home: ['go home', 'home', 'house', 'go inside', 'inside'],
     wander: ['wander', 'walk', 'go for a walk', 'take a walk', 'explore', 'stroll', 'look around', 'adventure'],
     pray: ['pray', 'pray to the sky', 'worship', 'worship the sky', 'say a prayer'],
+    beachcomb: ['beachcomb', 'beachcombing', 'collect shells', 'look for shells', 'find shells', 'shells', 'shell hunting', 'search the beach'],
+    sandcastle: ['sandcastle', 'build a sandcastle', 'make a sandcastle', 'sand castle', 'build a sand castle'],
+    bugs: ['catch bugs', 'bug catching', 'bugs', 'catch butterflies', 'butterflies', 'catch fireflies', 'fireflies', 'insects'],
+    paint: ['paint', 'painting', 'go paint', 'draw', 'drawing', 'make art', 'paint a picture'],
+    guitar: ['guitar', 'play guitar', 'play the guitar', 'play music', 'play a song', 'jam', 'music'],
+    workout: ['work out', 'workout', 'exercise', 'push ups', 'pushups', 'lift', 'train', 'get swole', 'gym'],
+    jog: ['jog', 'jogging', 'go for a run', 'go running', 'run laps', 'run around the island'],
+    kite: ['kite', 'fly a kite', 'kite flying'],
+    digTreasure: ['dig for treasure', 'dig up the treasure', 'find the treasure', 'treasure', 'dig'],
   };
-  const ACT_WHAT = { sleep: 'take a nap', eat: 'eat something', fish: 'go fishing', garden: 'tend the garden', forage: 'go foraging', chop: 'chop wood', read: 'read a book', swim: 'go for a swim', beach: 'relax on the beach', stargaze: 'go stargazing', plaza: 'hang out at the plaza', petCat: 'pet the cat', home: 'head home', wander: 'go for a wander', pray: 'pray to the sky' };
-  const ACT_GO = { fish: 'fishing', garden: 'gardening', forage: 'foraging', chop: 'chopping wood', read: 'reading', swim: 'swimming', beach: 'to the beach', stargaze: 'stargazing', plaza: 'to the plaza', petCat: 'to see the cat', wander: 'for a walk', eat: 'to eat', sleep: 'to nap', home: 'home', pray: 'to pray' };
+  const ACT_WHAT = { sleep: 'take a nap', eat: 'eat something', fish: 'go fishing', garden: 'tend the garden', forage: 'go foraging', chop: 'chop wood', read: 'read a book', swim: 'go for a swim', beach: 'relax on the beach', stargaze: 'go stargazing', plaza: 'hang out at the plaza', petCat: 'pet the cat', home: 'head home', wander: 'go for a wander', pray: 'pray to the sky', beachcomb: 'look for shells', sandcastle: 'build a sandcastle', bugs: 'catch bugs', paint: 'paint a picture', guitar: 'play guitar', workout: 'work out', jog: 'go for a jog', kite: 'fly a kite', digTreasure: 'dig for treasure' };
+  const ACT_GO = { fish: 'fishing', garden: 'gardening', forage: 'foraging', chop: 'chopping wood', read: 'reading', swim: 'swimming', beach: 'to the beach', stargaze: 'stargazing', plaza: 'to the plaza', petCat: 'to see the cat', wander: 'for a walk', eat: 'to eat', sleep: 'to nap', home: 'home', pray: 'to pray', beachcomb: 'beachcombing', sandcastle: 'to build a sandcastle', bugs: 'bug catching', paint: 'painting', guitar: 'to play guitar', workout: 'to work out', jog: 'jogging', kite: 'kite flying', digTreasure: 'treasure hunting' };
 
   // Social intents that need someone to do it to
   const SOCIAL = {

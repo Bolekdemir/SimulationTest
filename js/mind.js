@@ -98,7 +98,7 @@ IS.Mind = (() => {
   // The speaker's own news that the listener hasn't heard yet (told in first person)
   M.ownNews = (sim, sp, li) => {
     const now = sim.clock.abs;
-    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected', 'burned', 'blessed', 'flung', 'nearMiss'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
+    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected', 'burned', 'blessed', 'flung', 'nearMiss', 'levelUp', 'rareFind', 'bonk', 'treasure', 'kitten'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
   };
   const RUMOR = {
     fight: ['Did you hear {a} and {b} got into it?', '{a} and {b} had a HUGE fight earlier.', 'So... {a} and {b} aren\'t talking right now.'],
@@ -114,6 +114,15 @@ IS.Mind = (() => {
     nearMiss: ['Lightning hit right next to {a}. Like, RIGHT next to them.', 'The sky almost fried {a} today.'],
     meteor: ['A meteor crashed down near {a}. There\'s a crater now.', 'Did you hear the boom? A rock fell from the sky near {a}.'],
     weird: ['{a} started {detail} out of nowhere earlier. Just... {detail}.', 'Is {a} okay? I saw them {detail} for no reason.'],
+    levelUp: ['{a} is a {detail} now, apparently. They won\'t shut up about it.', 'Did you hear {a} became a {detail}?'],
+    rareFind: ['{a} found a {detail}! An actual {detail}!', 'Guess what {a} found. A {detail}. Lucky.'],
+    bonk: ['A coconut fell right on {a}\'s head. I can\'t stop laughing.', '{a} got bonked by a coconut earlier.'],
+    bees: ['{a} got chased by BEES in the garden.', 'Did you see {a} running from the bees? Incredible.'],
+    treasure: ['{a} dug up buried treasure! A {detail}!', 'There was actual treasure buried here. {a} found a {detail}.'],
+    treasureMap: ['{a} found a treasure map. There\'s an X somewhere on the island.', 'Psst. {a} has a treasure map. X marks the spot.'],
+    kitten: ['{a} adopted a kitten! It\'s called {detail}.', 'There\'s a new kitten on the island. {a} named it {detail}.'],
+    painting: ['{a} painted "{detail}". It\'s honestly beautiful.', 'Have you seen {a}\'s new painting? "{detail}". Stunning.'],
+    concert: ['{a} played guitar earlier and people actually stopped to listen.', 'Did you hear {a} play? They\'re good now!'],
   };
 
   // ------------------------------------------------------------ plans

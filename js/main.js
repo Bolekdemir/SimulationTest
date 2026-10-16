@@ -13,6 +13,7 @@ IS.Sim = class {
     this.people = IS.ISLANDERS.map((cfg, i) => new IS.Person(cfg, i, this));
     this.everyone = this.people.slice(); // the living and the dead
     IS.Gods.init(this);
+    IS.Content.init(this);
     IS.Social.seedRomance(this);
     this.news = [];
     this.events = new IS.Events(this);
@@ -153,6 +154,7 @@ IS.Sim = class {
     }
     this.fx.update(rdt);
     IS.Gods.update(this, rdt);
+    IS.Content.update(this, dt, rdt);
     this.waveTime += rdt * (1 + Math.min(speed, 5) * 0.15);
     this.ambientFx(rdt);
     this.input.update(rdt);

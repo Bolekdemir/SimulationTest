@@ -132,6 +132,8 @@ IS.Input = class {
     if (k === 'escape' && sim.power !== 'hand') { IS.Gods.setPower(sim, 'hand'); return; }
     const pw = IS.Gods.POWERS.find(x => x.key === k);
     if (k === 'p') { sim.ui.togglePowers(); return; }
+    if (k === 'k') { sim.ui.showCollection(document.getElementById('collection').hidden); return; }
+    if (k === 'escape' && !document.getElementById('collection').hidden) { sim.ui.showCollection(false); return; }
     if (pw) { if (document.getElementById('powers').hidden) sim.ui.togglePowers(true); IS.Gods.setPower(sim, pw.id); return; }
     if (k === 'escape' && !sim.selected) { sim.menu && sim.menu.open('pause'); return; }
     if (k === ' ') { e.preventDefault(); sim.setSpeed(sim.speedIdx === 0 ? (sim.lastSpeed || 1) : 0); }

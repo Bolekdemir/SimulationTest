@@ -39,6 +39,7 @@ IS.UI = class {
       'p-fire': grid(['...r....', '...rr...', '..rrr.r.', '.rryrrr.', '.ryyyrr.', 'rryyyyrr', 'rryyyyrr', '.rrrrrr.'], { r: '#e8343f', y: '#ffd56a' }),
       'p-bless': grid(['..yyyy..', '.y....y.', '..yyyy..', '...ww...', '..wwww..', '.w.ww.w.', '...ww...', '..w..w..'], { y: '#f2b82e', w: '#8f7565' }),
       'p-revive': grid(['..kkkk..', '.kggggk.', 'kgkggkgk', 'kggggggk', 'kgggkggk', '.kggggk.', '..kggk..', '..k..k..'], { k: '#2e1a10', g: '#bfe8d0' }),
+      chest: grid(['........', '.kkkkkk.', 'kyyyyyyk', 'kkkkkkkk', 'kbbybbbk', 'kbbbbbbk', 'kkkkkkkk', '........'], { k: '#2e1a10', y: '#f2b82e', b: '#a8763f' }),
       friend: grid(['...kk...', '..kkkk..', '..kkkk..', '...kk...', '.kkkkkk.', 'kkkkkkkk', 'kkkkkkkk', '........'], { k: '#8f7565' }),
     };
     this.$('ico-food').src = this.icons.food;
@@ -73,6 +74,8 @@ IS.UI = class {
       if (p) { sim.select(p); sim.follow = true; this.syncToggles(); }
     });
     this.$('btn-powers').addEventListener('click', () => this.togglePowers());
+    this.$('btn-collection').addEventListener('click', () => this.showCollection(this.$('collection').hidden));
+    this.$('collection-close').addEventListener('click', () => this.showCollection(false));
     this.togglePowers(!!IS.Settings.get('powers'));
     document.querySelectorAll('[data-power]').forEach(b => b.addEventListener('click', () => IS.Gods.setPower(sim, b.dataset.power)));
     // Whispers from the sky
@@ -121,6 +124,29 @@ IS.UI = class {
     IS.Settings.set('powers', on);
     if (!on && this.sim.power && this.sim.power !== 'hand') IS.Gods.setPower(this.sim, 'hand');
     this.syncToggles();
+  }
+
+  // The island's finds book
+  showCollection(on) {
+    const box = this.$('collection');
+    box.hidden = !on;
+    if (!on) return;
+    const sim = this.sim, C = IS.Content, have = sim.collection || {};
+    const found = C.ITEMS.filter(i => have[i.id]).length;
+    this.$('collection-sub').textContent = `${found} of ${C.ITEMS.length} finds discovered. Rare ones have a star.`;
+    let html = '';
+    for (const [cat, title] of Object.entries(C.CATS)) {
+      if (cat === 'art') continue;
+      const items = C.ITEMS.filter(i => i.cat === cat);
+      const n = items.filter(i => have[i.id]).length;
+      html += `<h3>${title} <small>${n}/${items.length}</small></h3><ul class="finds">` + items.map(i => {
+        const h = have[i.id];
+        return h ? `<li class="${i.w <= 4 ? 'rare' : ''}"><b>${this.esc(i.name)}</b><span>Found by ${this.esc(h.by)}, ${h.season} ${((h.day - 1) % 28) + 1}</span></li>` : `<li class="unknown"><b>???</b><span>${{ beach: 'Somewhere on the shore', forage: 'Deep in the woods', fish: 'Something in the water', bugs: 'Flitting through the meadow', bugsNight: 'Only comes out at night', treasure: 'Buried somewhere...' }[i.src] || 'Not found yet'}</span></li>`;
+      }).join('') + '</ul>';
+    }
+    const ps = (sim.paintings || []).slice().reverse();
+    html += `<h3>Paintings <small>${ps.length}</small></h3>` + (ps.length ? `<ul class="finds">${ps.slice(0, 18).map(p => `<li class="${p.quality === 'masterpiece' ? 'rare' : ''}"><b>“${this.esc(p.name)}”</b><span>by ${this.esc(p.by)}, ${p.quality}</span></li>`).join('')}</ul>` : '<p class="sub">Nobody has painted anything yet.</p>');
+    this.$('collection-body').innerHTML = html;
   }
 
   // Someone died: hide their speech bubble and name tag
@@ -406,7 +432,15 @@ IS.UI = class {
       ${p.cfg.into ? `<section><h4>Type</h4><p class="bio">${this.esc(this.typeLine(p))}</p></section>` : ''}
       <section><h4>Loves and hates</h4><div class="chips">${chips(p.loves, '')}${chips(p.hates, 'no')}</div></section>
       <section><h4>Personality</h4><div class="meters">${traits}</div></section>
+      ${this.skillsHtml(p)}
       <section><h4>Recent memories</h4><ul class="mems">${mems}</ul></section>`;
+  }
+
+  skillsHtml(p) {
+    const C = IS.Content, sk = p.skills || {};
+    const rows = Object.entries(C.SKILLS).filter(([k]) => (sk[k] || 0) >= 5).sort((a, b) => (sk[b[0]] || 0) - (sk[a[0]] || 0))
+      .map(([k, s]) => { const l = C.lvl(p, k), next = Math.pow(l + 1, 2) * 25, prev = Math.pow(l, 2) * 25; return `<span>${s.name}</span>${this.pips(((sk[k] - prev) / (next - prev)) * 100, 10, 'trait')}<em>Lv ${l} · ${C.title(p, k)}</em>`; });
+    return `<section><h4>Skills</h4>${rows.length ? `<div class="skills">${rows.join('')}</div>` : '<p class="bio">Hasn\'t practised anything yet.</p>'}</section>`;
   }
 
   ledgerNote(p, o) {

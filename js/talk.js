@@ -391,6 +391,15 @@ IS.Talk = (() => {
     nearMiss: ['Lightning struck right next to {na}. Like, inches away.', 'The sky almost fried {na} today.'],
     meteor: ['A meteor crashed down near {na}. There\'s a crater now. A CRATER.', 'Did you hear that boom? A rock fell out of the sky near {na}.'],
     weird: ['{na} started {detail} out of nowhere. Just... {detail}.', 'Is {na} okay? I saw them {detail} for no reason at all.'],
+    levelUp: ['{na} is a {detail} now, apparently. They won\'t stop talking about it.', 'Did you hear {na} became a {detail}?'],
+    rareFind: ['{na} found a {detail}! An actual {detail}!', 'Guess what {na} found. A {detail}. So lucky.'],
+    bonk: ['A coconut fell right on {na}\'s head. I can\'t stop laughing.', '{na} got bonked by a coconut earlier. Bonk.'],
+    bees: ['{na} got chased by BEES in the garden.', 'Did you see {na} running from the bees? Incredible.'],
+    treasure: ['{na} dug up buried treasure! A {detail}!', 'There was actual treasure on the island. {na} found a {detail}.'],
+    treasureMap: ['{na} found a treasure map. There\'s an X somewhere on the island.', 'Psst. {na} has a treasure map. X marks the spot.'],
+    kitten: ['{na} adopted a kitten! It\'s called {detail}.', 'There\'s a new kitten on the island. {na} named it {detail}.'],
+    painting: ['{na} painted "{detail}". It\'s honestly beautiful.', 'Have you seen {na}\'s new painting? "{detail}". Stunning.'],
+    concert: ['{na} played guitar earlier and people actually stopped to listen.', 'Did you hear {na} play? They\'re good now!'],
   };
   const RUMOR_R = {
     fight: { pos: ['Yikes. About what?', 'Again? Those two...'], neu: ['Oof.', 'Huh.'], neg: ['I\'m staying out of that.', 'Not my business.'] },
@@ -406,6 +415,15 @@ IS.Talk = (() => {
     nearMiss: { pos: ['That\'s terrifying.', 'I\'m staying indoors.'], neu: ['Yikes.'], neg: ['Shame it missed. Kidding!'] },
     meteor: { pos: ['A CRATER?! I have to see this.', 'Okay, the sky is officially out of control.'], neu: ['Wow.'], neg: ['Probably a big hailstone.'] },
     weird: { pos: ['Honestly? Iconic.', 'Haha, I love that.'], neu: ['...Huh.'], neg: ['Weirdo.'] },
+    levelUp: { pos: ['Good for them! They earned it.', 'Okay, that\'s impressive.'], neu: ['Cool.'], neg: ['Here we go. More bragging.'] },
+    rareFind: { pos: ['NO WAY. I need to see it.', 'So lucky!'], neu: ['Huh, nice.'], neg: ['Probably fake.'] },
+    bonk: { pos: ['HAHA. Is their head okay?', 'Nature is undefeated.'], neu: ['Ouch.'], neg: ['Deserved, honestly.'] },
+    bees: { pos: ['HAHAHA. Are they okay though?', 'Not the bees!'], neu: ['Yikes.'], neg: ['Ha. Good.'] },
+    treasure: { pos: ['ACTUAL treasure?! On OUR island?!', 'I\'m digging up the whole beach tomorrow.'], neu: ['Wow.'], neg: ['Finders keepers, I guess.'] },
+    treasureMap: { pos: ['I\'m helping. I\'m SO helping.', 'Where?! Where\'s the X?'], neu: ['A treasure map? Seriously?'], neg: ['Probably a prank.'] },
+    kitten: { pos: ['A KITTEN?! I need to meet it.', 'Stop. That\'s adorable.'], neu: ['Oh, cute.'], neg: ['More fur everywhere. Great.'] },
+    painting: { pos: ['I want to see it!', 'We should hang it in the Hall.'], neu: ['Nice.'], neg: ['I\'ve seen better.'] },
+    concert: { pos: ['I need to hear this!', 'Our own island musician!'], neu: ['Huh, cool.'], neg: ['My ears disagree.'] },
   };
   def('rumor', {
     key: 'rumor', w: 1,
@@ -430,6 +448,11 @@ IS.Talk = (() => {
     blessed: ['The sky blessed me! There was this golden light...', 'Something up there likes me. I got a whole beam.'],
     flung: ['A meteor nearly hit me. I flew. Like, FLEW.', 'I got blasted by a meteor and I\'m somehow fine.'],
     nearMiss: ['Lightning hit right next to me. I can still hear it.', 'The sky almost fried me today.'],
+    levelUp: ['I\'m officially a {detail} now. Just so you know.', 'Guess who\'s a {detail}? Me. It\'s me.'],
+    rareFind: ['I found a {detail}! Look at it!', 'Okay, don\'t freak out. I found a {detail}.'],
+    bonk: ['A coconut fell on my head today. My HEAD.', 'I got bonked by a coconut. Don\'t laugh.'],
+    treasure: ['I dug up actual treasure. A {detail}!', 'I followed the map and found a {detail}. Real treasure!'],
+    kitten: ['I adopted a kitten! Meet {detail}!', 'I have a kitten now. Her name is {detail}. I\'d die for her.'],
   };
   const MINE_R = {
     couple: { pos: ['WHAT?! Finally! I\'m so happy for you!', 'I KNEW it! Congrats!!'], neu: ['Oh! Wow. Congrats.', 'Huh. Didn\'t see that coming.'], neg: ['...Oh. Cool.', 'Great. Good for you.'] },
@@ -441,10 +464,15 @@ IS.Talk = (() => {
     blessed: { pos: ['That\'s amazing! You deserve it.', 'Wait, really? What did it feel like?'], neu: ['Huh. Lucky.'], neg: ['Must be nice.'] },
     flung: { pos: ['Are you hurt?! Sit down!', 'That\'s terrifying. I\'m so glad you\'re okay.'], neu: ['A meteor? Wow.'], neg: ['Sure it did.'] },
     nearMiss: { pos: ['That\'s so scary. Are you okay?', 'Stay close to me, okay?'], neu: ['Yikes.'], neg: ['Close one.'] },
+    levelUp: { pos: ['Look at you! Congrats!', 'Teach me sometime?'], neu: ['Nice.'], neg: ['Okay, okay, we get it.'] },
+    rareFind: { pos: ['NO WAY! Let me hold it!', 'That\'s incredible!'], neu: ['Oh, neat.'], neg: ['Lucky.'] },
+    bonk: { pos: ['Oh no! Are you okay? ...pfft.', 'Your poor head!'], neu: ['Ouch.'], neg: ['HA.'] },
+    treasure: { pos: ['You\'re RICH! Kind of!', 'That\'s amazing!'], neu: ['Huh, nice.'], neg: ['Must be nice.'] },
+    kitten: { pos: ['I NEED TO MEET HER.', 'Stop. Adorable.'], neu: ['Cute.'], neg: ['Keep it away from my stuff.'] },
   };
   def('myNews', {
     key: 'myNews', w: 1,
-    setup: ctx => { const n = ctx.news; ctx.vars.partner = n.a === ctx.a.name ? (n.b || '') : n.a; },
+    setup: ctx => { const n = ctx.news; ctx.vars.partner = n.a === ctx.a.name ? (n.b || '') : n.a; ctx.vars.detail = n.detail || 'something'; },
     beats: [
       { by: 'a', say: ['Can I tell you something?', 'Okay. Big news.', 'So, something happened.'] },
       { by: 'b', say: ['Of course. What?', 'Ooh. Tell me.', 'Uh oh. What happened?'] },

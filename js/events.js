@@ -358,6 +358,7 @@ IS.Events = class {
     const prev = sim.weather;
     sim.weather = w;
     if (silent) return;
+    IS.Content.onWeather(sim, prev, w);
     const msg = {
       sunny: 'The clouds part. Sunshine over the island.',
       cloudy: 'Clouds roll in over the island.',
@@ -388,6 +389,7 @@ IS.Events = class {
       for (const p of sim.people) if (Math.random() < p.traits.curious) sim.nudge(p, 1);
     }
     if ((hour >= 21 || hour <= 2) && sim.weather === 'sunny' && Math.random() < 0.15) this.shootingStar();
+    IS.Content.hourly(sim, hour);
     if (!this.bottle && hour >= 7 && hour <= 17 && Math.random() < 0.02) {
       const s = IS.pick((w.spots.shore || []).filter(s => !s.takenBy));
       if (s) this.bottle = { tx: s.x, ty: s.y, claimedBy: null };

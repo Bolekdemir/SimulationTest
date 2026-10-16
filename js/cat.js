@@ -1,7 +1,7 @@
 // The island cat. Wanders around its home, naps in the sun, sleeps indoors
 // at night, and sits still for anyone who wants to pet it.
 IS.Cat = class {
-  constructor(sim, name, homeId) {
+  constructor(sim, name, homeId, palette) {
     this.sim = sim;
     this.world = sim.world;
     this.name = name;
@@ -16,7 +16,8 @@ IS.Cat = class {
     this.reserved = null;
     this.pettedBy = null;
     this.heartUntil = 0;
-    this.frames = IS.Cat.sprites();
+    this.frames = IS.Cat.sprites(palette);
+    this.small = palette === 'grey';
   }
 
   get tx() { return Math.floor(this.x / IS.TILE); }
@@ -84,7 +85,7 @@ IS.Cat = class {
     if (b) ctx.globalAlpha = b.cut;
     ctx.fillStyle = 'rgba(20, 20, 40, 0.25)';
     ctx.beginPath(); ctx.ellipse(sx, sy - 1, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.drawImage(img, sx - 9, sy - 14);
+    if (this.small) ctx.drawImage(img, sx - 7, sy - 11, 14, 12); else ctx.drawImage(img, sx - 9, sy - 14);
     if (this.state === 'nap' && Math.floor(now / 900) % 2 === 0) {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(sx + 6, sy - 18, 3, 1); ctx.fillRect(sx + 7, sy - 17, 1, 1); ctx.fillRect(sx + 6, sy - 16, 3, 1);
@@ -95,11 +96,12 @@ IS.Cat = class {
 };
 
 IS.Cat.sprites = (() => {
-  let cache = null;
-  return () => {
-    if (cache) return cache;
+  const caches = {};
+  return (palette = 'ginger') => {
+    if (caches[palette]) return caches[palette];
     const px = IS.Sprites.px;
-    const fur = '#ec9440', furD = '#c4662a', furL = '#ffc078', white = '#fff4e6', eye = '#1d1424', pink = '#f28aa8';
+    const [fur, furD, furL] = palette === 'grey' ? ['#9a9aa8', '#6e6e80', '#c8c8d4'] : ['#ec9440', '#c4662a', '#ffc078'];
+    const white = '#fff4e6', eye = '#1d1424', pink = '#f28aa8';
     const make = kind => {
       const { c, g } = IS.makeCanvas(18, 15);
       if (kind === 'nap') {
@@ -135,7 +137,7 @@ IS.Cat.sprites = (() => {
     };
     const left = {};
     for (const k in right) left[k] = mirror(right[k]);
-    cache = { right, left };
-    return cache;
+    caches[palette] = { right, left };
+    return caches[palette];
   };
 })();

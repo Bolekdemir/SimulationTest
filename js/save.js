@@ -18,13 +18,15 @@ IS.Save = (() => {
     log: sim.logEntries.slice(-80),
     lastDolphinDay: sim.events.lastDolphinDay,
     deaths: sim.deaths || 0, lastDeathAt: sim.lastDeathAt,
+    collection: sim.collection || {}, paintings: sim.paintings || [], sandcastles: sim.sandcastles || [],
+    treasure: sim.treasure || null, kitten: sim.kitten ? { name: sim.kitten.name, owner: sim.kitten.owner || null, stray: !!sim.kitten.stray, x: sim.kitten.x, y: sim.kitten.y } : null,
     graves: (sim.graves || []).map(g => ({ name: g.name, cause: g.cause, day: g.day, season: g.season, t: g.t, x: g.x, y: g.y, gx: g.gx, gy: g.gy, stage: g.stage, flowers: g.flowers, flip: g.flip, foundAt: g.foundAt || 0, stash: g.p.stash || {} })),
     people: (sim.everyone || sim.people).map(p => ({
       name: p.name, x: p.x, y: p.y, dead: !!p.dead, mourning: p.mourning || {}, revivedAt: p.revivedAt || 0, welcomedBack: p.welcomedBack || {}, revived: p.revived || {}, toldBack: p.toldBack || {},
       needs: p.needs, rel: p.rel, moodMods: p.moodMods,
       memories: p.memories.map(m => ({ ...m, toldTo: [...m.toldTo] })),
       skyOpinion: p.skyOpinion, grabCount: p.grabCount, sick: p.sick, wetUntil: p.wetUntil,
-      plans: p.plans, ledger: p.ledger, emotion: p.emotion, knows: [...p.knows],
+      skills: p.skills || {}, plans: p.plans, ledger: p.ledger, emotion: p.emotion, knows: [...p.knows],
       history: p.history, confessedTo: p.confessedTo || {}, heardSky: !!p.heardSky, avoid: p.avoid,
       visitedBy: [...p.visitedBy], congratulated: [...(p.congratulated || [])], lastChatAt: p.lastChatAt || 0,
     })),
@@ -53,7 +55,7 @@ IS.Save = (() => {
       p.memories = (s.memories || []).map(m => ({ ...m, toldTo: new Set(m.toldTo || []) }));
       p.skyOpinion = s.skyOpinion || 0; p.grabCount = s.grabCount || 0;
       p.sick = !!s.sick; p.wetUntil = s.wetUntil || 0;
-      p.plans = s.plans || []; p.ledger = s.ledger || {}; p.emotion = s.emotion || null;
+      p.skills = s.skills || {}; p.plans = s.plans || []; p.ledger = s.ledger || {}; p.emotion = s.emotion || null;
       p.knows = new Set(s.knows || []);
       p.history = s.history || []; p.confessedTo = s.confessedTo || {}; p.heardSky = !!s.heardSky;
       p.avoid = s.avoid || {};
@@ -63,6 +65,12 @@ IS.Save = (() => {
       p.idleUntil = 0;
       p.thought = 'Where was I?';
       p.mourning = s.mourning || {}; p.revivedAt = s.revivedAt || 0; p.welcomedBack = s.welcomedBack || {}; p.revived = s.revived || {}; p.toldBack = s.toldBack || {};
+    }
+    sim.collection = d.collection || {}; sim.paintings = d.paintings || []; sim.sandcastles = d.sandcastles || []; sim.treasure = d.treasure || null;
+    if (d.kitten) {
+      const owner = d.kitten.owner && sim.everyone.find(x => x.name === d.kitten.owner);
+      sim.kitten = new IS.Cat(sim, d.kitten.name, owner ? owner.homeId : 'hall', 'grey');
+      sim.kitten.stray = d.kitten.stray; sim.kitten.owner = d.kitten.owner; sim.kitten.x = d.kitten.x; sim.kitten.y = d.kitten.y;
     }
     // The dead stay dead
     sim.deaths = d.deaths || 0;

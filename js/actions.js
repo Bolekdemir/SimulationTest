@@ -79,7 +79,8 @@ IS.Actions = (() => {
       p.needs.fun = Math.min(100, p.needs.fun + (p.loves.includes('fishing') ? 0.2 : 0.06) * dt);
       if (a.acc >= 20) {
         a.acc = 0;
-        if (Math.random() < 0.25 + (p.loves.includes('fishing') ? 0.1 : 0) + (p.sim.weather === 'rain' ? 0.08 : 0)) {
+        if (Math.random() < 0.25 + (p.loves.includes('fishing') ? 0.1 : 0) + (p.sim.weather === 'rain' ? 0.08 : 0) + IS.Content.lvl(p, 'fishing') * 0.02) {
+          if (Math.random() < 0.12 + IS.Content.lvl(p, 'fishing') * 0.01) IS.Content.find(p, 'fish');
           p.world.food++;
           a.catches = (a.catches || 0) + 1;
           p.emote('fish', 2);
@@ -110,14 +111,14 @@ IS.Actions = (() => {
     },
     tick: (p, a, dt) => {
       const crop = a.spot.crop;
-      crop.growth = Math.min(1, crop.growth + 0.0015 * dt);
+      crop.growth = Math.min(1, crop.growth + 0.0015 * dt * (1 + IS.Content.lvl(p, 'gardening') * 0.08));
       p.needs.fun = Math.min(100, p.needs.fun + (p.loves.includes('gardening') ? 0.18 : 0.03) * dt);
     },
     finish: (p, a) => {
       const crop = a.spot.crop;
       if (crop.growth >= 1) {
         crop.growth = 0.02;
-        p.world.food += 1;
+        p.world.food += 1 + (Math.random() < IS.Content.lvl(p, 'gardening') * 0.06 ? 1 : 0);
         p.emote('sparkle', 2);
         const word = { tomato: 'tomatoes', carrot: 'carrots', cabbage: 'a cabbage' }[crop.kind];
         if (Math.random() < 0.35) p.sim.log(`${p.name} harvested ${word}.`, 'good', [p]);
@@ -137,12 +138,7 @@ IS.Actions = (() => {
       if (a.acc >= 20) {
         a.acc = 0;
         if (Math.random() < 0.22) { p.world.food++; p.emote('food', 1.5); }
-        if (Math.random() < 0.04) {
-          const find = IS.pick(['a glowing blue mushroom', 'a strange shiny stone', 'an old brass compass', 'a bird\'s nest with a feather in it']);
-          p.remember(`Found ${find} in the forest`, { tag: 'find', mood: 10, news: true, detail: find });
-          p.say(`Ooh! ${find[0].toUpperCase() + find.slice(1)}!`);
-          p.sim.log(`${p.name} found ${find} in the forest.`, 'good', [p]);
-        }
+        IS.Content.find(p, 'forage', 0.08 + IS.Content.lvl(p, 'foraging') * 0.015);
       }
     },
     thought: () => 'Berries, mushrooms, maybe treasure...',
@@ -157,7 +153,7 @@ IS.Actions = (() => {
       a.acc = (a.acc || 0) + dt;
       p.needs.energy -= 0.03 * dt;
       if (Math.random() < dt * 0.6) p.sim.fx.chips(p.x, p.y);
-      if (a.acc >= 20) { a.acc = 0; p.world.wood++; }
+      if (a.acc >= 20 - IS.Content.lvl(p, 'chopping')) { a.acc = 0; p.world.wood++; }
       if (p.loves.includes('chopping')) p.needs.fun = Math.min(100, p.needs.fun + 0.18 * dt);
     },
     thought: p => p.loves.includes('chopping') ? 'Thwack! So satisfying.' : 'Somebody has to keep the woodpile stocked.',
@@ -317,14 +313,15 @@ IS.Actions = (() => {
 
   def({
     id: 'petCat', label: 'Petting the cat', love: 'cats', outdoor: true, chatOK: true,
-    can: (p, c) => { const cat = p.sim.cat; return !!cat && !cat.building && !cat.reserved && between(c.min, H(7), H(21)); },
+    can: (p, c) => !!IS.Content.freeCat(p) && between(c.min, H(7), H(21)),
     score: p => {
-      const cat = p.sim.cat;
+      const cat = IS.Content.freeCat(p);
       const near = IS.dist(p.x, p.y, cat.x, cat.y) < IS.TILE * 14 ? 0.3 : 0;
       return 0.1 + p.traits.kind * 0.25 + love(p, 'cats') * 1.4 + near + (p.loves.includes('cats') ? dN(p, 'fun') * 0.6 : 0);
     },
     plan: p => {
-      const cat = p.sim.cat;
+      const cat = IS.Content.freeCat(p);
+      if (!cat) return null;
       const goal = p.world.findNear(cat.tx, cat.ty, (x, y) => p.world.walkable(x, y) && !(x === cat.tx && y === cat.ty) && Math.abs(x - cat.tx) + Math.abs(y - cat.ty) === 1, 2);
       cat.reserved = p;
       return { tx: goal.x, ty: goal.y, duration: IS.rand(10, 20), cat };
@@ -332,6 +329,7 @@ IS.Actions = (() => {
     start: (p, a) => {
       p.faceToward(a.cat.x, a.cat.y);
       a.cat.pettedBy = p;
+      if (a.cat.stray) IS.Content.adopt(p.sim, p, a.cat);
       p.emote('heart', 2);
       if (Math.random() < 0.5) p.say(IS.pick([`Hi ${a.cat.name}! Who's a good kitty?`, 'Look at those little paws...', `${a.cat.name}! My favourite!`, 'Pspspsps.']));
     },
@@ -343,7 +341,7 @@ IS.Actions = (() => {
       a.cat.reserved = null; a.cat.pettedBy = null;
       if (p.loves.includes('cats')) p.remember(`Petted ${a.cat.name}`, { tag: 'cat', mood: 6, moodDuration: 240 });
     },
-    cancel: (p, a) => { const cat = p.sim.cat; if (cat && cat.reserved === p) { cat.reserved = null; cat.pettedBy = null; } },
+    cancel: (p, a) => { for (const cat of IS.Content.cats(p.sim)) if (cat.reserved === p) { cat.reserved = null; cat.pettedBy = null; } },
     thought: p => p.loves.includes('cats') ? 'I need to pet the cat. It is urgent.' : 'Hey, kitty kitty.',
   });
 

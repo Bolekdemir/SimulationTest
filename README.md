@@ -34,6 +34,8 @@ The current cast: **Iroh**, **Forest** and **Egg** (the bro trio), **Jude**, and
 - **Start menu and saving**: a title journal with Continue / New island / Meet the islanders / How to play. The island autosaves every in-game hour to this browser. Esc or the menu key pauses.
 - **Whispers from the sky**: type an order in plain words into the selected islander's page. The parser works out who it's for ("with/to Lynn"), who it's about ("about Forest"), what to do, and whether to bring someone along ("go fishing with Egg"). If it doesn't understand, the islander says so instead of guessing. `node tools/command-test.js` checks it against 170 phrasings, 45 of them held out from development.
 - **God powers**: a toolbar of Hand, Smite (lightning), Meteor, Fire, Bless and Revive (keys Z X C V B G). Islanders can die: a charred body, a crater full of remains, or a splat from being thrown too hard. Bodies get buried and graves get flowers. Survivors grieve, talk about the dead, visit graves, start fearing the sky and pray at the plaza. Revive brings someone back with every bond intact, and everyone has questions.
+- **Skills and finds**: islanders level up what they practise (fishing, gardening, foraging, woodcutting, swimming, beachcombing, sandcastles, bug catching, painting, guitar, fitness) and earn titles; better skills mean better catches, bigger sandcastles, nicer paintings and music people enjoy. Shells, rare fish, forest finds, bugs and buried treasure fill the island's Finds book (K).
+- **More to do and more going on**: beachcombing, sandcastles that wash away (or get kicked over), bug catching, painting, guitar, workouts, jogging and kites; plus whales, auroras, rainbows, coconuts, bee attacks, treasure maps and a stray kitten who can be adopted.
 - **Weekly calendar**: Tue fishing contest, Wed supply boat, Thu story night, Fri community dinner, Sat beach bonfire, Sun picnic, plus birthday parties.
 - **Random life**: weather (sun, clouds, rain, storms, fog), dolphins, shooting stars, messages in bottles, colds (friends bring soup), food spoilage, firewood running out.
 - **Isometric world**: a raised island slab with cliff edges, 3D buildings with gable roofs and lit/shaded walls, cutaway interiors, market stalls, string lights, hedges, fences and beach umbrellas.
@@ -80,6 +82,7 @@ node tools/train.js train --gens 25 --pop 10   # evolve new settings (writes too
 | `js/iso.js` | Isometric projection and procedural iso art (buildings, interiors, props) |
 | `js/sprites.js` | All pixel art, drawn procedurally |
 | `js/actions.js` | Every activity and how it is scored |
+| `js/content.js` | Skills, the Finds collection, extra activities and random happenings |
 | `js/gods.js` | God powers, death, gore, graves, grief and revival |
 | `js/person.js` | Islander entity: needs, movement, memory, relationships, Sky Hand physics |
 | `js/cat.js` | The island cat |

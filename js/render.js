@@ -228,6 +228,7 @@ IS.Renderer = class {
     ctx.drawImage(w.foamCanvas, sx, sy, sw, sh, sx - ox, sy - oy + 1, sw, sh);
     ctx.globalAlpha = 1;
     this.drawDolphins(ctx, ox, oy, now);
+    IS.Content.drawSea(this, ctx, ox, oy, now);
     ctx.drawImage(w.landCanvas, sx, sy, sw, sh, sx - ox, sy - oy, sw, sh);
 
     const inView = (x, y, m = 80) => x > ox - m && x < ox + vw + m && y > oy - m && y < oy + vh + m * 2;
@@ -286,6 +287,8 @@ IS.Renderer = class {
     const boat = sim.events.boat;
     if (boat) list.push({ d: boat.x / T + (boat.y - 6) / T, kind: 'boat' });
     if (sim.cat) list.push({ d: this.depthAt(sim.cat.x / T, (sim.cat.y - 6) / T), kind: 'cat' });
+    if (sim.kitten) list.push({ d: this.depthAt(sim.kitten.x / T, (sim.kitten.y - 6) / T), kind: 'kitten' });
+    for (const o of IS.Content.objects(sim)) list.push({ d: this.depthAt(o.x / T, (o.y - 6) / T) - 0.05, o, kind: 'cobj' });
     list.sort((a, b) => a.d - b.d);
     for (const it of list) {
       if (it.kind === 'obj') {
@@ -310,6 +313,10 @@ IS.Renderer = class {
         IS.Gods.drawGrave(this, ctx, it.g, ox, oy, t);
       } else if (it.kind === 'cat') {
         sim.cat.draw(ctx, ox, oy, now);
+      } else if (it.kind === 'kitten') {
+        sim.kitten.draw(ctx, ox, oy, now);
+      } else if (it.kind === 'cobj') {
+        IS.Content.drawObj(this, ctx, it.o, ox, oy, t);
       } else if (it.kind === 'boat') {
         const s = I.w2s(boat.x, boat.y);
         ctx.drawImage(IS.Sprites.boat, Math.round(s.x - 40 - ox), Math.round(s.y - 60 - oy + Math.sin(t * 1.5) * 1.5));
@@ -333,6 +340,7 @@ IS.Renderer = class {
     this.drawWeather(ctx, rdt, t, amb);
     this.drawBloom(ctx, amb);
     this.drawStars(ctx, now);
+    IS.Content.drawSky(this, ctx, now);
     ctx.drawImage(this.vignette, 0, 0);
     for (const p of sim.people) this.drawEmote(ctx, p, ox, oy, now);
   }
@@ -482,6 +490,7 @@ IS.Renderer = class {
     }
     if (p.pose === 'fish' && !p.chat) this.drawRod(ctx, p, sx, sy, t);
     ctx.globalAlpha = 1;
+    IS.Content.drawProp(this, ctx, p, sx, sy, t);
     IS.Gods.drawOnPerson(this, ctx, p, sx, sy, t);
   }
 
