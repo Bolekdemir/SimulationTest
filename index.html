@@ -319,6 +319,38 @@
   #help ul { margin: 0; padding-left: 18px; }
   #help kbd { font-family: var(--ui); font-size: 13px; padding: 0 5px 1px; background: var(--page-2); box-shadow: var(--frame-px); color: var(--ink); margin: 0 2px; }
   #help-close { margin-top: 18px; }
+  #town { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 10, 26, 0.55); padding: 16px; z-index: 5; }
+  #town .leather { position: relative; max-width: 760px; width: 100%; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); display: flex; padding: 10px; min-height: 0; }
+  #town .inner { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 24px; background: var(--page); box-shadow: 0 0 0 2px var(--cover-lo); }
+  #town h2 { margin: 0 0 2px; font-size: 30px; font-weight: 700; }
+  #town h3 { margin: 18px 0 8px; font-size: 18px; font-weight: 700; color: var(--ribbon-lo); display: flex; justify-content: space-between; gap: 8px; }
+  #town h3 small { font-family: var(--num); font-size: 20px; color: var(--ink-3); font-weight: 400; }
+  #town .sub { margin: 0 0 14px; color: var(--ink-3); font-size: 15px; }
+  #town-x { position: absolute; top: 18px; right: 22px; z-index: 2; width: 36px; height: 36px; padding: 0; font-size: 20px; line-height: 1; display: grid; place-items: center; }
+  #town-close { margin-top: 18px; }
+  #place-hint { position: absolute; left: 50%; top: max(84px, calc(env(safe-area-inset-top, 0px) + 84px)); transform: translateX(-50%); z-index: 4; display: flex; gap: 10px; align-items: center; padding: 8px 10px 8px 14px; max-width: calc(100% - 32px); font-size: 15px; color: var(--ink); }
+  #place-hint span { background: var(--page); padding: 6px 10px; box-shadow: var(--frame-px); }
+  #place-hint.bad span { color: var(--ribbon-lo); }
+  .finds li .key { margin-top: 6px; }
+  .finds li .key[disabled] { opacity: 0.55; cursor: not-allowed; }
+  .town-tabs { display: flex; gap: 8px; margin: 4px 0 6px; flex-wrap: wrap; }
+  .town-tabs .key[aria-pressed="true"] { background: var(--ribbon); color: var(--page); }
+  .rating { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .rating big { font-family: var(--num); font-size: 54px; line-height: 1; color: var(--ink); }
+  .rating span { font-size: 20px; font-weight: 700; color: var(--ribbon-lo); }
+  .meter { height: 12px; background: var(--page-3); box-shadow: var(--frame-px); position: relative; margin: 6px 0 2px; }
+  .meter i { position: absolute; inset: 0 auto 0 0; background: var(--leaf, #5fae4a); }
+  .meter i.neg { background: var(--ribbon); }
+  .meter b { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+  .parts { display: grid; grid-template-columns: minmax(110px, auto) 1fr auto; gap: 6px 12px; align-items: center; font-size: 14px; margin: 0; }
+  .parts dt { font-weight: 700; color: var(--ink); }
+  .parts dd { margin: 0; color: var(--ink-3); min-width: 0; }
+  .parts .num { font-family: var(--num); font-size: 18px; color: var(--ink); text-align: right; }
+  .card { display: flex; gap: 12px; padding: 10px 12px; background: var(--page-2); box-shadow: var(--frame-px); align-items: flex-start; }
+  .card img { width: 56px; height: 56px; image-rendering: pixelated; background: var(--page-3); flex: none; }
+  .card div { min-width: 0; font-size: 14px; color: var(--ink-3); line-height: 1.4; }
+  .card b { color: var(--ink); font-size: 16px; }
+  .card .good { color: #3f8a52; } .card .bad { color: var(--ribbon-lo); }
   #collection { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20, 10, 26, 0.55); padding: 16px; z-index: 5; }
   #collection .leather { position: relative; max-width: 760px; width: 100%; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); display: flex; padding: 10px; min-height: 0; }
   #collection-x { position: absolute; top: 18px; right: 22px; z-index: 2; width: 36px; height: 36px; padding: 0; font-size: 20px; line-height: 1; display: grid; place-items: center; }
@@ -485,6 +517,7 @@
     <button class="key icon" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in"><img data-icon="plus" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""></button>
     <span class="gap"></span>
     <button class="key" id="btn-powers" title="God powers (P)"><img data-icon="p-smite" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Powers</span></button>
+    <button class="key" id="btn-town" title="Town: rating, visitors, building (T)"><img data-icon="town" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Town</span></button>
     <button class="key" id="btn-collection" title="Island collection (K)"><img data-icon="chest" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Finds</span></button>
     <button class="key" id="btn-roofs" title="See inside buildings (R)"><img data-icon="roof" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Roofs</span></button>
     <button class="key" id="btn-names" title="Name tags (N)"><img data-icon="tag" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt=""><span class="lbl">Names</span></button>
@@ -576,6 +609,17 @@
     <p id="menu-foot">v1.0 · Designed by Mav · Built with Claude Code</p>
   </div>
 
+  <div id="town" hidden>
+    <div class="leather"><div class="inner">
+      <button class="key" id="town-x" title="Close (Esc)" aria-label="Close">✕</button>
+      <h2>Tidewhistle</h2>
+      <p class="sub" id="town-sub"></p>
+      <div class="town-tabs" id="town-tabs"><button class="key" data-tab="overview">Island</button><button class="key" data-tab="build">Build</button></div>
+      <div id="town-body"></div>
+      <button class="key" id="town-close">Back to the island</button>
+    </div></div>
+  </div>
+
   <div id="collection" hidden>
     <div class="leather"><div class="inner">
       <button class="key" id="collection-x" title="Close (Esc)" aria-label="Close">✕</button>
@@ -593,6 +637,7 @@
       <h3>Controls</h3>
       <ul>
         <li><b>Click</b> an islander to open their page. Type into the box there to tell them what to do, in plain words: <b>go fishing</b>, <b>take a nap</b>, <b>go swimming with Egg</b>, <b>ask Lynn what she thinks of Forest</b>, <b>trash talk Jude to Beach</b>, <b>talk to Egg about the cat</b>, <b>flirt with Lynn</b>, <b>apologize to Beach</b>, <b>stop</b>. You can also <b>ask them things</b> (<b>how are you?</b>, <b>who's your crush?</b>, <b>what do you think of Beach?</b>, <b>are you scared of me?</b>) and they answer honestly, chain orders (<b>eat, then go fishing</b>, <b>after you nap, go swimming</b>), send them places (<b>go to the lighthouse</b>, <b>go to Egg's house</b>), or make them <b>dance</b>, <b>wave</b>, <b>calm down</b>, <b>wake up</b>, <b>avoid Jude</b>, <b>break up with Lynn</b> or <b>say "hi everyone"</b>. Typos are fine. If they don't understand, they'll say so instead of guessing.</li>
+        <li><b>Grow the town</b> with the <b>Town</b> book (<kbd>T</kbd>). The <b>Island Rating</b> (happiness, friendliness, food, things to do, minus fear of the Sky) decides whether visitors come. A visitor spends two days meeting everyone, then decides whether to stay, and tells you why. They need a home: a spare room with someone who likes them, or a new house. Open the <b>Build</b> tab, pick a house, bakery, library or gym, and click a spot. The islanders build it over a few days. Bless a building site to speed it up.</li>
         <li><b>Couples</b> are their own thing. They go on dates only couples go on (sunsets holding hands, picnics for two, slow dances with no music), kiss hello, give each other gifts picked for what the other loves, celebrate anniversaries, get jealous, fight and make up, and eventually propose. A yes means a <b>wedding at the Hall</b> two days later, and the whole island comes. Whisper <b>kiss Lynn</b>, <b>take Jude on a date</b>, <b>watch the sunset with Egg</b>, <b>give Forest a gift</b>, <b>make up with Beach</b> or <b>propose to Lynn</b>. Grab someone and their partner will yell at you.</li>
         <li><b>Press and hold</b> an islander to pick them up. Drag them around, then <b>flick</b> to throw. Flick <i>really</i> hard and they won't get up again.</li>
         <li><b>God powers</b>: press <kbd>P</kbd> or the Powers button to open the toolbar. <kbd>Z</kbd> hand, <kbd>X</kbd> smite, <kbd>C</kbd> meteor, <kbd>V</kbd> fire, <kbd>B</kbd> bless, <kbd>G</kbd> revive. Pick one, then click the island. <kbd>Esc</kbd> puts the hand back. The dead get graves, the living grieve and start to fear the sky, and a revive brings anyone back.</li>
@@ -629,6 +674,7 @@
 <script src="js/world.js"></script>
 <script src="js/dialogue.js"></script>
 <script src="js/actions.js"></script>
+<script src="js/newcomers.js"></script>
 <script src="js/person.js"></script>
 <script src="js/cat.js"></script>
 <script src="js/social.js"></script>
@@ -640,6 +686,8 @@
 <script src="js/gods.js"></script>
 <script src="js/content.js"></script>
 <script src="js/love.js"></script>
+<script src="js/town.js"></script>
+<script src="js/build.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/input.js"></script>

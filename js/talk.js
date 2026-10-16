@@ -193,6 +193,15 @@ IS.Talk = (() => {
     ],
     after: (ctx, sim) => T.addLore(sim, { kind: 'scheme', owner: ctx.a.name, text: ctx.vars.scheme, knownBy: [ctx.a.name, ctx.b.name] }),
   });
+  // Newcomers say their own catchphrases (newcomers.js)
+  def('newCatch', {
+    key: 'catchphrase', w: 1, who: IS.Newcomers.NAMES,
+    setup: ctx => { ctx.vars.cp = IS.pick(ctx.a.cfg.catchphrases || ['Hm.']); },
+    beats: [
+      { by: 'a', say: ctx => [ctx.vars.cp] },
+      { by: 'b', judge: 'joke', say: { pos: ['Ha! You always say that.', 'And that\'s why I like you.', 'Never change.'], neu: ['...Okay.', 'Sure.', 'If you say so.'], neg: ['You say that a lot.', 'Please stop saying that.', 'Ugh.'] } },
+    ],
+  });
   def('grind', {
     key: 'catchphrase', w: 1, who: ['Forest'],
     beats: [
@@ -402,6 +411,10 @@ IS.Talk = (() => {
     painting: ['{na} painted "{detail}". It\'s honestly beautiful.', 'Have you seen {na}\'s new painting? "{detail}". Stunning.'],
     concert: ['{na} played guitar earlier and people actually stopped to listen.', 'Did you hear {na} play? They\'re good now!'],
     engaged: ['{na} and {nb} are ENGAGED! There\'s going to be a wedding!', '{na} got down on one knee for {nb}. ONE KNEE.'],
+    building: ['They\'re building a {detail}! Over by the path.', 'There\'s a {detail} going up. A real one.'],
+    built: ['The new {detail} is finished! Have you seen it?', 'We have a {detail} now. An actual {detail}.'],
+    visitor: ['There\'s a visitor on the island. {na}. Came in on the boat.', 'Have you met {na}? New face. Just visiting, apparently.'],
+    movedIn: ['{na} is staying! They live here now.', 'Big news: {na} moved in for good.'],
     wedding: ['{na} and {nb} got married! I cried the whole time.', 'The wedding! {na} and {nb}! Did you see?'],
     makeup: ['{na} and {nb} made up. Kissed right there by the path.', 'Good news: {na} and {nb} are talking again.'],
     gift: ['{na} gave {nb} {detail}. For no reason. Just love.', 'Did you see what {na} got {nb}? {detail}!'],
@@ -431,6 +444,10 @@ IS.Talk = (() => {
     painting: { pos: ['I want to see it!', 'We should hang it in the Hall.'], neu: ['Nice.'], neg: ['I\'ve seen better.'] },
     concert: { pos: ['I need to hear this!', 'Our own island musician!'], neu: ['Huh, cool.'], neg: ['My ears disagree.'] },
     engaged: { pos: ['A WEDDING?! I\'m crying already.', 'Finally! I need an outfit.'], neu: ['Wow. Fast.'], neg: ['...Good for them. I guess.'] },
+    building: { pos: ['A {detail}?! Finally!', 'Ooh, I\'ll go help.'], neu: ['Huh. Nice.'], neg: ['More hammering. Great.'] },
+    built: { pos: ['I have to see it!', 'This island is turning into a real town.'], neu: ['Oh, cool.'], neg: ['It\'s fine, I guess.'] },
+    visitor: { pos: ['Ooh, a new face! I have to meet them.', 'A visitor? We should make them feel welcome.'], neu: ['Huh. Okay.'], neg: ['Great. Another person.'] },
+    movedIn: { pos: ['Yay! The island\'s getting bigger!', 'Welcome to the family, then.'], neu: ['Oh, cool.'], neg: ['Hope they don\'t take my bench.'] },
     wedding: { pos: ['Our first island wedding!', 'Stop, I\'m going to cry again.'], neu: ['Nice.'], neg: ['Give it a month.'] },
     makeup: { pos: ['Oh thank goodness.', 'Good. They\'re better together.'], neu: ['Huh, okay.'], neg: ['Until the next fight.'] },
     gift: { pos: ['Aww! Why does nobody get ME stuff?', 'Okay, that\'s adorable.'], neu: ['Cute.'], neg: ['Show-offs.'] },
@@ -450,6 +467,7 @@ IS.Talk = (() => {
 
   // --- Your own big news, told in first person
   const MINE = {
+    movedIn: ['I live here now! Officially!', 'Guess who\'s a real islander now? Me!'],
     engaged: ['{partner} and I are getting MARRIED!', 'Guess who\'s engaged? Me! To {partner}!'],
     wedding: ['I got married! To {partner}! It\'s real!', 'Hi. I\'m a married person now. {partner} and I did it.'],
     makeup: ['{partner} and I made up. We\'re good again.', 'We sorted it out, {partner} and me. All good.'],
@@ -991,6 +1009,55 @@ IS.Talk = (() => {
     ],
   });
 
+
+  // --- Newcomers and visitors (town.js)
+  const isNew = p => !!p.cfg.generated;
+  const isVis = p => IS.Town.isVisitor(p);
+  def('welcome', {
+    key: 'welcome', w: 1,
+    setup: ctx => {
+      ctx.aNew = isNew(ctx.a) && isVis(ctx.a);
+      ctx.vars.tip = IS.pick([
+        `If you like ${IS.Dialogue.activityWord[ctx.a.loves[0]] || 'walks'}, you're going to love it here.`,
+        'Friday dinners at the Hall are the best thing on the island.', 'Watch out for the sky. It has hands. I\'m serious.',
+        `That's ${ctx.vars.cat}, by the way. ${ctx.vars.cat} runs this place.`, 'The sunsets here are unreal. Go to the beach tonight.',
+        'If you need anything, just ask. Except my fishing spot. That\'s mine.']);
+    },
+    beats: [
+      { by: 'a', pick: ctx => (ctx.aNew ? 'me' : 'them'), say: {
+        them: ['Hey! You must be the new face. I\'m {A}.', 'Oh, hi! I don\'t think we\'ve met. I\'m {A}.', 'Welcome to Tidewhistle! I\'m {A}.', 'You\'re the one from the boat! I\'m {A}. Hi!'],
+        me: ['Hi! I\'m {A}. I just got here.', 'Hello! I\'m {A}. I\'m new. Or visiting. Not sure yet.', 'Hi, sorry, I\'m {A}. Still figuring out where everything is.'] } },
+      { by: 'b', pick: ctx => (isNew(ctx.b) && isVis(ctx.b) ? 'newbie' : ctx.b.traits.grumpy > 0.6 ? 'cool' : 'warm'), say: {
+        newbie: ['Nice to meet you! I\'m {B}.', 'Hi! {B}. I\'m visiting for a few days.', 'Thanks! I\'m {B}. Everyone\'s so friendly here.'],
+        warm: ['Nice to meet you! I\'m {B}.', 'Hi! {B}. So good to meet you.', 'Oh, hello! I\'m {B}. Welcome!'],
+        cool: ['...{B}. Hi.', '{B}. Nice to meet you, I guess.'] } },
+      { by: 'a', pick: ctx => (ctx.aNew ? 'me' : 'them'), say: { them: ctx => [ctx.vars.tip], me: ['So what\'s it like living here?', 'Any tips for a newcomer?', 'Everyone seems so nice here. Is that real?'] } },
+      { by: 'b', judge: 'compliment', pick: ctx => (isNew(ctx.b) && isVis(ctx.b) ? 'me' : ctx.v === 'neg' ? 'neg' : 'them'), say: {
+        me: ['Ha, noted. I think I\'m going to like it here.', 'Good to know. Thanks for the welcome!', 'Okay, this place is growing on me already.'],
+        them: ['Honestly? Best place I\'ve ever lived.', 'It\'s quiet. Mostly. Until the sky does something.', 'Stick around a few days. You\'ll see.', 'Ask me again after a Friday dinner.'],
+        neg: ['We\'ll see.', 'Hm. Okay.'] } },
+    ],
+    after: (ctx) => { const { a, b } = ctx; a.relTo(b.name).met = true; b.relTo(a.name).met = true; for (const [p, o] of [[a, b], [b, a]]) p.remember(`Met ${o.name}`, { tag: 'met', about: o.name, mood: 2 }); },
+  });
+  def('farewell', {
+    key: 'farewell', w: 1,
+    beats: [
+      { by: 'a', say: ['So you\'re really leaving, huh?', 'I heard you\'re taking the next boat.', 'You\'re leaving? Already?'] },
+      { by: 'b', say: ctx => (ctx.b.town && ctx.b.town.why === 'noHome' ? ['There\'s nowhere for me to live. I wish there was.', 'I wanted to stay. There just isn\'t room.'] : ['Yeah. It\'s just not for me.', 'I think so. It\'s been nice, though.', 'Yeah. Don\'t take it personally.']) },
+      { by: 'a', say: ['Well, it was really nice meeting you.', 'Come back and visit, okay?', 'The island will miss you. I will, a bit.'] },
+      { by: 'b', say: ['Thanks. I mean it.', 'You were one of the good ones.', 'Maybe one day.'] },
+    ],
+    after: (ctx) => { ctx.a.saidBye = ctx.a.saidBye || {}; ctx.a.saidBye[ctx.b.name] = true; ctx.a.changeRel(ctx.b.name, 2); ctx.b.changeRel(ctx.a.name, 3); },
+  });
+  def('homeTalk', {
+    key: 'homeTalk', w: 1,
+    beats: [
+      { by: 'a', say: ['Any luck finding a place to live?', 'Still at the Hall?', 'How\'s the guest bed?'] },
+      { by: 'b', say: ['No... I really want to stay, though.', 'Still waiting. Someone needs to build a house.', 'The guest bed is fine. A HOUSE would be better.'] },
+      { by: 'a', say: ['Fingers crossed. I hope you stay.', 'Someone should build you one. Sky? Hello?', 'You\'d fit right in here.'] },
+    ],
+  });
+
   // --- Couples (see love.js)
   const LV = () => IS.Love;
   def('gift', {
@@ -1247,7 +1314,7 @@ IS.Talk = (() => {
     evening: ['Evening, {other}.', 'Good evening!', 'Hey, {other}. Long day?', 'Oh, hey. Nice evening, huh?'],
     night: ['Hey. Can\'t sleep either?', 'Still up?', 'Oh! Didn\'t expect anyone out here.'],
     again: ['Back again?', 'Oh, hi again!', 'Twice in one day!', 'We keep running into each other.', 'Hey again.'],
-    long: ['{other}! Long time no see!', 'Where have YOU been?', 'Haven\'t seen you in ages!', 'Oh wow, a {other} sighting!'],
+    long: ['{other}! Long time no see!', 'Where have YOU been?', 'Haven\'t seen you in ages!', 'Oh wow, look who it is! {other}!'],
     rain: ['Hey! Soaked yet?', 'Nice weather for ducks, huh?', 'Hey! Come stand under here.', 'You\'re dripping!', 'Rain buddies!'],
     storm: ['You\'re out in THIS?', 'Get inside, it\'s wild out there!', 'Hey! Did the wind try to steal you too?', 'Stay close, it\'s nasty out.'],
     fog: ['Oh! You came out of the fog like a ghost.', 'Hey, I almost didn\'t see you there.', 'Is that you? Hard to tell in this soup.', 'Spooky out, huh?'],
@@ -1309,6 +1376,15 @@ IS.Talk = (() => {
       second = Math.random() < 0.6 ? pick(bp, b.name) : IS.Dialogue.as(b).line('greet', t2);
     }
     const f = (t, sp) => IS.Dialogue.fill(fill(t, ctx, sp), IS.Social.ctx(sim, sp, sp === a ? b : a));
+    // Never met: no "long time no see"
+    if (IS.Town.stranger(a, b)) {
+      const aNew = a.cfg.generated && IS.Town.isVisitor(a), bNew = b.cfg.generated && IS.Town.isVisitor(b);
+      const first = aNew && !bNew ? ['Hi! Um, hello!', 'Oh, hello there!', 'Hi! Sorry, I\'m new here.'] : bNew && !aNew ? ['Oh, hello!', 'Hi there!', 'Oh! A new face!', 'Hey! Hi!'] : ['Hi!', 'Oh, hello!', 'Hey there!'];
+      const second = bNew && !aNew ? ['Hi!', 'Oh, hello!', 'Hello! I\'m new.'] : ['Hi!', 'Oh, hello.', 'Hey there!'];
+      const out = [{ sp: a, text: f(IS.pick(first), a) }, { sp: b, text: f(IS.pick(second), b) }];
+      out.askedDoing = true;
+      return out;
+    }
     // A couple in the middle of a fight (or about to have one)
     if (r.partner && ((r.tiff && !r.tiff.talked) || IS.Love.tiff(a, b))) {
       const stormed = IS.Love.tiff(a, b);
@@ -1530,6 +1606,9 @@ IS.Talk = (() => {
     if (!list.length) return null;
     if ((topic === 'congrats') && !extra.news) extra.news = (sim.news || []).slice().reverse().find(n => a.knows.has(n.id) && ['couple', 'won', 'engaged', 'wedding'].includes(n.kind) && (n.a === b.name || n.b === b.name) && n.a !== a.name && n.b !== a.name);
     if (topic === 'myNews' && !extra.news) return null;
+    if (topic === 'welcome' && !IS.Town.stranger(a, b)) return null;
+    if (topic === 'farewell' && !(b.town && b.town.status === 'leaving')) return null;
+    if (topic === 'homeTalk' && !(b.town && b.town.status === 'waiting')) return null;
     if (topic === 'congrats' && !extra.news) return null;
     if (topic === 'congratsSour' && !extra.news) return null;
     if (topic === 'tease' && !extra.crush) { extra.crush = IS.Dialogue.crushOf(b); if (!extra.crush || extra.crush === a) return null; }
@@ -1568,6 +1647,7 @@ IS.Talk = (() => {
     const ev = sp.memories.find(m => m.tag === 'event' && now - m.t < 1080 && li.memories.some(x => x.tag === 'event' && x.text === m.text));
     // Death and the Sky
     if (IS.Love) IS.Love.topics(sim, sp, li, add);
+    IS.Town.topics(sim, sp, li, add);
     const tell = IS.Gods.newsToBreak(sim, sp, li);
     if (tell) add('breakNews', 9, { dead: tell.name, cause: tell.cause });
     const shock = IS.Gods.shockTopic(sim, sp, li);

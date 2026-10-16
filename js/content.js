@@ -133,6 +133,7 @@ IS.Content = (() => {
   // ------------------------------------------------------------ props held while doing things
   C.drawProp = (R, ctx, p, sx, sy, t) => {
     if (IS.Love) IS.Love.drawProp(R, ctx, p, sx, sy, t);
+    if (IS.Build) IS.Build.drawProp(R, ctx, p, sx, sy, t);
     const a = p.action;
     if (!a || a.phase !== 'do') return;
     const id = a.def.id;

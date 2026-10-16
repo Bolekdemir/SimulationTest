@@ -98,7 +98,7 @@ IS.Mind = (() => {
   // The speaker's own news that the listener hasn't heard yet (told in first person)
   M.ownNews = (sim, sp, li) => {
     const now = sim.clock.abs;
-    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected', 'burned', 'blessed', 'flung', 'nearMiss', 'levelUp', 'rareFind', 'bonk', 'treasure', 'kitten', 'engaged', 'wedding', 'makeup'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
+    return (sim.news || []).slice().reverse().find(n => (n.a === sp.name || n.b === sp.name) && n.a !== li.name && n.b !== li.name && !li.knows.has(n.id) && now - n.t < 2880 && ['couple', 'won', 'breakup', 'dunk', 'rejected', 'burned', 'blessed', 'flung', 'nearMiss', 'levelUp', 'rareFind', 'bonk', 'treasure', 'kitten', 'engaged', 'wedding', 'makeup', 'movedIn'].includes(n.kind) && !(n.kind === 'rejected' && sp.traits.sociable < 0.6));
   };
   const RUMOR = {
     fight: ['Did you hear {a} and {b} got into it?', '{a} and {b} had a HUGE fight earlier.', 'So... {a} and {b} aren\'t talking right now.'],
@@ -124,6 +124,10 @@ IS.Mind = (() => {
     painting: ['{a} painted "{detail}". It\'s honestly beautiful.', 'Have you seen {a}\'s new painting? "{detail}". Stunning.'],
     concert: ['{a} played guitar earlier and people actually stopped to listen.', 'Did you hear {a} play? They\'re good now!'],
     engaged: ['{a} and {b} are ENGAGED! Wedding at the Hall!', '{a} proposed to {b}! There was kneeling!'],
+    building: ['They\'re building a {detail}! Over by the path.', 'Did you see? There\'s a {detail} going up.'],
+    built: ['The new {detail} is finished! Have you seen it?', 'We have a {detail} now. An actual {detail}.'],
+    visitor: ['There\'s a visitor on the island. {a}. Came in on the boat.', 'Have you met {a}? New face. Just visiting, apparently.'],
+    movedIn: ['{a} is staying! They live here now.', 'Did you hear? {a} moved in for good.'],
     wedding: ['{a} and {b} got married! I cried. Everyone cried.', 'Did you see the wedding? {a} and {b}, married!'],
     makeup: ['{a} and {b} made up. Kissed in public and everything.', 'Good news: {a} and {b} are talking again.'],
     gift: ['{a} gave {b} {detail}. Just because.', 'Did you see what {a} got {b}? {detail}! So sweet.'],
@@ -213,6 +217,7 @@ IS.Mind = (() => {
   };
 
   M.onChatEnd = (a, b, aborted) => {
+    IS.Town.onChatEnd(a, b);
     for (const p of [a, b]) if (p.afterChat) { const f = p.afterChat; p.afterChat = null; if (!aborted) f(); }
     if (aborted) return;
     a.lastChatAt = b.lastChatAt = a.sim.clock.abs;
@@ -492,6 +497,7 @@ IS.Mind = (() => {
   M.tick = (sim, dt) => {
     IS.Command.tick(sim);
     IS.Love.tick(sim, dt);
+    IS.Town.tick(sim);
     const now = sim.clock.abs, min = sim.clock.min;
     for (const p of sim.people) {
       const e = M.feeling(p);
@@ -503,7 +509,7 @@ IS.Mind = (() => {
       if (p.action && p.action.date && p.action.phase === 'do' && Math.random() < 0.05 * dt) p.emote('heart', 1.4);
       // Working toward social plans
       if (min < 8 * 60 || min > 21 * 60 || !IS.Social.isFree(p)) continue;
-      for (const x of p.plans || []) if (!x.done && x.kind === 'talk' && (x.topic === 'confess' || x.topic === 'flirt') && (p.partner() || sim.byName(x.who).partner())) x.done = x.gaveUp = true;
+      for (const x of p.plans || []) if (!x.done && x.kind === 'talk' && (x.topic === 'confess' || x.topic === 'flirt') && (p.partner() || !sim.byName(x.who) || sim.byName(x.who).partner())) x.done = x.gaveUp = true;
       const pl = (p.plans || []).find(x => !x.done && (x.kind === 'talk' || x.kind === 'see') && (x.nextTry || 0) < now);
       if (!pl) continue;
       const o = sim.byName(pl.who);

@@ -39,6 +39,7 @@ IS.UI = class {
       'p-fire': grid(['...r....', '...rr...', '..rrr.r.', '.rryrrr.', '.ryyyrr.', 'rryyyyrr', 'rryyyyrr', '.rrrrrr.'], { r: '#e8343f', y: '#ffd56a' }),
       'p-bless': grid(['..yyyy..', '.y....y.', '..yyyy..', '...ww...', '..wwww..', '.w.ww.w.', '...ww...', '..w..w..'], { y: '#f2b82e', w: '#8f7565' }),
       'p-revive': grid(['..kkkk..', '.kggggk.', 'kgkggkgk', 'kggggggk', 'kgggkggk', '.kggggk.', '..kggk..', '..k..k..'], { k: '#2e1a10', g: '#bfe8d0' }),
+      town: grid(['...kf...', '...kff..', '..kk....', '.kkkkkk.', 'kkkkkkkk', '.kwwkwk.', '.kwwkwk.', '.kkkkkk.'], { k: '#2e1a10', f: '#e0405a', w: '#f2b82e' }),
       chest: grid(['........', '.kkkkkk.', 'kyyyyyyk', 'kkkkkkkk', 'kbbybbbk', 'kbbbbbbk', 'kkkkkkkk', '........'], { k: '#2e1a10', y: '#f2b82e', b: '#a8763f' }),
       friend: grid(['...kk...', '..kkkk..', '..kkkk..', '...kk...', '.kkkkkk.', 'kkkkkkkk', 'kkkkkkkk', '........'], { k: '#8f7565' }),
     };
@@ -76,6 +77,11 @@ IS.UI = class {
     this.$('btn-powers').addEventListener('click', () => this.togglePowers());
     this.$('btn-collection').addEventListener('click', () => this.showCollection(this.$('collection').hidden));
     this.$('collection-close').addEventListener('click', () => this.showCollection(false));
+    this.$('btn-town').addEventListener('click', () => this.showTown(this.$('town').hidden));
+    this.$('town-close').addEventListener('click', () => this.showTown(false));
+    this.$('town-x').addEventListener('click', () => this.showTown(false));
+    this.$('town').addEventListener('click', e => { if (e.target.id === 'town') this.showTown(false); });
+    this.$('town-tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { this.townTab = t.dataset.tab; this.renderTown(); } });
     this.$('collection-x').addEventListener('click', () => this.showCollection(false));
     this.$('collection').addEventListener('click', e => { if (e.target.id === 'collection') this.showCollection(false); });
     this.togglePowers(!!IS.Settings.get('powers'));
@@ -126,6 +132,47 @@ IS.UI = class {
     IS.Settings.set('powers', on);
     if (!on && this.sim.power && this.sim.power !== 'hand') IS.Gods.setPower(this.sim, 'hand');
     this.syncToggles();
+  }
+
+  // The town book: how the island is doing, who's visiting, what to build
+  showTown(on) {
+    const box = this.$('town');
+    box.hidden = !on;
+    clearInterval(this.townTimer);
+    if (!on) { if (IS.Build && IS.Build.cancelPlacing) IS.Build.cancelPlacing(this.sim); return; }
+    this.townTab = this.townTab || 'overview';
+    this.renderTown();
+    this.townTimer = setInterval(() => { if (!box.hidden && this.townTab === 'overview') this.renderTown(); }, 1500);
+  }
+  renderTown() {
+    const sim = this.sim, Tn = IS.Town, e = s => this.esc(s);
+    for (const b of this.$('town-tabs').querySelectorAll('[data-tab]')) b.setAttribute('aria-pressed', String(b.dataset.tab === this.townTab));
+    const pop = Tn.residents(sim).length, cap = IS.Build ? IS.Build.popCap(sim) : 16;
+    this.$('town-sub').textContent = `${pop} islander${pop === 1 ? '' : 's'} · ${Tn.freeHomes(sim)} home${Tn.freeHomes(sim) === 1 ? '' : 's'} with room · room for up to ${cap} people right now`;
+    const body = this.$('town-body');
+    const scroll = body.parentElement.scrollTop;
+    if (this.townTab === 'build' && IS.Build) { body.innerHTML = IS.Build.panelHTML(sim, this); IS.Build.bindPanel(sim, this, body); return; }
+    const r = Tn.rating(sim);
+    let h = `<h3>Island Rating</h3><div class="rating"><big>${r.score}</big><span>${r.word}</span></div>
+      <div class="meter"><i style="width:${r.score}%"></i><b style="left:50%" title="Visitors start coming at 50"></b></div>
+      <p class="sub">${r.score >= 50 ? 'Visitors are coming. The happier the island, the more often they come.' : 'Visitors only come once the rating reaches 50.'}</p>
+      <dl class="parts">` + r.parts.map(p => `<dt>${e(p.label)}</dt><dd>${e(p.note)}</dd><span class="num">${p.value > 0 && p.key !== 'charm' ? '+' : ''}${p.value}${p.max ? '/' + p.max : ''}</span>`).join('') + '</dl>';
+    const v = Tn.visitor(sim), st = Tn.state(sim);
+    h += '<h3>Visitors</h3>';
+    if (v) {
+      const t = v.town, j = Tn.judgeVisit(sim, v);
+      const left = t.status === 'visitor' ? Math.max(0, Math.ceil((t.decideAt - sim.clock.abs) / 60)) : t.status === 'waiting' ? Math.max(0, Math.ceil((t.waitUntil - sim.clock.abs) / 1440 * 10) / 10) : 0;
+      const status = t.status === 'visitor' ? `Visiting. Decides in about ${left} hour${left === 1 ? '' : 's'}.` : t.status === 'waiting' ? `Wants to stay but needs a home. Leaves in ${left} day${left === 1 ? '' : 's'} if nobody builds one.` : 'Leaving on the next boat.';
+      const feel = t.status !== 'visitor' ? '' : j.score >= 0.65 ? 'Loving it here.' : j.score >= 0.55 ? 'Leaning towards staying.' : j.score >= 0.45 ? 'On the fence.' : 'Not impressed so far.';
+      const rs = j.reasons.slice(0, 3).map(x => `<span class="${x.good ? 'good' : 'bad'}">${x.good ? '+' : '−'} ${e(x.text)}</span>`).join('<br>');
+      h += `<div class="card"><img src="${v.portrait}" alt=""><div><b>${e(v.name)}</b> · ${e(v.cfg.archetype)}<br>${e(status)} ${feel}<br>${rs || 'Still settling in.'}<br><em>${e(v.cfg.bio)}</em></div></div>`;
+    } else if (st.pending) h += '<p class="sub">Someone is on their way by boat today!</p>';
+    else h += `<p class="sub">Nobody visiting right now.${r.score >= 50 ? ' Someone might come any morning.' : ''}</p>`;
+    if (st.lastDecision) { const d = st.lastDecision; h += `<p class="sub">Last visitor: ${e(d.name)} ${d.stay ? 'decided to stay' : 'left'}${(d.stay ? d.good : d.bad).length ? ' (' + e((d.stay ? d.good : d.bad).join(', ')) + ')' : ''}.</p>`; }
+    const gone = (sim.leftIsland || []).slice(-3).reverse();
+    if (gone.length) h += `<p class="sub">Sailed away: ${gone.map(x => e(x.name)).join(', ')}.</p>`;
+    body.innerHTML = h;
+    body.parentElement.scrollTop = scroll;
   }
 
   // The island's finds book

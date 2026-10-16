@@ -19,7 +19,9 @@ IS.Save = (() => {
     lastDolphinDay: sim.events.lastDolphinDay,
     deaths: sim.deaths || 0, lastDeathAt: sim.lastDeathAt,
     collection: sim.collection || {}, paintings: sim.paintings || [], sandcastles: sim.sandcastles || [],
-    treasure: sim.treasure || null, weddings: sim.weddings || [], kitten: sim.kitten ? { name: sim.kitten.name, owner: sim.kitten.owner || null, stray: !!sim.kitten.stray, x: sim.kitten.x, y: sim.kitten.y } : null,
+    treasure: sim.treasure || null, weddings: sim.weddings || [],
+    town: sim.town || null, leftIsland: sim.leftIsland || [], visitorsSeen: sim.visitorsSeen || [],
+    builds: IS.Build.serialize(sim), extraBeds: sim.extraBeds || [], kitten: sim.kitten ? { name: sim.kitten.name, owner: sim.kitten.owner || null, stray: !!sim.kitten.stray, x: sim.kitten.x, y: sim.kitten.y } : null,
     graves: (sim.graves || []).map(g => ({ name: g.name, cause: g.cause, day: g.day, season: g.season, t: g.t, x: g.x, y: g.y, gx: g.gx, gy: g.gy, stage: g.stage, flowers: g.flowers, flip: g.flip, foundAt: g.foundAt || 0, stash: g.p.stash || {} })),
     people: (sim.everyone || sim.people).map(p => ({
       name: p.name, x: p.x, y: p.y, dead: !!p.dead, mourning: p.mourning || {}, revivedAt: p.revivedAt || 0, welcomedBack: p.welcomedBack || {}, revived: p.revived || {}, toldBack: p.toldBack || {},
@@ -29,6 +31,7 @@ IS.Save = (() => {
       skills: p.skills || {}, plans: p.plans, ledger: p.ledger, emotion: p.emotion, knows: [...p.knows],
       history: p.history, confessedTo: p.confessedTo || {}, heardSky: !!p.heardSky, avoid: p.avoid,
       visitedBy: [...p.visitedBy], congratulated: [...(p.congratulated || [])], lastChatAt: p.lastChatAt || 0,
+      cfg: p.cfg.generated ? p.cfg : undefined, homeId: p.homeId, town: p.town || null, bed: p.bedSpot ? { x: p.bedSpot.x, y: p.bedSpot.y } : null,
     })),
   });
 
@@ -43,6 +46,12 @@ IS.Save = (() => {
     sim.newsId = d.newsId || 0;
     sim.logEntries = d.log || [];
     sim.events.lastDolphinDay = d.lastDolphinDay ?? -9;
+    // Buildings first (their beds are where newcomers sleep), then extra beds in old houses
+    IS.Build.restore(sim, d.builds);
+    sim.extraBeds = [];
+    for (const eb of d.extraBeds || []) { const b = sim.world.buildings.find(x => x.id === eb.b); if (b && !b.furniture.some(f => f.type === 'bed' && f.c === eb.c && f.r === eb.r)) IS.Town.addBed(sim, b); }
+    // Newcomers aren't in config.js: rebuild them from their saved recipe first
+    for (const s of d.people || []) if (s.cfg && s.cfg.generated && !sim.everyone.some(x => x.name === s.name)) IS.Newcomers.add(sim, s.cfg);
     for (const s of d.people || []) {
       const p = sim.byName(s.name);
       if (!p) continue;
@@ -62,11 +71,22 @@ IS.Save = (() => {
       p.visitedBy = new Set(s.visitedBy || []);
       p.congratulated = new Set(s.congratulated || []);
       p.lastChatAt = s.lastChatAt || 0;
+      if (s.homeId) {
+        p.homeId = s.homeId;
+        const beds = sim.world.spots.bed || [];
+        const mine = (s.bed && beds.find(b => b.x === s.bed.x && b.y === s.bed.y)) || beds.find(b => b.owner === p.name) || beds.find(b => b.building === p.homeId && !b.owner);
+        for (const b of beds) if (b.owner === p.name && b !== mine) b.owner = null;
+        p.bedSpot = mine || null;
+        if (mine && p.cfg.generated) mine.owner = p.name;
+      }
+      p.town = s.town || null;
       p.idleUntil = 0;
       p.thought = 'Where was I?';
       p.mourning = s.mourning || {}; p.revivedAt = s.revivedAt || 0; p.welcomedBack = s.welcomedBack || {}; p.revived = s.revived || {}; p.toldBack = s.toldBack || {};
     }
     sim.collection = d.collection || {}; sim.paintings = d.paintings || []; sim.sandcastles = d.sandcastles || []; sim.treasure = d.treasure || null; sim.weddings = d.weddings || [];
+    sim.town = d.town || null; sim.leftIsland = d.leftIsland || []; sim.visitorsSeen = d.visitorsSeen || [];
+    if (sim.town) sim.town.pending = null;
     if (d.kitten) {
       const owner = d.kitten.owner && sim.everyone.find(x => x.name === d.kitten.owner);
       sim.kitten = new IS.Cat(sim, d.kitten.name, owner ? owner.homeId : 'hall', 'grey');

@@ -44,6 +44,8 @@ IS.Input = class {
     const i = this.toIso(e.clientX, e.clientY);
     this.sim.hoverIso = i;
     this.canvas.setPointerCapture?.(e.pointerId);
+    // Placing a building: a click places, a drag still pans
+    if (this.sim.placing) { this.press = { pan: true, place: true, touch: e.pointerType === 'touch', cx: e.clientX, cy: e.clientY, camX: this.sim.cam.x, camY: this.sim.cam.y, moved: false }; return; }
     // God powers: a click casts, a drag still pans the camera
     if (this.sim.power && this.sim.power !== 'hand') { this.press = { pan: true, cast: true, cx: e.clientX, cy: e.clientY, camX: this.sim.cam.x, camY: this.sim.cam.y, moved: false }; return; }
     const p = this.personAt(i.x, i.y);
@@ -58,6 +60,7 @@ IS.Input = class {
     sim.hoverIso = i;
     sim.hover = this.press && this.press.grabbed ? this.press.person : this.personAt(i.x, i.y);
     const pr = this.press;
+    if (!pr && sim.placing) { if (e.pointerType !== 'touch') IS.Build.hover(sim, i); this.canvas.style.cursor = 'copy'; return; }
     if (!pr) { this.canvas.style.cursor = sim.power && sim.power !== 'hand' ? 'crosshair' : sim.hover ? 'grab' : 'default'; return; }
     if (pr.pan) {
       const z = sim.cam.zoom;
@@ -101,6 +104,7 @@ IS.Input = class {
     if (!pr) return;
     const sim = this.sim;
     if (pr.pan) {
+      if (pr.place && !pr.moved && e.type === 'pointerup') { IS.Build.clickAt(sim, this.toIso(e.clientX, e.clientY), pr.touch); return; }
       if (pr.cast && !pr.moved && e.type === 'pointerup') { IS.Gods.cast(sim, this.toIso(e.clientX, e.clientY)); this.canvas.style.cursor = 'crosshair'; return; }
       if (!pr.moved && e.type === 'pointerup' && e.button === 0) sim.select(null);
       this.canvas.style.cursor = 'default';
@@ -129,10 +133,13 @@ IS.Input = class {
     if (!isDown) return;
     const sim = this.sim;
     if (sim.menu && sim.menu.isOpen) { if (k === 'escape' && sim.menu.mode === 'pause') sim.menu.primary(); return; }
+    if (k === 'escape' && sim.placing) { IS.Build.cancelPlacing(sim); return; }
     if (k === 'escape' && sim.power !== 'hand') { IS.Gods.setPower(sim, 'hand'); return; }
     const pw = IS.Gods.POWERS.find(x => x.key === k);
     if (k === 'p') { sim.ui.togglePowers(); return; }
     if (k === 'k') { sim.ui.showCollection(document.getElementById('collection').hidden); return; }
+    if (k === 't') { sim.ui.showTown(document.getElementById('town').hidden); return; }
+    if (k === 'escape' && !document.getElementById('town').hidden) { sim.ui.showTown(false); return; }
     if (k === 'escape' && !document.getElementById('collection').hidden) { sim.ui.showCollection(false); return; }
     if (pw) { if (document.getElementById('powers').hidden) sim.ui.togglePowers(true); IS.Gods.setPower(sim, pw.id); return; }
     if (k === 'escape' && !sim.selected) { sim.menu && sim.menu.open('pause'); return; }

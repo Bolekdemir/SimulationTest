@@ -5,8 +5,8 @@ const CORE = [
   './', 'index.html', 'manifest.webmanifest',
   'icons/icon-32.png', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png',
   'js/util.js', 'js/lines.js', 'js/config.js', 'js/tune.js', 'js/sprites.js', 'js/iso.js', 'js/world.js', 'js/dialogue.js', 'js/actions.js',
-  'js/person.js', 'js/cat.js', 'js/social.js', 'js/talk.js', 'js/command.js', 'js/mind.js', 'js/save.js', 'js/events.js',
-  'js/gods.js', 'js/content.js', 'js/love.js', 'js/render.js', 'js/ui.js', 'js/input.js', 'js/menu.js', 'js/main.js',
+  'js/newcomers.js', 'js/person.js', 'js/cat.js', 'js/social.js', 'js/talk.js', 'js/command.js', 'js/mind.js', 'js/save.js', 'js/events.js',
+  'js/gods.js', 'js/content.js', 'js/love.js', 'js/town.js', 'js/build.js', 'js/render.js', 'js/ui.js', 'js/input.js', 'js/menu.js', 'js/main.js',
 ];
 
 self.addEventListener('install', e => {

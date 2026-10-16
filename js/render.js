@@ -81,7 +81,7 @@ IS.Renderer = class {
   }
   depthAt(gx, gy) {
     let key = gx + gy;
-    for (const b of this.sim.world.buildings) {
+    for (const b of this.sim.world.buildings.concat(IS.Build.sites(this.sim))) {
       if (gx < b.x0 - 2 || gx > b.x0 + b.w + 2 || gy < b.y0 - 2 || gy > b.y0 + b.h + 2) continue;
       const inside = gx >= b.x0 && gx <= b.x0 + b.w && gy >= b.y0 && gy <= b.y0 + b.h;
       if (inside) key = Math.min(key, b.depth - 0.02);
@@ -230,6 +230,7 @@ IS.Renderer = class {
     this.drawDolphins(ctx, ox, oy, now);
     IS.Content.drawSea(this, ctx, ox, oy, now);
     ctx.drawImage(w.landCanvas, sx, sy, sw, sh, sx - ox, sy - oy, sw, sh);
+    IS.Build.drawGround(this, ctx, ox, oy, t);
 
     const inView = (x, y, m = 80) => x > ox - m && x < ox + vw + m && y > oy - m && y < oy + vh + m * 2;
     for (const cr of w.crops) {
@@ -279,6 +280,7 @@ IS.Renderer = class {
     const list = [];
     for (const o of w.objects) if (inView(o.s.x, o.s.y, 90)) list.push({ d: o.depth, o, kind: 'obj' });
     for (const b of w.buildings) if (inView(b.iso.ox + b.iso.w / 2, b.iso.oy + b.iso.h / 2, b.iso.w)) list.push({ d: b.depth, b, kind: 'bld' });
+    for (const s of IS.Build.sites(sim)) list.push({ d: s.depth, s, kind: 'site' });
     for (const p of sim.people) {
       const gx = p.x / T, gy = (p.y - 6) / T;
       list.push({ d: (p.mode === 'carried' || p.mode === 'air' || p.mode === 'hop') ? 1e6 : this.depthAt(gx, gy), p, kind: 'person' });
@@ -315,6 +317,8 @@ IS.Renderer = class {
         sim.cat.draw(ctx, ox, oy, now);
       } else if (it.kind === 'kitten') {
         sim.kitten.draw(ctx, ox, oy, now);
+      } else if (it.kind === 'site') {
+        IS.Build.drawSite(this, ctx, it.s, ox, oy, t);
       } else if (it.kind === 'cobj') {
         IS.Content.drawObj(this, ctx, it.o, ox, oy, t);
       } else if (it.kind === 'boat') {
@@ -322,6 +326,7 @@ IS.Renderer = class {
         ctx.drawImage(IS.Sprites.boat, Math.round(s.x - 40 - ox), Math.round(s.y - 60 - oy + Math.sin(t * 1.5) * 1.5));
       }
     }
+    IS.Build.drawGhost(this, ctx, ox, oy);
     sim.fx.draw(ctx, ox, oy);
     IS.Gods.drawFx(this, ctx, ox, oy, now);
     IS.Gods.drawReticle(this, ctx, ox, oy, t);

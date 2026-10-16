@@ -487,14 +487,28 @@ IS.Events = class {
   }
 
   // ------------------------------------------------------------ supply boat
+  // A small ferry for visitors (town.js): brings one in, or takes someone away
+  sendFerry(passenger) {
+    const b = this.boat;
+    if (b) {
+      if (passenger && !b.passengers.includes(passenger)) b.passengers.push(passenger);
+      if (b.state === 'docked') { IS.Town.onFerryDocked(this.sim, null); b.dockedAt = this.sim.clock.abs; }
+      else if (b.state === 'leaving') this.ferryQueued = (this.ferryQueued || []).concat(passenger ? [passenger] : [null]);
+      return;
+    }
+    this.boat = { x: 0, y: 0, state: 'arriving', t: 0, ferry: true, passengers: passenger ? [passenger] : [] };
+    this.sim.log(passenger ? `A ferry is coming to pick up ${passenger.name}.` : 'A little ferry is heading for the dock.', 'event');
+  }
+
   updateBoat(dt) {
     const sim = this.sim, w = sim.world, T = IS.TILE;
     const ev = this.list.find(e => e.kind === 'boatDay' && e.day === sim.clock.day);
     const min = sim.clock.min;
     const dockX = 44 * T + 40, dockY = w.dock.endY * T + 34;
     const farX = dockX + 260, farY = (w.H + 1) * T;
-    if (ev && !this.boat && min >= ev.start - 50 && min < ev.end) {
-      this.boat = { x: farX, y: farY, state: 'arriving', t: 0 };
+    if (ev && !this.boat && min >= ev.start - 50 && min < ev.end && !ev.boatCame) {
+      ev.boatCame = true;
+      this.boat = { x: farX, y: farY, state: 'arriving', t: 0, passengers: [] };
       sim.log('A sail on the horizon. The supply boat is coming!', 'event');
       for (const p of sim.people) if (Math.random() < 0.5) sim.nudge(p, 0.6);
     }
@@ -505,8 +519,12 @@ IS.Events = class {
       b.t = Math.min(1, b.t + dt / total);
       const e = 1 - Math.pow(1 - b.t, 2);
       b.x = IS.lerp(farX, dockX, e); b.y = IS.lerp(farY, dockY, e);
-      if (b.t >= 1) {
-        b.state = 'docked';
+      if (b.t >= 1 && b.ferry) {
+        b.state = 'docked'; b.dockedAt = sim.clock.abs;
+        IS.Town.onFerryDocked(sim, null);
+      } else if (b.t >= 1) {
+        b.state = 'docked'; b.dockedAt = sim.clock.abs;
+        IS.Town.onFerryDocked(sim, null);
         w.food += 6 + sim.people.length; w.wood += 4;
         const lucky = IS.shuffle(sim.people.slice()).slice(0, IS.randi(1, 2));
         for (const p of lucky) p.remember('Got a letter from the mainland', { tag: 'letter', mood: 8, news: true });
@@ -515,12 +533,23 @@ IS.Events = class {
       }
     } else if (b.state === 'docked') {
       b.x = dockX; b.y = dockY;
-      if (!ev || min >= ev.end) { b.state = 'leaving'; b.t = 0; sim.log('The supply boat sets sail again.', 'event'); }
+      // Anyone leaving the island boards once they reach the dock
+      for (const p of b.passengers.slice()) {
+        const gone = !sim.people.includes(p);
+        if (gone || IS.dist(p.x, p.y, w.dock.x * T + 12, (w.dock.endY - 1) * T + 18) < T * 3.5) { b.passengers = b.passengers.filter(x => x !== p); if (!gone) IS.Town.onFerryDocked(sim, p); }
+      }
+      const waited = sim.clock.abs - (b.dockedAt || sim.clock.abs);
+      const done = b.ferry ? waited >= 30 && (!b.passengers.length || waited >= 80) : (!ev || min >= ev.end) && (!b.passengers.length || waited >= 240);
+      if (done) { b.state = 'leaving'; b.t = 0; sim.log(b.ferry ? 'The ferry heads back out to sea.' : 'The supply boat sets sail again.', 'event'); }
     } else if (b.state === 'leaving') {
       b.t = Math.min(1, b.t + dt / 45);
       const e = b.t * b.t;
       b.x = IS.lerp(dockX, farX + 200, e); b.y = IS.lerp(dockY, farY, e);
-      if (b.t >= 1) this.boat = null;
+      if (b.t >= 1) {
+        this.boat = null;
+        const q = this.ferryQueued; this.ferryQueued = null;
+        if (q && q.length) for (const p of q) this.sendFerry(p && sim.people.includes(p) ? p : null);
+      }
     }
   }
 };

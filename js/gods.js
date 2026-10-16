@@ -297,6 +297,7 @@ IS.Gods = (() => {
   // ------------------------------------------------------------ bless
   G.bless = (sim, p, w) => {
     const x = p ? p.x : w.x, y = p ? p.y : w.y;
+    if (!p && IS.Build.siteAt(sim, x, y)) { const s0 = IS.Iso.w2s(x, y); sim.godFx.push({ kind: 'beam', color: [255, 226, 138], x: s0.x, y: s0.y, t: 0, max: 1.4, w: 40 }); IS.Build.onBless(sim, x, y); return; }
     const s = IS.Iso.w2s(x, y);
     sim.godFx.push({ kind: 'beam', color: [255, 226, 138], x: s.x, y: s.y, t: 0, max: 1.4, w: p ? 18 : 40 });
     for (let i = 0; i < 26; i++) sim.fx.add({ x: s.x + IS.rand(-16, 16), y: s.y - IS.rand(0, 30), vx: IS.rand(-6, 6), vy: IS.rand(-40, -15), g: 0, max: IS.rand(0.8, 1.6), color: IS.pick(['#fff6c8', '#ffe07a', '#ffffff']), size: 1, fade: true });

@@ -12,7 +12,8 @@ IS.Person = class {
     const spr = IS.Sprites.makePerson(cfg.look);
     this.frames = spr.frames;
     this.portrait = spr.portrait;
-    this.homeId = 'house' + (cfg.home ?? id);
+    // Newcomers have no house yet: they bunk in the Hall's guest beds until they move in
+    this.homeId = cfg.homeId || (cfg.generated ? 'hall' : 'house' + (cfg.home ?? id));
     this.bedSpot = (this.world.spots.bed || []).find(s => s.owner === this.name) ||
       (this.world.spots.bed || []).find(s => s.building === this.homeId);
 
@@ -91,7 +92,13 @@ IS.Person = class {
     if (!this.rel[name]) this.rel[name] = { friendship: 0, romance: 0, label: '', partner: false };
     return this.rel[name];
   }
-  canFallFor(name) { return (this.cfg.canFallFor || []).includes(name); }
+  canFallFor(name) {
+    if ((this.cfg.canFallFor || []).includes(name)) return true;
+    // The original six keep their designed pairings; anyone can fall for a newcomer (and newcomers for anyone) by type
+    const o = this.sim.byName(name);
+    if (!o || o === this || (!this.cfg.generated && !o.cfg.generated)) return false;
+    return IS.Newcomers.attractedTo(this).includes(o.cfg.pronoun || 'he');
+  }
   changeRel(name, df, dr = 0) {
     const r = this.relTo(name);
     r.friendship = IS.clamp(r.friendship + df, -100, 100);
@@ -385,6 +392,8 @@ IS.Person = class {
     let moved = 0;
     while (remaining > 0 && this.path.length) {
       const n = this.path[0];
+      // A wall went up on the route (a new building): re-plan instead of walking through it
+      if (this.path.length > 1 && !this.world.walkable(n.x, n.y) && !this.world.swimmable(n.x, n.y)) { IS.Build.fixPath(this); if (!this.path.length || this.path[0] === n) { this.path = []; break; } continue; }
       const tx = n.x * T + 12, ty = n.y * T + 18;
       const dx = tx - this.x, dy = ty - this.y;
       const d = Math.hypot(dx, dy);

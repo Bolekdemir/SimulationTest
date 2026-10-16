@@ -192,7 +192,8 @@ IS.Iso = (() => {
     if (b.kind === 'hall') return hallBuilding(b);
     const hall = b.kind === 'hall';
     const deco = b.deco;
-    const WH = hall ? 46 : deco === 'shed' ? 26 : 36;
+    const WH0 = hall ? 46 : deco === 'shed' ? 26 : 36;
+    const WH = b.wallH ? Math.max(3, Math.round(WH0 * b.wallH)) : WH0; // half-built walls (build.js)
     const RH = hall ? 30 : deco === 'greenhouse' ? 18 : 24;
     const x0 = b.x0, y0 = b.y0, x1 = b.x0 + b.w, y1 = b.y0 + b.h; // exclusive far edges
     const ov = 0.28;
@@ -347,9 +348,9 @@ IS.Iso = (() => {
     }
     if (deco === 'cafe') {
       const A0 = up(L(x0 + 0.3, y1), 28), A1 = up(L(x1 - 0.3, y1), 28), A3 = up(L(x0 + 0.3, y1 + 0.6), 21);
-      plane(g, A0, A1, A3, f => { for (let i = 0; i < 9; i++) { f.fillStyle = i % 2 ? '#fff2dc' : '#3fa88a'; f.fillRect(i / 9, 0, 0.112, 1); } });
+      plane(g, A0, A1, A3, f => { for (let i = 0; i < 9; i++) { f.fillStyle = i % 2 ? '#fff2dc' : (b.awning || '#3fa88a'); f.fillRect(i / 9, 0, 0.112, 1); } });
       const F0 = up(L(x0 + 0.3, y1 + 0.6), 21), F1 = up(L(x1 - 0.3, y1 + 0.6), 21);
-      plane(g, F0, F1, { x: F0.x, y: F0.y + 4 }, f => { for (let i = 0; i < 9; i++) { f.fillStyle = i % 2 ? '#fff2dc' : '#2f8a70'; f.fillRect(i / 9, 0, 0.112, 1); } });
+      plane(g, F0, F1, { x: F0.x, y: F0.y + 4 }, f => { for (let i = 0; i < 9; i++) { f.fillStyle = i % 2 ? '#fff2dc' : (b.awning ? I.shade(b.awning, 0.15) : '#2f8a70'); f.fillRect(i / 9, 0, 0.112, 1); } });
     }
     // Flower boxes under south windows
     if (b.flowerBoxes) {

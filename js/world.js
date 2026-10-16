@@ -454,7 +454,7 @@ IS.World = class {
       add('armchair', 4, 3, { color: IS.shade(b.roof, -0.1) });
       add('plant', 4, 2);
       const bedCells = [[1, 1], [4, 1]];
-      const beds = Math.max(1, Math.min(2, residents.length));
+      const beds = b.beds || Math.max(1, Math.min(2, residents.length));
       for (let i = 0; i < beds; i++) {
         const [c, r] = bedCells[i];
         const owner = residents[i];
@@ -481,6 +481,8 @@ IS.World = class {
       add('bigPlant', 1, 5); add('bigPlant', 8, 5);
       for (let c = 3; c <= 7; c++) { add('hallChair', c, 2, { face: 'down' }); this.addSpot('hallSeat', b.x0 + c, b.y0 + 2, 'down', 'sit', { building: b.id }); }
       for (let c = 2; c <= 7; c++) { add('hallChair', c, 4, { face: 'up' }); this.addSpot('hallSeat', b.x0 + c, b.y0 + 4, 'up', 'sit', { building: b.id }); }
+      // Two guest bedrolls for visitors who don't have a house yet
+      for (const c of [2, 7]) this.addSpot('bed', b.x0 + c, b.y0 + 5, 'down', 'sleep', { building: b.id, guest: true, owner: null });
       this.addSpot('cook', b.x0 + 2, b.y0 + 2, 'up', 'stand', { building: b.id });
       this.addSpot('read', b.x0 + 8, b.y0 + 2, 'up', 'stand', { building: b.id, hall: true });
       this.addSpot('shelter', b.x0 + 6, b.y0 + 2, 'up', 'stand', { building: b.id });
@@ -488,7 +490,7 @@ IS.World = class {
       this.addSpot('shelter', b.x0 + 8, b.y0 + 4, 'left', 'stand', { building: b.id });
     }
     b.furniture = furniture;
-    b.flowerBoxes = b.kind === 'hall' || b.index % 2 === 0 || b.deco === 'cafe';
+    b.flowerBoxes = b.kind === 'hall' || b.index % 2 === 0 || b.deco === 'cafe' || (b.built && b.kind === 'house');
     b.iso = IS.Iso.building(b);
     b.depth = (b.x0 + b.w) + (b.y0 + b.h) - 0.5;
     b.cut = 0;        // 0 = roof on, 1 = cutaway
