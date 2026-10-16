@@ -263,6 +263,7 @@ IS.Gods = (() => {
     const now = performance.now();
     for (const o of sim.people.slice()) {
       if (!awake(o) || o.burning || o.mode === 'panic') continue;
+      if (o.mourning && Object.values(o.mourning).some(e => e.aware && e.how === 'saw' && sim.clock.abs - e.t < 3 && (e.partner || e.f > 40))) continue;
       const d = IS.dist(o.x, o.y, x, y);
       if (d > TL() * radius || o.building) continue;
       o.skyOpinion = IS.clamp(o.skyOpinion - 4, -100, 100);
@@ -318,7 +319,7 @@ IS.Gods = (() => {
   // Ground marks drawn under everything (blood, scorch, craters)
   G.decal = (sim, kind, x, y, r) => {
     if (kind !== 'flame' && sim.world.isWater(Math.floor(x / TL()), Math.floor((y - 6) / TL()))) return;
-    const life = { blood: 4320, scorch: 2880, crater: 8640 }[kind] || 1440;
+    const life = 1440; // everything washes away in about a day
     sim.decals.push({ kind, x, y, r, t: sim.clock.abs, life, img: decalImage(kind, r), born: performance.now() });
     if (sim.decals.length > 120) sim.decals.splice(sim.decals.findIndex(d => d.kind !== 'flame'), 1);
   };
@@ -421,29 +422,17 @@ IS.Gods = (() => {
     Lynn: { sad: ['I— I can help! Can I help?! ...oh.', 'Please, please be okay...'], cold: ['...I don\'t know what to feel.'] },
   };
 
+  // At the moment of death only the witnesses know. Everyone else finds out
+  // later: by finding the body, being told, or hearing it around the island.
   G.grieve = (sim, dead, g, building) => {
     const M = IS.Mind, N = dead.name;
     dead.stash = {};
     for (const o of sim.people) {
       const r = o.rel[N] || { friendship: 0, romance: 0, partner: false };
       const f = r.friendship, rom = r.romance;
-      const seen = awake(o) && IS.dist(o.x, o.y, dead.x, dead.y) < TL() * 13 && sameSpace(o, dead.x, dead.y, building);
-      if (r.partner) {
-        M.feel(o, 'heartbroken', N, 96);
-        o.remember(`Lost ${N}. The love of my life.`, { tag: 'death', about: N, mood: -30, moodDuration: 2880 });
-      } else if (f > 40 || rom > 45) {
-        M.feel(o, 'heartbroken', N, 48);
-        o.remember(`${N} died. I can't believe it.`, { tag: 'death', about: N, mood: -18, moodDuration: 1440 });
-      } else if (f > 5) {
-        o.remember(`${N} died.`, { tag: 'death', about: N, mood: -8, moodDuration: 720 });
-      } else if (f < -30 && o.traits.kind < 0.55) {
-        o.remember(`${N} died. Can't say I'm crying.`, { tag: 'death', about: N, mood: 3, moodDuration: 360 });
-      } else {
-        o.remember(`${N} died.`, { tag: 'death', about: N, mood: -4, moodDuration: 360 });
-      }
       o.mourning = o.mourning || {};
-      o.mourning[N] = { f: Math.max(f, rom), partner: !!r.partner, cause: g.cause, t: sim.clock.abs, visited: f < 15 && !r.partner };
-      o.skyOpinion = IS.clamp(o.skyOpinion - (seen ? 22 : 10) - (f > 40 ? 12 : 0), -100, 100);
+      o.mourning[N] = { f: Math.max(f, rom), partner: !!r.partner, cause: g.cause, died: sim.clock.abs, aware: false, t: 0, stage: 'unaware', visited: f < 15 && !r.partner };
+      const seen = awake(o) && IS.dist(o.x, o.y, dead.x, dead.y) < TL() * 13 && sameSpace(o, dead.x, dead.y, building);
       if (seen) {
         const close = r.partner || f > 40;
         const cold = f < -30;
@@ -455,18 +444,146 @@ IS.Gods = (() => {
         else pool = (SEEN[g.cause] || SEEN.fall)(N);
         o.say(IS.pick(pool), 3);
         o.emote(close ? 'sad' : 'exclaim', 2.4);
+        G.learnDeath(sim, o, N, 'saw');
       }
       // Move the bond aside so nothing talks to (or about) them like they're alive
       if (o.rel[N]) { dead.stash[o.name] = o.rel[N]; delete o.rel[N]; }
       if (o.pending) delete o.pending[N];
       if (o.avoid) delete o.avoid[N];
       for (const pl of o.plans || []) if (!pl.done && (pl.who === N || pl.with === N)) { pl.done = true; pl.gaveUp = true; }
-      if (o.emotion && o.emotion.about === N && o.emotion.type !== 'heartbroken') M.clearFeeling(o);
+      if (o.emotion && o.emotion.about === N && !['heartbroken', 'shocked'].includes(o.emotion.type)) M.clearFeeling(o);
       if (o.action && (o.action.follow === dead || o.action.with === N)) o.cancelAction();
     }
     // The dead also let go of anyone already dead
     for (const g2 of sim.graves) if (g2.p !== dead && dead.rel[g2.name]) { g2.p.stash[N] = dead.rel[g2.name]; delete dead.rel[g2.name]; }
   };
+
+  // Someone finds out. how: saw | found | told | heard
+  G.learnDeath = (sim, o, N, how, from) => {
+    const e = o.mourning && o.mourning[N];
+    if (!e || e.aware) return false;
+    e.aware = true; e.t = sim.clock.abs; e.how = how;
+    e.sawBody = how === 'saw' || how === 'found';
+    const g = sim.graves.find(x => x.name === N);
+    if (g && !g.foundAt) g.foundAt = sim.clock.abs;
+    const f = e.f, close = e.partner || f > 40;
+    const how2 = { saw: `Watched ${N} die.`, found: `Found ${N}'s body.`, told: `${from ? from.name : 'Someone'} told me ${N} is dead.`, heard: `Heard that ${N} died.` }[how];
+    if (e.partner) o.remember(`${how2} The love of my life.`, { tag: 'death', about: N, mood: -30, moodDuration: 2880 });
+    else if (close) o.remember(`${how2} I can't believe it.`, { tag: 'death', about: N, mood: -18, moodDuration: 1440 });
+    else if (f > 5) o.remember(how2, { tag: 'death', about: N, mood: -8, moodDuration: 720 });
+    else if (f < -30 && o.traits.kind < 0.55) o.remember(`${how2} Can't say I'm crying.`, { tag: 'death', about: N, mood: 3, moodDuration: 360 });
+    else o.remember(how2, { tag: 'death', about: N, mood: -4, moodDuration: 360 });
+    o.skyOpinion = IS.clamp(o.skyOpinion - ({ saw: 22, found: 16 }[how] || 10) - (close ? 12 : 0), -100, 100);
+    G.setStage(sim, o, N, e, G.stageFor(e, sim.clock.abs));
+    // People who cared drop everything and go to the body
+    if ((how === 'saw' || how === 'found') && (close || f > 10) && o.mode === 'normal') { if (o.chat) o.chat.abort(o); o.cancelAction(); }
+    else if (how !== 'saw' && close) sim.nudge(o, 0.9);
+    return true;
+  };
+
+  // Shock, then (for the people closest) anger at the Sky, then sadness, then acceptance
+  G.stageFor = (e, now) => {
+    if (!e.aware) return 'unaware';
+    const h = (now - e.t) / 60;
+    const close = e.partner || e.f > 40, mid = e.f > 5;
+    if (!close && !mid) return h < 1 ? 'shock' : 'done';
+    if (h < (close ? 3 : 2)) return 'shock';
+    if (close && h < 8) return 'anger';
+    if (h < (close ? 48 : 24)) return 'sadness';
+    if (h < (close ? 96 : 48)) return 'acceptance';
+    return 'done';
+  };
+  G.setStage = (sim, o, N, e, st) => {
+    const M = IS.Mind;
+    e.stage = st;
+    if (o.emotion && o.emotion.about === N) M.clearFeeling(o);
+    const close = e.partner || e.f > 40;
+    if (st === 'shock' && e.f > -30) { M.feel(o, 'shocked', N, close ? 3 : 2); o.thought = IS.pick([`${N} can't be gone. They were just here.`, 'This isn\'t real. This isn\'t happening.', `Wait. ${N}? No...`]); }
+    else if (st === 'anger') { M.feel(o, 'furious', N, 5); o.thought = IS.pick([`The Sky took ${N}. Why?!`, 'I hate it. I hate whatever is up there.', `${N} didn't deserve this.`]); }
+    else if (st === 'sadness' && e.f > 5) M.feel(o, close ? 'heartbroken' : 'grieving', N, close ? 40 : 22);
+    else if (st === 'acceptance') { o.addMood(`Making peace with losing ${N}`, -3, 1440); o.thought = IS.pick([`I think ${N} would want us to be okay.`, `I still miss ${N}. But it hurts a little less.`]); }
+  };
+
+  // Grief ticks along once per game minute
+  const griefTick = sim => {
+    const now = sim.clock.abs;
+    for (const o of sim.people) {
+      if (!o.mourning) continue;
+      for (const [N, e] of Object.entries(o.mourning)) {
+        if (!e.aware) {
+          // Word gets around eventually, even if nobody tells you directly
+          if (now - e.died > 480 && awake(o) && Math.random() < 0.02) G.learnDeath(sim, o, N, 'heard');
+          continue;
+        }
+        const st = G.stageFor(e, now);
+        if (st !== e.stage) G.setStage(sim, o, N, e, st);
+        // Go find someone who hasn't heard yet, the people who loved them first
+        if ((st === 'shock' || st === 'anger' || st === 'sadness') && now - e.t > 5 && IS.Social.isFree(o) && !o.chat && awake(o) && Math.random() < 0.04) {
+          const who = sim.people.filter(x => x !== o && x.mourning && x.mourning[N] && !x.mourning[N].aware && x.pose !== 'sleep' && x.mode === 'normal' && x.canBeVisited(o))
+            .sort((a, b) => b.mourning[N].f - a.mourning[N].f)[0];
+          if (who) { IS.Social.approach(sim, o, who, 'breakNews', true, { dead: N, cause: e.cause }); o.thought = `${who.name} doesn't know about ${N} yet. I have to tell them.`; }
+        }
+        if (st === 'anger' && awake(o) && !o.chat && Math.random() < 0.012) {
+          o.say(IS.pick([`WHY, SKY?! WHY ${N.toUpperCase()}?!`, `You hear me up there?! Give ${N} BACK!`, 'I hope you\'re happy, Sky!', `${N} never hurt anyone!`]), 3);
+          o.emote('anger', 2.4);
+          o.skyOpinion = IS.clamp(o.skyOpinion - 2, -100, 100);
+        }
+      }
+    }
+    // Stumbling on a body
+    for (const g of sim.graves.slice()) {
+      // Nobody ever dealt with it: someone quietly takes care of it
+      if (g.stage !== 'grave' && now - g.t > 1440 && !g.burier) { bury(sim, g, null); continue; }
+      if (g.stage !== 'body' && g.stage !== 'remains') continue;
+      for (const o of sim.people) {
+        const e = o.mourning && o.mourning[g.name];
+        if (!e || !awake(o) || o.mode === 'panic' || !sameSpace(o, g.x, g.y, g.building) || IS.dist(o.x, o.y, g.x, g.y) > TL() * 6) continue;
+        if (!e.aware) {
+          const close = e.partner || e.f > 40;
+          o.say(IS.pick(close ? [`${g.name}?! ${g.name}!! NO!`, `No no no no. Not ${g.name}.`, `${g.name}... wake up. Please.`] : g.stage === 'remains' ? ['What IS that? Is that... oh no.', 'Is that a person? Was that a PERSON?!'] : [`Is that... ${g.name}?!`, 'Oh no. Oh no no no.', `Somebody help! It's ${g.name}!`]), 3);
+          o.emote(close ? 'sad' : 'exclaim', 2.4);
+          G.learnDeath(sim, o, g.name, 'found');
+        } else if (!e.sawBody) {
+          e.sawBody = true;
+          if (e.f > 10) { o.say(IS.pick([`So it's true... ${g.name}.`, `Oh, ${g.name}...`, 'I didn\'t want to believe it.']), 2.6); o.emote('sad', 2); }
+        }
+      }
+    }
+  };
+
+  // Who still needs to see the body, who digs, who comes to the funeral
+  G.bodyToSee = p => {
+    for (const [N, e] of Object.entries(p.mourning || {})) {
+      if (!e.aware || e.atBody || !(e.partner || e.f > 10) || !['shock', 'anger', 'sadness'].includes(e.stage)) continue;
+      const g = p.sim.graves.find(x => x.name === N && (x.stage === 'body' || x.stage === 'remains'));
+      if (g) return { name: N, entry: e, grave: g };
+    }
+    return null;
+  };
+  G.bodyToBury = p => {
+    const now = p.sim.clock.abs;
+    for (const g of p.sim.graves) {
+      if (g.stage === 'grave' || g.burier || !g.foundAt || now - g.foundAt < 45) continue;
+      const e = p.mourning && p.mourning[g.name];
+      if (!e || !e.aware || e.stage === 'shock') continue;
+      return { name: g.name, entry: e, grave: g };
+    }
+    return null;
+  };
+  G.funeralFor = p => {
+    for (const g of p.sim.graves) {
+      if (!g.burier || g.burier === p.name) continue;
+      const e = p.mourning && p.mourning[g.name];
+      if (e && e.aware && !e.funeral && e.f > 0) return { name: g.name, entry: e, grave: g };
+    }
+    return null;
+  };
+  G.startBurial = (sim, g, p) => {
+    g.burier = p.name;
+    if (!g.digLogged) { g.digLogged = true; sim.log(`${p.name} started digging a grave for ${g.name}.`, 'event', [p]); }
+    for (const o of sim.people) if (o !== p && G.funeralFor(o) && o.mode === 'normal') sim.nudge(o, 0.85);
+  };
+  G.stopBurial = g => { g.burier = null; };
 
   G.forget = (sim, dead) => {
     const N = dead.name;
@@ -480,11 +597,27 @@ IS.Gods = (() => {
     }
   };
 
-  const bury = (sim, g) => {
+  const bury = (sim, g, by) => {
     g.stage = 'grave';
-    g.x = g.gx; g.y = g.gy; g.building = null;
-    sim.log(`The islanders buried ${g.name}.`, 'event');
+    g.x = g.gx; g.y = g.gy; g.building = null; g.burier = null;
+    const came = sim.people.filter(o => o !== by && o.action && o.action.def.id === 'funeral' && o.action.grave === g);
+    for (const o of came) { o.mourning[g.name].funeral = true; }
+    if (by) sim.log(`${by.name} buried ${g.name}.${came.length ? ` ${came.map(o => o.name).join(', ')} came to say goodbye.` : ''}`, 'event', [by]);
+    else sim.log(`Someone quietly buried ${g.name}.`, 'event');
   };
+  G.bury = bury;
+  G.forget = (sim, dead) => {
+    const N = dead.name;
+    sim.news = (sim.news || []).filter(n => n.a !== N && n.b !== N);
+    for (const ev of sim.events.list) {
+      if (ev.attendees) ev.attendees.delete(N);
+      if (ev.state === 'upcoming' && ev.birthday === N) {
+        ev.state = 'done';
+        sim.log(`${ev.name} won't be happening.`, 'warn');
+      }
+    }
+  };
+
 
   // ------------------------------------------------------------ revive
   G.revive = (sim, g) => {
@@ -500,6 +633,7 @@ IS.Gods = (() => {
     const p = g.p, N = p.name, w = sim.world;
     const gi = sim.graves.indexOf(g);
     if (gi >= 0) sim.graves.splice(gi, 1);
+    for (const o of sim.people) if (o.action && o.action.grave === g) o.cancelAction();
     const tx = Math.floor(g.x / TL()), ty = Math.floor((g.y - 6) / TL());
     const spot = w.walkable(tx, ty) ? { x: tx, y: ty } : w.nearestWalkable(tx, ty);
     p.setTile(spot.x, spot.y);
@@ -556,9 +690,26 @@ IS.Gods = (() => {
   G.graveToVisit = p => {
     if (!p.mourning) return null;
     for (const [name, e] of Object.entries(p.mourning)) {
-      if (e.visited) continue;
+      if (e.visited || !['sadness', 'acceptance'].includes(e.stage)) continue;
       const g = p.sim.graves.find(x => x.name === name && x.stage === 'grave');
       if (g) return { name, entry: e, grave: g, f: e.f, partner: e.partner };
+    }
+    return null;
+  };
+  // Fresh grief: no chirpy hellos
+  G.inMourning = p => (p.action && ['atBody', 'bury', 'funeral', 'mourn'].includes(p.action.def.id)) ||
+    Object.values(p.mourning || {}).some(e => e.aware && e.f > 5 && (e.stage === 'shock' || e.stage === 'anger' || (e.stage === 'sadness' && (e.partner || e.f > 40))));
+  G.newsToBreak = (sim, sp, li) => {
+    for (const [N, e] of Object.entries(sp.mourning || {})) {
+      const le = li.mourning && li.mourning[N];
+      if (e.aware && le && !le.aware) return { name: N, cause: e.cause };
+    }
+    return null;
+  };
+  G.shockTopic = (sim, sp, li) => {
+    for (const [N, e] of Object.entries(sp.mourning || {})) {
+      const le = li.mourning && li.mourning[N];
+      if (e.aware && e.stage === 'shock' && e.f > 5 && le && le.aware) return { name: N, cause: e.cause };
     }
     return null;
   };
@@ -567,7 +718,7 @@ IS.Gods = (() => {
     if (!sp.mourning) return null;
     let best = null;
     for (const [name, e] of Object.entries(sp.mourning)) {
-      if (sim.clock.abs - e.t > 4320 || e.f < 5) continue;
+      if (!e.aware || !['anger', 'sadness', 'acceptance'].includes(e.stage) || e.f < 5) continue;
       if (!best || e.f > best.f) best = { name, ...e };
     }
     return best;
@@ -589,6 +740,8 @@ IS.Gods = (() => {
       if (f.kind === 'beam' && f.grave && f.t > 1 && !f.risen) { f.risen = true; G.rise(sim, f.grave); }
     }
     sim.godFx = sim.godFx.filter(f => f.t < f.max);
+    const minute = Math.floor(sim.clock.abs);
+    if (minute !== sim.griefMinute) { sim.griefMinute = minute; griefTick(sim); }
     for (const d of sim.decals) {
       if (d.kind !== 'flame') continue;
       d.burn -= r;
@@ -599,7 +752,6 @@ IS.Gods = (() => {
     }
     sim.decals = sim.decals.filter(d => (d.kind === 'flame' ? d.burn > 0 : sim.clock.abs - d.t < d.life));
     for (const g of sim.graves) {
-      if (g.stage !== 'grave' && sim.clock.abs - g.t > 120) bury(sim, g);
       if (g.stage === 'body' && (g.cause === 'smite' || g.cause === 'fire') && performance.now() - g.born < 9000 && Math.random() < rdt * 4) {
         const s = IS.Iso.w2s(g.x, g.y);
         sim.fx.smoke(s.x + IS.rand(-8, 8), s.y - 6);
@@ -629,7 +781,7 @@ IS.Gods = (() => {
       if (d.kind === 'flame') { if (d.burn > 0) R.drawFire(ctx, s.x - ox, s.y - oy - 2, t + d.x); continue; }
       const age = (sim.clock.abs - d.t) / d.life;
       const grow = d.kind === 'blood' ? Math.min(1, 0.35 + (performance.now() - d.born) / 3000) : 1;
-      ctx.globalAlpha = IS.clamp((1 - age) * 1.6, 0, 1);
+      ctx.globalAlpha = IS.clamp((1 - age) / 0.45, 0, 1); // full for ~13 hours, then fades out
       const w = d.img.width * grow, h = d.img.height * grow;
       ctx.drawImage(d.img, Math.round(s.x - w / 2 - ox), Math.round(s.y - h / 2 - oy), Math.round(w), Math.round(h));
     }

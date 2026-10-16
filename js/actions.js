@@ -396,6 +396,70 @@ IS.Actions = (() => {
   });
 
   // --- Grief and fear (see gods.js): visiting graves, praying to the Sky
+  // Near a spot by a body or grave (gods.js), never on top of it
+  const nearGrave = (p, g, r = 2, useGrave) => {
+    const W = p.world, x0 = Math.floor((useGrave ? g.gx : g.x) / IS.TILE), y0 = Math.floor(((useGrave ? g.gy : g.y) - 6) / IS.TILE);
+    const now = p.sim.clock.abs, claimed = (g.claimed = g.claimed || {});
+    const spot = W.findNear(x0, y0, (x, y) => W.walkable(x, y) && !(x === x0 && y === y0) && W.reach[W.idx(x, y)] === 1 && !((claimed[x + ',' + y] || 0) > now) && !p.sim.people.some(o => o !== p && o.tx === x && o.ty === y), r);
+    if (spot) claimed[spot.x + ',' + spot.y] = now + 60; // so mourners spread out instead of stacking
+    return spot;
+  };
+  def({
+    id: 'atBody', label: 'Kneeling by a body',
+    can: p => !!IS.Gods.bodyToSee(p),
+    score: p => { const m = IS.Gods.bodyToSee(p); return m ? 6 + m.entry.f / 20 + (m.entry.partner ? 3 : 0) : 0; },
+    plan: p => { const m = IS.Gods.bodyToSee(p); const spot = m && nearGrave(p, m.grave, 2); return spot ? { tx: spot.x, ty: spot.y, duration: IS.rand(12, 22), grave: m.grave, mourn: m } : null; },
+    start: (p, a) => {
+      p.faceToward(a.grave.x, a.grave.y);
+      p.pose = 'sit';
+      p.emote('sad', 3);
+      const n = a.grave.name, close = a.mourn.entry.partner || a.mourn.entry.f > 40;
+      p.say(IS.pick(close ? [`${n}... wake up. Please wake up.`, `Who did this to you, ${n}?`, `I'm here, ${n}. I'm here.`, '*sobbing*'] : [`Oh, ${n}...`, 'I\'m so sorry.', 'This isn\'t right.']), 3.2);
+      a.mourn.entry.sawBody = true;
+    },
+    tick: (p, a, dt) => { if (Math.random() < dt * 0.08) p.emote('sad', 2); if (Math.random() < dt * 0.02) p.say(IS.pick(['*sniff*', `${a.grave.name}...`, 'Why?']), 1.6); },
+    finish: (p, a) => { a.mourn.entry.atBody = true; },
+    cancel: (p, a) => { if (a.mourn) a.mourn.entry.atBody = true; },
+    thought: (p, a) => `I have to see ${a.grave.name}. I have to see it for myself.`,
+  });
+
+  def({
+    id: 'bury', label: 'Digging a grave', pose: 'work',
+    can: (p, c) => between(c.min, H(6), H(22)) && !!IS.Gods.bodyToBury(p),
+    score: p => { const m = IS.Gods.bodyToBury(p); return m ? 3.4 + p.traits.hardworking * 1.5 + (m.entry.f > 40 ? 1.5 : 0) - (m.entry.f < -30 ? 1.5 : 0) : 0; },
+    plan: p => { const m = IS.Gods.bodyToBury(p); const spot = m && nearGrave(p, m.grave, 2, m.grave.stage === 'lost'); return spot ? { tx: spot.x, ty: spot.y, duration: IS.rand(25, 35), grave: m.grave, mourn: m } : null; },
+    start: (p, a) => {
+      if (a.grave.burier) { a.done = true; return; }
+      p.faceToward(a.grave.gx, a.grave.gy);
+      IS.Gods.startBurial(p.sim, a.grave, p);
+      const n = a.grave.name, close = a.mourn.entry.partner || a.mourn.entry.f > 40;
+      p.say(IS.pick(close ? [`I'll take care of you, ${n}.`, `You deserve a proper goodbye, ${n}.`] : a.mourn.entry.f < -30 ? ['Fine. Somebody has to.', 'I\'m only doing this because nobody else will.'] : ['Someone has to do this.', `Let's give ${n} a proper resting place.`]), 3);
+    },
+    tick: (p, a, dt) => { if (Math.random() < dt * 0.6) p.sim.fx.dust(a.grave.gx + IS.rand(-6, 6), a.grave.gy); },
+    finish: (p, a) => { if (a.grave.burier === p.name) { IS.Gods.bury(p.sim, a.grave, p); p.say(IS.pick([`Rest easy, ${a.grave.name}.`, 'Goodbye, friend.', 'There. It\'s done.']), 3); p.addMood(`Buried ${a.grave.name}`, 2, 600); } },
+    cancel: (p, a) => { if (a.grave && a.grave.burier === p.name) IS.Gods.stopBurial(a.grave); },
+    thought: (p, a) => `${a.grave.name} deserves a proper grave.`,
+  });
+
+  def({
+    id: 'funeral', label: 'At a funeral',
+    can: p => !!IS.Gods.funeralFor(p),
+    score: p => { const m = IS.Gods.funeralFor(p); return m ? 4 + m.entry.f / 25 + (m.entry.partner ? 3 : 0) : 0; },
+    plan: p => { const m = IS.Gods.funeralFor(p); const spot = m && nearGrave(p, m.grave, 3, true); return spot ? { tx: spot.x, ty: spot.y, duration: IS.rand(25, 40), grave: m.grave, mourn: m } : null; },
+    start: (p, a) => { p.faceToward(a.grave.gx, a.grave.gy); p.emote('sad', 3); },
+    tick: (p, a, dt) => {
+      if (!a.grave.burier && a.grave.stage === 'grave') a.done = true;
+      if (Math.random() < dt * 0.03) {
+        const close = a.mourn.entry.partner || a.mourn.entry.f > 40;
+        p.say(IS.pick(close ? ['*sobbing*', `Goodbye, ${a.grave.name}.`, `I love you, ${a.grave.name}.`, 'It should have been me.'] : ['*sniff*', `Rest well, ${a.grave.name}.`, `${a.grave.name} was one of the good ones.`, '...']), 2.4);
+        p.emote('sad', 2);
+      }
+    },
+    finish: (p, a) => { a.mourn.entry.funeral = true; p.addMood(`Said goodbye to ${a.grave.name}`, 3, 720); },
+    cancel: (p, a) => { if (a.mourn) a.mourn.entry.funeral = true; },
+    thought: (p, a) => `${a.grave.name}'s funeral. I have to be there.`,
+  });
+
   def({
     id: 'mourn', label: 'Visiting a grave', outdoor: true,
     can: (p, c) => between(c.min, H(7), H(20)) && !!IS.Gods.graveToVisit(p),

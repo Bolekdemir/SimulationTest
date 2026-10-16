@@ -18,7 +18,7 @@ IS.Save = (() => {
     log: sim.logEntries.slice(-80),
     lastDolphinDay: sim.events.lastDolphinDay,
     deaths: sim.deaths || 0, lastDeathAt: sim.lastDeathAt,
-    graves: (sim.graves || []).map(g => ({ name: g.name, cause: g.cause, day: g.day, season: g.season, t: g.t, x: g.x, y: g.y, gx: g.gx, gy: g.gy, stage: g.stage, flowers: g.flowers, flip: g.flip, stash: g.p.stash || {} })),
+    graves: (sim.graves || []).map(g => ({ name: g.name, cause: g.cause, day: g.day, season: g.season, t: g.t, x: g.x, y: g.y, gx: g.gx, gy: g.gy, stage: g.stage, flowers: g.flowers, flip: g.flip, foundAt: g.foundAt || 0, stash: g.p.stash || {} })),
     people: (sim.everyone || sim.people).map(p => ({
       name: p.name, x: p.x, y: p.y, dead: !!p.dead, mourning: p.mourning || {}, revivedAt: p.revivedAt || 0, welcomedBack: p.welcomedBack || {},
       needs: p.needs, rel: p.rel, moodMods: p.moodMods,

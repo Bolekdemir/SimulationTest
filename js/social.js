@@ -117,6 +117,12 @@ IS.Social = (() => {
   };
 
   S.passBy = (sim, a, b) => {
+    if (IS.Gods.inMourning(a) || IS.Gods.inMourning(b)) {
+      a.faceToward(b.x, b.y);
+      a.say(IS.pick(['...', `Hey, ${b.name}.`, '*nods*']));
+      setTimeout(() => { if (!b.chat && b.mode === 'normal') b.say(IS.pick(['*nods*', '...', 'Hey.'])); }, 900);
+      return;
+    }
     const tone = IS.Dialogue.tone(a, b);
     const f = a.relTo(b.name).friendship;
     a.faceToward(b.x, b.y);

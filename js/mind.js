@@ -21,6 +21,9 @@ IS.Mind = (() => {
 
   // ------------------------------------------------------------ emotions
   const EMO = {
+    shocked: { rank: 6, mood: -12, label: o => `In shock. ${o} is gone`, emote: 'exclaim' },
+    furious: { rank: 5, mood: -10, label: o => `Furious at the Sky over ${o}`, emote: 'anger' },
+    grieving: { rank: 4, mood: -8, label: o => `Grieving ${o}`, emote: 'sad' },
     heartbroken: { rank: 5, mood: -16, label: o => `Heartbroken${o ? ' over ' + o : ''}`, emote: 'sad' },
     jealous: { rank: 4, mood: -8, label: o => `Jealous of ${o}`, emote: 'anger' },
     giddy: { rank: 3, mood: 12, label: o => `Giddy about ${o}`, emote: 'heart' },
@@ -496,6 +499,9 @@ IS.Mind = (() => {
       giddy: [`${o}!!! Okay. Breathe.`, `I can't stop smiling.`, `Is this what being happy feels like?`],
       sulking: [`${o} is SO annoying.`, `I'm not talking to ${o}. Not today.`, 'Hmph.'],
       proud: ['I am the best. Objectively.', 'Did everyone see that? I hope everyone saw that.'],
+      shocked: [`${o} can't be gone.`, 'This isn\'t real.', `I just saw ${o}. I JUST saw them.`],
+      furious: [`The Sky took ${o}.`, 'I hate it up there. I hate it.', `Why ${o}? Why not anyone else?`],
+      grieving: [`I keep thinking about ${o}.`, 'Everything is a bit quieter now.', `I miss ${o}.`],
       lonely: ['It\'s been a while since I talked to anyone.', 'Where is everybody?', 'I could really use some company.'],
     }[e.type] || ['...']);
   };

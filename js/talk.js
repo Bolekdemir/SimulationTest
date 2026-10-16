@@ -470,7 +470,7 @@ IS.Talk = (() => {
     { q: 'Rain or sunshine?', side: p => (p.loves.includes('reading') || p.loves.includes('gardening') ? 'Rain. Cozy and the plants love it.' : 'Sunshine. Obviously.'), tag: p => (p.loves.includes('reading') || p.loves.includes('gardening') ? 'rain' : 'sun') },
     { q: 'Breakfast: big and early, or skip it?', side: p => (p.traits.hardworking > 0.6 ? 'Big and early. Fuel.' : 'Skip it. Sleep is breakfast.'), tag: p => (p.traits.hardworking > 0.6 ? 'big' : 'skip') },
     { q: 'Would you rather be a seagull or a fish?', side: p => (p.loves.includes('swimming') || p.loves.includes('fishing') ? 'Fish. The ocean is huge.' : 'Seagull. Steal sandwiches, no consequences.'), tag: p => (p.loves.includes('swimming') || p.loves.includes('fishing') ? 'fish' : 'gull') },
-    { q: 'Hardest worker on the island. Go.', side: p => (p.name === 'Forest' ? 'Me. Obviously.' : p.name === 'Lynn' ? 'Forest. Though I do a lot.' : 'Forest. Or Lynn. Definitely not Egg.'), tag: () => 'x' },
+    { q: 'Hardest worker on the island. Go.', side: p => (p.name === 'Forest' ? 'Me. Obviously.' : p.name === 'Lynn' ? 'Forest. Though I do a lot.' : p.name === 'Egg' ? 'Not me. I am at peace with that.' : 'Forest. Or Lynn. Definitely not Egg.'), tag: () => 'x' },
   ];
   def('debate', {
     key: 'debate', w: 1,
@@ -1081,6 +1081,13 @@ IS.Talk = (() => {
       second = Math.random() < 0.6 ? pick(bp, b.name) : IS.Dialogue.as(b).line('greet', t2);
     }
     const f = (t, sp) => IS.Dialogue.fill(fill(t, ctx, sp), IS.Social.ctx(sim, sp, sp === a ? b : a));
+    if (IS.Gods.inMourning(a) || IS.Gods.inMourning(b)) {
+      first = IS.pick(['Hey.', 'Hi.', `Hey, {other}.`, '...hi.', 'How are you holding up?']);
+      second = IS.pick(['Hey.', 'Hi.', 'I\'ve been better.', 'Barely.', '...']);
+      const out = [{ sp: a, text: f(first, a) }, { sp: b, text: f(second, b) }];
+      out.askedDoing = true;
+      return out;
+    }
     const out = [{ sp: a, text: f(first, a) }, { sp: b, text: f(second, b) }];
     out.askedDoing = !!qa;
     return out;
@@ -1112,14 +1119,17 @@ IS.Talk = (() => {
       ctx.bFelt = !e ? 'meh' : e.partner || e.f > 50 ? 'close' : e.f > 10 ? 'sad' : e.f < -30 ? 'cold' : 'meh';
     },
     beats: [
-      { by: 'a', say: { any: ['I keep thinking about {dead}.', 'It doesn\'t feel real. {dead} is just... gone.', 'I walked past {dead}\'s place today. Out of habit.', 'Do you ever just... forget? And then remember {dead} is gone?'], Iroh: ['I had a joke ready for {dead}. A good one. Now what do I do with it?'], Lynn: ['I keep making two cups of tea.'], Egg: ['Even {cat} seems sad about {dead}.'], Jude: ['Feels wrong without {dead} around, man.'], Beach: ['Not that I care, but... it\'s quiet without {dead}.'], Forest: ['{dead} would have hated how quiet it is now.'] } },
+      { by: 'a', pick: ctx => ctx.stage || 'sadness', say: {
+        anger: ['The Sky did this. I\'ll never forgive it.', 'I\'m so ANGRY. {dead} didn\'t deserve that.', 'Why {dead}? Out of everyone. Why?'],
+        acceptance: ['I was thinking about {dead} today. The good stuff, for once.', 'I think {dead} would want us to be okay.', 'Remember how {dead} used to laugh? I miss that.'],
+        sadness: { any: ['I keep thinking about {dead}.', 'It doesn\'t feel real. {dead} is just... gone.', 'I walked past {dead}\'s place today. Out of habit.', 'Do you ever just... forget? And then remember {dead} is gone?'], Iroh: ['I had a joke ready for {dead}. A good one. Now what do I do with it?'], Lynn: ['I keep making two cups of tea.'], Egg: ['Even {cat} seems sad about {dead}.'], Jude: ['Feels wrong without {dead} around, man.'], Beach: ['Not that I care, but... it\'s quiet without {dead}.'], Forest: ['{dead} would have hated how quiet it is now.'] } } },
       { by: 'b', pick: ctx => ctx.bFelt, say: {
         close: ['Me too. Every single day.', 'I can\'t even go near the grave yet.', 'I still hear their voice sometimes.'],
         sad: ['Yeah. It\'s strange without them.', 'I know. I didn\'t expect it to hit this hard.', 'Same. It\'s just... wrong.'],
         meh: ['Yeah. It\'s strange.', 'I didn\'t know them that well, but still.', 'Mm. Life is short, huh.'],
         cold: ['I\'m not going to pretend I\'ll miss them.', '...I don\'t really know what to say.', 'Honestly? I\'m fine.'],
       } },
-      { by: 'a', pick: ctx => ctx.cause || 'fall', say: {
+      { by: 'a', if: ctx => ctx.stage !== 'acceptance', pick: ctx => ctx.cause || 'fall', say: {
         smite: ['Lightning. From a CLEAR sky.', 'The Sky just... struck them down. Why them?', 'I can still see the flash when I close my eyes.'],
         meteor: ['A rock. From SPACE. Who even dies like that?', 'There wasn\'t even enough left to bury properly.', 'I still find bits of... never mind.'],
         fire: ['The screaming. I can still hear the screaming.', 'If someone had just gotten water...', 'I can\'t look at the bonfire anymore.'],
@@ -1132,6 +1142,48 @@ IS.Talk = (() => {
       ctx.a.changeRel(ctx.b.name, 3); ctx.b.changeRel(ctx.a.name, 3);
       ctx.a.addMood('Shared the grief', 3, 300);
     },
+  });
+
+  // Breaking the news to someone who hasn't heard
+  def('breakNews', {
+    key: 'breakNews', w: 1,
+    setup: ctx => {
+      ctx.vars.dead = ctx.dead;
+      const e = ctx.b.mourning && ctx.b.mourning[ctx.dead];
+      ctx.bFelt = !e ? 'mid' : e.partner || e.f > 40 ? 'close' : e.f < -30 ? 'cold' : 'mid';
+    },
+    beats: [
+      { by: 'a', say: ['Did you hear about {dead}?', 'Hey... you haven\'t heard, have you? About {dead}.', 'You might want to sit down for this.', 'I have to tell you something. It\'s about {dead}.'] },
+      { by: 'b', say: ['No? What about {dead}?', 'What happened?', 'You\'re scaring me. What is it?', 'What? What\'s wrong?'] },
+      { by: 'a', pick: ctx => ctx.cause || 'fall', say: {
+        smite: ['{dead} is dead. Lightning. Out of a clear sky.', 'The Sky struck {dead} down. They\'re gone.'],
+        meteor: ['{dead} is gone. A meteor. A literal METEOR.', 'Something fell from the sky and... {dead} didn\'t make it.'],
+        fire: ['{dead} burned to death. Nobody could get to them in time.', '{dead} is gone. There was a fire.'],
+        fall: ['The Sky threw {dead}. They didn\'t survive the landing.', '{dead} is dead. Thrown. Like a ragdoll.'],
+      } },
+      { by: 'b', pick: ctx => ctx.bFelt, say: {
+        close: ['No. No, that\'s not funny.', 'You\'re lying. Tell me you\'re lying.', 'I... I need to sit down.', 'No... not {dead}...'],
+        mid: ['What?! When?!', 'Oh no... that\'s awful.', 'Are you serious? {dead}?', 'I just saw them yesterday...'],
+        cold: ['...Huh.', 'Wow. Okay.', 'Can\'t say I\'m surprised.', 'That\'s... a lot.'],
+      } },
+      { by: 'a', if: ctx => ctx.bFelt === 'close', say: ['I\'m so sorry. I know what they meant to you.', 'I didn\'t want you to hear it from anyone else.', 'Come here.'] },
+    ],
+    after: (ctx, sim) => {
+      IS.Gods.learnDeath(sim, ctx.b, ctx.dead, 'told', ctx.a);
+      if (ctx.bFelt === 'close') { ctx.b.emote('sad', 3); ctx.b.changeRel(ctx.a.name, 3); }
+    },
+  });
+
+  // Right after: nobody knows what to do with themselves
+  def('shockTalk', {
+    key: 'shockTalk', w: 1,
+    setup: ctx => { ctx.vars.dead = ctx.dead; },
+    beats: [
+      { by: 'a', say: ['I can\'t believe {dead} is gone.', '{dead} was just here. Like, this morning.', 'It doesn\'t feel real.', 'I keep thinking I\'ll see {dead} around the corner.'] },
+      { by: 'b', say: ['Me neither.', 'I don\'t know what to do with myself.', 'I keep replaying it.', 'I can\'t stop shaking.'] },
+      { by: 'a', say: ['What do we even do now?', 'Someone should... I don\'t know. Do something.', 'We have to bury them, don\'t we.', 'Let\'s just... stay together today.'] },
+    ],
+    after: ctx => { ctx.a.changeRel(ctx.b.name, 2); ctx.b.changeRel(ctx.a.name, 2); },
   });
 
   // Is the Sky out to get us?
@@ -1185,7 +1237,10 @@ IS.Talk = (() => {
     if (topic === 'eventRecap' && !extra.recap) return null;
     if (topic === 'teach' && !extra.teachLove) return null;
     if (topic === 'hangout' && !extra.hangDef) return null;
-    if (topic === 'mourn' && !extra.dead) return null;
+    if (topic === 'breakNews' && !extra.dead) { const n = IS.Gods.newsToBreak(sim, a, b); if (n) { extra.dead = n.name; extra.cause = n.cause; } }
+    // They heard it from someone else on the way over: talk about it instead
+    if (topic === 'breakNews' && extra.dead && b.mourning && b.mourning[extra.dead] && b.mourning[extra.dead].aware) return T.threadFor(sim, a, b, 'shockTalk', extra);
+    if ((topic === 'mourn' || topic === 'breakNews' || topic === 'shockTalk') && !extra.dead) return null;
     if (topic === 'askAbout' && (!extra.subject || extra.subject === a || extra.subject === b)) return null;
     if (topic === 'crushAdvice' && !extra.crush) { extra.crush = IS.Dialogue.crushOf(a); if (!extra.crush || extra.crush === b) return null; }
     const ctx = T.ctx(sim, a, b, extra);
@@ -1202,8 +1257,12 @@ IS.Talk = (() => {
     const now = sim.clock.abs, min = sim.clock.min, t = sp.traits;
     const ev = sp.memories.find(m => m.tag === 'event' && now - m.t < 1080 && li.memories.some(x => x.tag === 'event' && x.text === m.text));
     // Death and the Sky
+    const tell = IS.Gods.newsToBreak(sim, sp, li);
+    if (tell) add('breakNews', 9, { dead: tell.name, cause: tell.cause });
+    const shock = IS.Gods.shockTopic(sim, sp, li);
+    if (shock) add('shockTalk', 4, { dead: shock.name, cause: shock.cause });
     const grief = IS.Gods.mournTopic(sim, sp);
-    if (grief && grief.name !== li.name) add('mourn', 2.2 + grief.f / 30 + (grief.partner ? 2 : 0), { dead: grief.name, cause: grief.cause });
+    if (grief && grief.name !== li.name) add('mourn', 2.2 + grief.f / 30 + (grief.partner ? 2 : 0), { dead: grief.name, cause: grief.cause, stage: grief.stage });
     if (li.revivedAt && now - li.revivedAt < 2880 && !(sp.welcomedBack && sp.welcomedBack[li.name] > li.revivedAt)) add('backFromDead', 8);
     if (sim.deaths && now - sim.lastDeathAt < 2880) add('skyFear', 0.9 + Math.max(0, -sp.skyOpinion) / 50);
     if (ev) { const name = ev.text.replace('Went to ', ''); const evObj = sim.events.list.find(e => e.name === name); add('eventRecap', 2.2, { recap: name, recapHost: evObj && evObj.host }); }
