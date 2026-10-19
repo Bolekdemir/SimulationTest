@@ -30,7 +30,9 @@ window.Critic = (() => {
       this._n = (this._n || 0) + 1;
       const tag = `${sp.name}->${li.name}: ${text}`;
       const noEvents = sim.events.list.reduce((t, e) => t.split(e.name).join(''), text);
-      if (new RegExp(`\\b${sp.name}\\b`).test(noEvents)) flag('self-name', tag);
+      // Introducing yourself ("Hi! I'm Lynn.") is the one time saying your own name is fine
+      const intro = seg && seg.run && seg.run.th && seg.run.th.key === 'welcome';
+      if (!intro && new RegExp(`\\b${sp.name}\\b`).test(noEvents)) flag('self-name', tag);
       if ((sp.pose === 'sleep' && !sp.sick) || (li.pose === 'sleep' && !li.sick)) flag('sleep-talk', tag);
       if (IS.dist(sp.x, sp.y, li.x, li.y) > IS.TILE * 4.5 || (sp.building || null) !== (li.building || null)) flag('far-talk', `${tag} [d=${(IS.dist(sp.x, sp.y, li.x, li.y) / IS.TILE).toFixed(1)} ${sp.mode}/${li.mode} ${sp.action ? sp.action.def.id + ':' + sp.action.phase : '-'} ${li.action ? li.action.def.id + ':' + li.action.phase : '-'} b=${sp.building ? sp.building.id : '-'}/${li.building ? li.building.id : '-'} line${this._n}]`);
       if (kind === 'greet') for (const o of sim.people) if (o !== li && o !== sp && new RegExp(`\\b${o.name}\\b`).test(text)) flag('wrong-address', tag);

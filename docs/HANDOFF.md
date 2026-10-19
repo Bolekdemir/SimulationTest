@@ -189,11 +189,11 @@ e3a60a9 Revivals ripple like deaths do
 6. **Side questions:** the cost figure, a request for the game link, and an explanation of how the brains work.
 
 ## Open questions & next steps
-- **Dialogue judge regression.** The score dropped from about 82 to about 76, with 60 "self-name" violations. The examples checked were introductions in the new `welcome` thread ("Hi! I'm Lynn."), which `tools/critic.js` flags as self-naming. **Likely fix:** allow "I'm <own name>" in the welcome thread in the critic, or exempt introductions. Then re-run the judge to confirm nothing else regressed. Unverified.
+- **Dialogue judge regression: fixed.** `tools/critic.js` no longer flags self-naming inside the `welcome` thread (introductions). Re-run (`--sims 12 --days 3 --seed 7 --workers 6`) scored 81.1 with 0 self-name violations; remaining: repeat 29, ignored-question 10, thread-repeat 7.
 - **Pacing.** Growth was only checked in a handful of 12-day runs. Reaching 12 islanders looks like it takes about one in-game season.
 - **Optional ideas mentioned but not done:** married couples moving in together; layering Dreams or Faith on top of the town goal; a scroll hint on the roster when there are many islanders.
 - **GitHub Pages.** Check whether Pages serves `claude/tidewhistle-isle`.
-- **Task list state.** Phase 5–6 ("tiers, town status, balance, tests") is still in progress. Tiers and the festival are done and tested; balance and the judge fix are pending.
+- **Task list state.** Phase 5–6 ("tiers, town status, balance, tests") is still in progress. Tiers and the festival are done and tested; the judge fix is done; balance is pending.
 
 ## Glossary
 - **Sky Hand:** the player.
