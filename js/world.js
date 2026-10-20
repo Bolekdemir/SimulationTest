@@ -512,6 +512,8 @@ IS.World = class {
       { name: 'the plaza', x: 40, y: 33 },
       { name: 'the farm', x: 30, y: 40 },
       { name: 'the east woods', x: 104, y: 26 },
+      { name: 'the lake', x: 118, y: 63 },
+      { name: 'the cliffs', ...this.findNear(132, 100, (x, yy) => this.cliffy[this.idx(x, yy)] === 1 && this.walkable(x, yy) && reachable(x, yy), 30) },
     ].map(p => {
       const t = this.findNear(p.x, p.y, (x, yy) => this.walkable(x, yy) && reachable(x, yy));
       return { ...p, x: t.x, y: t.y };

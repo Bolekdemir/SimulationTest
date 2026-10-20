@@ -265,7 +265,7 @@ IS.Command = (() => {
     const add = list => { for (const ph of list) for (const w of ph.split(' ')) words.add(w); };
     for (const t of [ACTS, SOCIAL, ABOUT]) for (const l of Object.values(t)) add(l);
     add(GOSSIP_BAD); add(GOSSIP_GOOD); add(STOP);
-    add(['dance', 'sing', 'laugh', 'cry', 'wave', 'jump', 'scream', 'clap', 'shrug', 'sneeze', 'flex', 'wake', 'calm', 'down', 'avoid', 'ignore', 'away', 'break', 'dock', 'pier', 'lighthouse', 'forest', 'woods', 'meadow', 'trail', 'hall', 'oak', 'farm', 'hungry', 'tired', 'bored', 'lonely', 'crush', 'friend', 'best', 'hate', 'like', 'love', 'think', 'feel', 'doing', 'plans', 'secret', 'scared', 'afraid']);
+    add(['dance', 'sing', 'laugh', 'cry', 'wave', 'jump', 'scream', 'clap', 'shrug', 'sneeze', 'flex', 'wake', 'calm', 'down', 'avoid', 'ignore', 'away', 'break', 'dock', 'pier', 'lighthouse', 'forest', 'woods', 'lake', 'pond', 'cliff', 'cliffs', 'east', 'wild', 'meadow', 'trail', 'hall', 'oak', 'farm', 'hungry', 'tired', 'bored', 'lonely', 'crush', 'friend', 'best', 'hate', 'like', 'love', 'think', 'feel', 'doing', 'plans', 'secret', 'scared', 'afraid']);
     VOCAB = words;
     return words;
   };
@@ -524,7 +524,7 @@ IS.Command = (() => {
     const acts = scoreAll(t, ACTS).filter(a => a.k !== 'wander' && !(a.ph === 'farm' && / to the farm /.test(t)));
     // Places
     if (!acts.length && (/\b(go|walk|run|head|get|move|come|travel|visit)\b/.test(t) || / to the /.test(t))) {
-      const P = [['the dock', /\b(dock|pier|jetty)\b/], ['the lighthouse', /\blighthouse\b/], ['the Old Oak', /\b(old oak|oak|forest|woods)\b/], ['the north trail', /\b(trail|north)\b/], ['the west meadow', /\b(meadow|field|west)\b/], ['the farm', /\b(farm)\b/], ['the Hall', /\b(hall|town hall)\b/]];
+      const P = [['the east woods', /\b(east woods|east|wilds?|wilderness)\b/], ['the lake', /\b(lake|pond)\b/], ['the cliffs', /\b(cliffs?|clifftop)\b/], ['the dock', /\b(dock|pier|jetty)\b/], ['the lighthouse', /\blighthouse\b/], ['the Old Oak', /\b(old oak|oak|forest|woods)\b/], ['the north trail', /\b(trail|north)\b/], ['the west meadow', /\b(meadow|field|west)\b/], ['the farm', /\b(farm)\b/], ['the Hall', /\b(hall|town hall)\b/]];
       for (const [name, re] of P) if (re.test(t)) return { kind: 'goto', place: name, what: `go to ${name}` };
     }
     if (!named && /\b(dont leave|don t leave|please stay|stay with us|stay here|dont go|don t go|stay on the island|we need you|dont move away|don t move away)\b/.test(t)) return { kind: 'plead', what: 'stay on the island' };
