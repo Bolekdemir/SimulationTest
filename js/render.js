@@ -351,6 +351,7 @@ IS.Renderer = class {
     }
     this.drawLighting(ctx, amb, ox, oy, t);
     this.drawWeather(ctx, rdt, t, amb);
+    if (!lowFx) this.drawRays(ctx, ox, oy, t);
     if (!lowFx) this.drawBloom(ctx, amb);
     this.drawStars(ctx, now);
     IS.Content.drawSky(this, ctx, now);
@@ -765,6 +766,14 @@ IS.Renderer = class {
           const p = l.win.pts, cx = (p[0].x + p[2].x) / 2 - ox, cy = (p[0].y + p[2].y) / 2 - oy, k = dark * (1 - (l.cut || 0));
           glow(cx, cy, 30, 30, 0.32 * k); // halo around the pane
           glow(cx, cy + 22, 26, 44, 0.16 * k); // spill down the wall to the ground
+          if (l.win.h !== undefined) { // the window's shape thrown onto the ground in front of the wall
+            const a = { x: p[0].x - ox, y: p[0].y - oy + l.win.h }, b = { x: p[1].x - ox, y: p[1].y - oy + l.win.h };
+            const n = l.win.face === 's' ? { x: -20, y: 10 } : { x: 20, y: 10 };
+            ctx.globalAlpha = Math.min(1, 0.22 * k);
+            ctx.setTransform(b.x - a.x, b.y - a.y, n.x, n.y, a.x, a.y);
+            ctx.drawImage(this.beam || (this.beam = this.makeBeam()), 0, 0, 1, 1);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+          }
         } else if (l.lantern) glow(l.lantern.x - ox, l.lantern.y - oy, 26, 26, 0.4 * dark);
       }
       for (const l of this.sim.world.lamps) {
@@ -809,6 +818,51 @@ IS.Renderer = class {
     return c;
   }
 
+  // Sun shafts: soft slanted beams along the sun's direction, strongest at golden hour, drifting slowly.
+  // They sit under the bloom, which softens them further.
+  drawRays(ctx, ox, oy, t) {
+    const sun = this.sun();
+    if (!sun || sun.a < 0.05) return;
+    const min = this.sim.clock.min, noon = 1 - Math.min(1, Math.abs(min - 13 * 60) / 330); // 1 at midday, 0 at golden hour
+    const strength = sun.a * (0.45 + 0.55 * (1 - noon));
+    const R = this.rayTex || (this.rayTex = this.makeRay());
+    const ang = IS.clamp(-sun.k * 0.35, -0.6, 0.6); // lean with the sun, like the shadows
+    const span = this.vw + this.vh;
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < 7; i++) {
+      const wid = 70 + ((i * 53) % 110), drift = Math.sin(t * 0.07 + i * 1.7) * 30;
+      const x = ((i * 337 - ox * 0.35 + drift) % span + span) % span - this.vh * 0.3;
+      ctx.globalAlpha = strength * (0.24 + 0.1 * Math.sin(t * 0.23 + i * 2.1));
+      ctx.setTransform(Math.cos(ang), Math.sin(ang), -Math.sin(ang), Math.cos(ang), x, -20);
+      ctx.drawImage(R, -wid / 2, 0, wid, this.vh * 1.4);
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  makeRay() {
+    const { c, g } = IS.makeCanvas(32, 128, false);
+    const across = g.createLinearGradient(0, 0, 32, 0);
+    across.addColorStop(0, 'rgba(255, 236, 190, 0)'); across.addColorStop(0.5, 'rgba(255, 236, 190, 1)'); across.addColorStop(1, 'rgba(255, 236, 190, 0)');
+    g.fillStyle = across; g.fillRect(0, 0, 32, 128);
+    g.globalCompositeOperation = 'destination-in';
+    const along = g.createLinearGradient(0, 0, 0, 128);
+    along.addColorStop(0, 'rgba(0,0,0,1)'); along.addColorStop(0.7, 'rgba(0,0,0,0.5)'); along.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = along; g.fillRect(0, 0, 32, 128);
+    return c;
+  }
+
+  // Warm light fading away from its source, stretched onto the ground under each lit window
+  makeBeam() {
+    const { c, g } = IS.makeCanvas(16, 32, false);
+    const gr = g.createLinearGradient(0, 0, 0, 32);
+    gr.addColorStop(0, 'rgba(255, 200, 120, 0.9)');
+    gr.addColorStop(0.5, 'rgba(255, 170, 90, 0.35)');
+    gr.addColorStop(1, 'rgba(255, 150, 80, 0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 16, 32);
+    return c;
+  }
+
   // Bloom: everything bright on screen glows. The frame is shrunk, everything
   // below a brightness threshold is dropped, and the rest is blurred back on top.
   // The threshold is a canvas filter so it stays on the GPU: reading pixels back
@@ -818,8 +872,9 @@ IS.Renderer = class {
     const A = this.bloomA, B = this.bloomB;
     if (typeof A.g.filter !== 'string') return; // no canvas filters (older Safari): no glow
     const aw = A.c.width, ah = A.c.height;
-    // brightness(b) then contrast(c) maps thr -> 0 and 1 -> 1
-    const thr = IS.lerp(0.8, 0.66, amb.dark), c = (1 + thr) / (1 - thr), b = 0.5 + 0.5 / c;
+    // brightness(b) then contrast(c) maps thr -> 0 and 1 -> 1. A low threshold makes it ambient:
+    // most lit surfaces glow a little and bright ones a lot, like light bouncing around the scene.
+    const thr = IS.lerp(0.5, 0.42, amb.dark), c = (1 + thr) / (1 - thr), b = 0.5 + 0.5 / c;
     // The glow barely changes between frames: rebuild it every third frame and reuse it in between
     const fresh = (this.bloomN = (this.bloomN || 0) + 1) % 3 === 1;
     if (fresh) {
@@ -830,13 +885,16 @@ IS.Renderer = class {
       A.g.filter = 'none';
       B.g.imageSmoothingEnabled = true;
       B.g.clearRect(0, 0, B.c.width, B.c.height);
+      B.g.filter = 'blur(1px)';
       B.g.drawImage(A.c, 0, 0, B.c.width, B.c.height);
+      B.g.filter = 'none';
     }
+    // 'screen' brightens without blowing out to white: a wide soft haze plus a tighter glow
     ctx.imageSmoothingEnabled = true;
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.28 + 0.22 * amb.dark;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.55 + 0.2 * amb.dark;
     ctx.drawImage(B.c, 0, 0, this.vw, this.vh);
-    ctx.globalAlpha = 0.12 + 0.1 * amb.dark;
+    ctx.globalAlpha = 0.3 + 0.1 * amb.dark;
     ctx.drawImage(A.c, 0, 0, this.vw, this.vh);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';

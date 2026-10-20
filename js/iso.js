@@ -245,14 +245,14 @@ IS.Iso = (() => {
       poly(g, q.map(p => ({ x: p.x, y: p.y })), trim);
       const inset = winRect(up(L(x0 + u0 + 0.05, y1), v0 + 2), up(L(x0 + u1 - 0.05, y1), v0 + 2), up(L(x0 + u0 + 0.05, y1), v1 - 2));
       poly(g, inset, '#5a6aa8');
-      out.windows.push({ pts: inset.map(p => ({ x: p.x + minX, y: p.y + minY })), face: 's' });
+      out.windows.push({ pts: inset.map(p => ({ x: p.x + minX, y: p.y + minY })), face: 's', h: v0 + 2 });
     };
     const winOnE = (u0, u1, v0, v1) => {
       const A = L(x1, y1 - u0), B = L(x1, y1 - u1);
       poly(g, winRect(up(A, v0), up(B, v0), up(A, v1)), I.shade(trim, 0.3));
       const inset = winRect(up(L(x1, y1 - u0 - 0.05), v0 + 2), up(L(x1, y1 - u1 + 0.05), v0 + 2), up(L(x1, y1 - u0 - 0.05), v1 - 2));
       poly(g, inset, '#4a5890');
-      out.windows.push({ pts: inset.map(p => ({ x: p.x + minX, y: p.y + minY })), face: 'e' });
+      out.windows.push({ pts: inset.map(p => ({ x: p.x + minX, y: p.y + minY })), face: 'e', h: v0 + 2 });
     };
     const wTop = WH - 8, wBot = Math.max(12, WH - 24);
     const doorCols = b.doorCols || [];
@@ -554,7 +554,7 @@ IS.Iso = (() => {
       const pts = [PT(u0, h0), PT(u1, h0), PT(u1, h1)];
       for (let i = 1; i < 6; i++) { const t = 1 - i / 6; pts.push(PT(u0 + (u1 - u0) * t, archT(h1, aH)(t))); }
       pts.push(PT(u0, h1));
-      out.windows.push({ pts: pts.map(W2), face });
+      out.windows.push({ pts: pts.map(W2), face, h: h0 });
     };
 
     const sPosts = [], ePosts = [];
