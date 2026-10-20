@@ -98,6 +98,7 @@ IS.Audio = (() => {
     const t = ac.currentTime;
     tone(bus.sfx, 'sine', 1046, 1046, t, 0.5, 0.05); tone(bus.sfx, 'sine', 1568, 1568, t + 0.08, 0.6, 0.04);
   };
+  A.shutter = () => { if (ready()) { const t = ac.currentTime; burst(bus.sfx, bus.white, 'highpass', 3000, t, 0.05, 0.3); burst(bus.sfx, bus.white, 'bandpass', 2000, t + 0.09, 0.07, 0.25, 1.5); } };
   A.splash = () => { if (ready() && rate('splash', 0.15)) burst(bus.sfx, bus.white, 'bandpass', 1400, ac.currentTime, 0.45, 0.25, 0.7, 500); };
   // The Hall's bell: inharmonic partials, three strikes
   A.bell = () => {

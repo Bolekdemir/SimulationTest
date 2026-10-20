@@ -984,6 +984,21 @@ IS.Renderer = class {
     }
     ctx.globalAlpha = 1;
   }
+  // O takes a photo of the island at screen size, crisp pixels, and saves it
+  photo() {
+    const z = this.sim.cam.zoom, { c, g } = IS.makeCanvas(this.vw * z, this.vh * z, false);
+    g.imageSmoothingEnabled = false;
+    g.drawImage(this.canvas, 0, 0, c.width, c.height);
+    c.toBlob(b => {
+      if (!b) return;
+      const a = document.createElement('a'), clk = this.sim.clock;
+      a.href = URL.createObjectURL(b); a.download = `tidewhistle-day${clk.day}-${String(clk.hour).padStart(2, '0')}h.png`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
+    if (IS.Audio.shutter) IS.Audio.shutter();
+    this.flash = Math.max(this.flash || 0, 0.35);
+    this.sim.toast('Snap! Photo saved.');
+  }
   // Trees lean a pixel in the wind now and then, a gust rolling across them; storms shake them hard
   sway(o, t) {
     const w = this.sim.weather, f = w === 'storm' ? 2.4 : w === 'rain' || w === 'cloudy' ? 1.2 : 0.8;
