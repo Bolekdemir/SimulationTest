@@ -695,6 +695,8 @@ IS.Renderer = class {
   collectLights(amb, t) {
     const sim = this.sim, w = sim.world, I = IS.Iso, dark = amb.dark;
     const lights = [];
+    // candlelight breathes a little; each light on its own rhythm
+    const flick = k => 0.92 + 0.08 * Math.sin(t * 5.3 + k * 1.7) * Math.sin(t * 2.9 + k * 0.37);
     const min = sim.clock.min;
     const evening = min >= 16.5 * 60 || min < 7.5 * 60;
     const lateNight = min >= 22.5 * 60 || min < 5 * 60;
@@ -714,9 +716,9 @@ IS.Renderer = class {
         const cx = (win.pts[0].x + win.pts[2].x) / 2, cy = (win.pts[0].y + win.pts[2].y) / 2;
         // every window glows; only some cast light, so big buildings don't blow out
         const casts = wi % 2 === 0;
-        lights.push({ x: cx + (win.face === 's' ? -6 : 6), y: cy + 16, r: casts ? 34 : 0, s: casts ? 0.6 * dark * (1 - bld.cut) : 0, warm: casts ? 0.22 : 0, win, cut: bld.cut });
+        lights.push({ x: cx + (win.face === 's' ? -6 : 6), y: cy + 16, r: casts ? 34 : 0, s: casts ? 0.6 * dark * (1 - bld.cut) * flick(cx) : 0, warm: casts ? 0.22 : 0, win, cut: bld.cut });
       });
-      for (const lt of bld.iso.lanterns || []) lights.push({ x: lt.x, y: lt.y + 4, r: 34, s: 0.8 * dark, warm: 0.4, lantern: lt });
+      for (const lt of bld.iso.lanterns || []) lights.push({ x: lt.x, y: lt.y + 4, r: 34, s: 0.8 * dark * flick(lt.x), warm: 0.4, lantern: lt });
     }
     if (w.bonfire.lit) {
       const fl = 1 + Math.sin(t * 13) * 0.06 + Math.sin(t * 7.3) * 0.05;
