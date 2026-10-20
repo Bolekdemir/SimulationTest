@@ -49,16 +49,18 @@ IS.World = class {
     const rng = IS.mulberry32(1234);
     this.rng = rng;
 
-    // The ridge to the wild east bows north, away from the lighthouse
-    const RIDGE = [[54, 13], [66, 11], [80, 10], [94, 12], [108, 16]];
-    const ridgeY = x => {
-      if (x <= RIDGE[0][0]) return RIDGE[0][1];
-      for (let k = 1; k < RIDGE.length; k++) if (x <= RIDGE[k][0]) {
-        const [x0, y0] = RIDGE[k - 1], [x1, y1] = RIDGE[k], t = (1 - Math.cos(Math.PI * (x - x0) / (x1 - x0))) / 2;
+    // Smooth curve through points, used for the trail and the bay's north shore
+    const curve = pts => x => {
+      if (x <= pts[0][0]) return pts[0][1];
+      for (let k = 1; k < pts.length; k++) if (x <= pts[k][0]) {
+        const [x0, y0] = pts[k - 1], [x1, y1] = pts[k], t = (1 - Math.cos(Math.PI * (x - x0) / (x1 - x0))) / 2;
         return y0 + (y1 - y0) * t;
       }
-      return RIDGE[RIDGE.length - 1][1];
+      return pts[pts.length - 1][1];
     };
+    const ridgeY = curve([[54, 13], [66, 11], [80, 10], [94, 12], [108, 16]]);
+    // The north woods join village and wild east into one island; the sea between them is a bay
+    const bayN = curve([[50, 13], [62, 16], [72, 19], [86, 21], [100, 26], [114, 30]]);
 
     // 1. Island shape
     const land = new Uint8Array(W * H);
@@ -74,7 +76,7 @@ IS.World = class {
       // The wild east: a big landmass, joined to the village by a ridge in the northeast
       const ex = (x - 116) / 42, ey = (y - 60) / 56;
       if (Math.sqrt(ex * ex + ey * ey) < 0.9 + n) isLand = true;
-      if (x >= 50 && x <= 110 && y >= 7 && Math.abs(y - ridgeY(x)) < 3.2 + (n2(x * 0.08, 7) - 0.5) * 3 + n * 8) isLand = true;
+      if (x >= 50 && x <= 114 && y >= 7 && y <= bayN(x) + n * 10) isLand = true;
       if (x < 3 || y < 3 || x > W - 12 || y > H - 12) isLand = false; // the far edges need open sea or the ground smears past the map
       land[y * W + x] = isLand ? 1 : 0;
     }
