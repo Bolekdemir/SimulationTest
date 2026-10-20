@@ -709,12 +709,16 @@ IS.Renderer = class {
       for (const l of lights) {
         if (!vis(l) || !l.r) continue;
         const x = l.x - ox, y = (l.gy !== undefined ? l.gy : l.y) - oy;
-        const gr = L.createRadialGradient(x, y, 0, x, y, l.r);
+        // Light lying on the ground is a flattened ellipse, the way a floor reads in isometric view
+        const flat = l.gy !== undefined || l.win;
+        L.setTransform(1, 0, 0, flat ? 0.55 : 1, x, y);
+        const gr = L.createRadialGradient(0, 0, 0, 0, 0, l.r * (flat ? 1.25 : 1));
         gr.addColorStop(0, `rgba(0,0,0,${l.s})`);
         gr.addColorStop(0.45, `rgba(0,0,0,${l.s * 0.6})`);
         gr.addColorStop(1, 'rgba(0,0,0,0)');
         L.fillStyle = gr;
-        L.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+        L.fillRect(-l.r * 1.25, -l.r * 1.25, l.r * 2.5, l.r * 2.5);
+        L.setTransform(1, 0, 0, 1, 0, 0);
       }
       const lh = lights.find(l => l.lighthouse);
       if (lh) {
@@ -750,6 +754,28 @@ IS.Renderer = class {
       }
     }
     ctx.globalAlpha = 1;
+    // Halos and spill: light bleeding past window frames, down the wall and onto the ground
+    if (dark > 0.05) {
+      const H = this.halo || (this.halo = this.makeHalo());
+      const glow = (x, y, w, h, a) => { if (a > 0.01) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(H, Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), Math.round(h)); } };
+      ctx.globalCompositeOperation = 'lighter';
+      for (const l of lights) {
+        if (l.win) {
+          if ((l.cut || 0) > 0.6 || !vis({ x: l.x, y: l.y, r: 40 })) continue;
+          const p = l.win.pts, cx = (p[0].x + p[2].x) / 2 - ox, cy = (p[0].y + p[2].y) / 2 - oy, k = dark * (1 - (l.cut || 0));
+          glow(cx, cy, 30, 30, 0.32 * k); // halo around the pane
+          glow(cx, cy + 22, 26, 44, 0.16 * k); // spill down the wall to the ground
+        } else if (l.lantern) glow(l.lantern.x - ox, l.lantern.y - oy, 26, 26, 0.4 * dark);
+      }
+      for (const l of this.sim.world.lamps) {
+        const s = IS.Iso.w2s(l.x, l.y), x = s.x - ox, y = s.y - oy;
+        if (x < -60 || y < -60 || x > vw + 60 || y > vh + 60) continue;
+        glow(x + 0.5, y - 30, 36, 36, 0.3 * dark); // around the lamp head
+        glow(x, y, 64, 30, 0.12 * dark); // the pool it throws on the ground
+      }
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
     if (dark <= 0) return;
     for (const l of this.sim.world.lamps) {
       const s = IS.Iso.w2s(l.x, l.y);
@@ -771,6 +797,18 @@ IS.Renderer = class {
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  // One soft warm glow sprite, stretched and faded for every halo
+  makeHalo() {
+    const { c, g } = IS.makeCanvas(64, 64, false);
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255, 214, 150, 1)');
+    gr.addColorStop(0.3, 'rgba(255, 180, 100, 0.55)');
+    gr.addColorStop(0.65, 'rgba(255, 150, 80, 0.16)');
+    gr.addColorStop(1, 'rgba(255, 140, 70, 0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return c;
+  }
+
   // Bloom: everything bright on screen glows. The frame is shrunk, everything
   // below a brightness threshold is dropped, and the rest is blurred back on top.
   // The threshold is a canvas filter so it stays on the GPU: reading pixels back
@@ -781,7 +819,7 @@ IS.Renderer = class {
     if (typeof A.g.filter !== 'string') return; // no canvas filters (older Safari): no glow
     const aw = A.c.width, ah = A.c.height;
     // brightness(b) then contrast(c) maps thr -> 0 and 1 -> 1
-    const thr = IS.lerp(0.86, 0.66, amb.dark), c = (1 + thr) / (1 - thr), b = 0.5 + 0.5 / c;
+    const thr = IS.lerp(0.8, 0.66, amb.dark), c = (1 + thr) / (1 - thr), b = 0.5 + 0.5 / c;
     // The glow barely changes between frames: rebuild it every third frame and reuse it in between
     const fresh = (this.bloomN = (this.bloomN || 0) + 1) % 3 === 1;
     if (fresh) {

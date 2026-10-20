@@ -1015,6 +1015,11 @@ IS.World = class {
     // Soft contact shadows: buildings, trees, props
     g.fillStyle = 'rgba(50, 30, 110, 0.24)';
     for (const b of this.buildings) {
+      // Contact shadow fading out from the walls (rings of growing margin stack into a soft gradient)
+      for (const m of [1.1, 0.75, 0.45]) {
+        const pts = [ISO.g2s(b.x0 - m, b.y0 - m * 0.6), ISO.g2s(b.x0 + b.w + m, b.y0 - m * 0.6), ISO.g2s(b.x0 + b.w + m, b.y0 + b.h + m), ISO.g2s(b.x0 - m, b.y0 + b.h + m)];
+        IS.Iso.poly(g, pts, 'rgba(50, 30, 110, 0.07)');
+      }
       const pts = [ISO.g2s(b.x0 - 0.2, b.y0 - 0.2), ISO.g2s(b.x0 + b.w + 0.3, b.y0 - 0.2), ISO.g2s(b.x0 + b.w + 0.3, b.y0 + b.h + 0.3), ISO.g2s(b.x0 - 0.2, b.y0 + b.h + 0.3)];
       IS.Iso.poly(g, pts, 'rgba(50, 30, 110, 0.24)');
     }
