@@ -114,7 +114,8 @@ IS.World = class {
       const north = y < 20 - n * 4;
       const west = x < 19 + n * 3 && y < 38;
       const ne = x > 60 && y < 20 && !(x > 64 && y > 17);
-      const wild = x >= 80 && n > 0.4;
+      // The wild east: big forests with open meadows between them
+      const wild = (x >= 80 || y >= 60) && n3(x * 0.045 + 40, y * 0.045) > 0.42;
       if (north || west || ne || wild) this.setT(x, y, TT.FOREST);
     }
 
@@ -341,7 +342,7 @@ IS.World = class {
     const near = (x, yy, t, r) => { for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) if (this.tile(x + a, yy + b) === t) return true; return false; };
     const S2 = IS.Sprites;
     const putAnch = (kind, x, yy, spr, opts = {}) => place(kind, x, yy, spr, spr.ax, spr.ay, { footY: 20, ...opts });
-    const wildSprites = {};
+    const wildSprites = {}, nThick = IS.makeNoise(101), nRock = IS.makeNoise(131), nPine = IS.makeNoise(157);
     for (let yy = 1; yy < H - 1; yy++) for (let x = 1; x < W - 1; x++) {
       const i = this.idx(x, yy);
       if (protect[i] || this.blocked[i]) continue;
@@ -349,8 +350,25 @@ IS.World = class {
       const h = IS.hash2(x, yy, 5);
       // Village sprites are one of a kind; the wild east reuses 24 of each so the island loads fast
       const wildSeed = (x >= 80 || yy >= 60) ? (x * 131 + yy * 7) % 24 : -1;
-      const seed = wildSeed >= 0 ? wildSeed : x * 131 + yy * 7;
+      const seed = wildSeed >= 0 ? wildSeed * 7919 + 101 : x * 131 + yy * 7;
       const spr = (fn, ...a) => { if (wildSeed < 0) return S2[fn](seed, ...a); const k = fn + seed + a.join(); return wildSprites[k] || (wildSprites[k] = S2[fn](seed, ...a)); };
+      // The wild grows in patches: forests thin out toward their edges, rocks gather in outcrops,
+      // pines and oaks grow in their own stands, and meadows keep only the odd lone tree
+      if (wildSeed >= 0 && (t === TT.FOREST || t === TT.GRASS)) {
+        const forest = t === TT.FOREST;
+        const thick = forest ? 0.06 + 0.26 * IS.clamp((nThick(x * 0.06, yy * 0.06) - 0.3) / 0.4, 0, 1) : 0.012;
+        const roomy = !this.blocked[this.idx(x - 1, yy)] && !this.blocked[this.idx(x, yy - 1)];
+        if (nRock(x * 0.1, yy * 0.1) > 0.78 && h < 0.16 && roomy && !this.blocked[this.idx(x - 1, yy - 1)]) putAnch('rock', x, yy, spr('makeRock'));
+        else if (h < thick && roomy) {
+          if (nPine(x * 0.07, yy * 0.07) > 0.55) place('tree', x, yy, spr('makePine'), 18, 59, { footY: 22, tree: true });
+          else putAnch('tree', x, yy, spr('makeOak'), { tree: true });
+        } else if (h < thick + (forest ? 0.05 : 0.015)) {
+          const berries = IS.hash2(x, yy, 3) < 0.5;
+          const o = putAnch('bush', x, yy, spr('makeBush', berries));
+          if (berries) o.berries = true;
+        } else if (forest && h > 0.993) place('stump', x, yy, S2.makeStump(), 10, 14, { footY: 20 });
+        continue;
+      }
       if (t === TT.FOREST) {
         if (h < 0.36 && !this.blocked[this.idx(x - 1, yy)] && !this.blocked[this.idx(x, yy - 1)]) {
           const pine = yy < 13 || IS.hash2(x, yy, 9) < 0.3;
