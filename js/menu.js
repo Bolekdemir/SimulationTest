@@ -135,6 +135,7 @@ IS.Menu = class {
       const k = b.parentElement.dataset.opt;
       IS.Settings.set(k, +b.dataset.v);
       if (k === 'speed' && this.mode === 'pause') this.resumeSpeed = +b.dataset.v;
+      if (k === 'sound' || k === 'music') IS.Audio.levels();
       sync();
     }));
     sync();

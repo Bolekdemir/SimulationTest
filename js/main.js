@@ -42,6 +42,7 @@ IS.Sim = class {
     this.renderer = new IS.Renderer(this, document.getElementById('game'));
     this.ui = new IS.UI(this);
     this.input = new IS.Input(this, document.getElementById('game'));
+    IS.Audio.init(this);
     window.addEventListener('resize', () => this.renderer.resize());
     this.log(`Welcome to ${IS.CONFIG.islandName}. ${this.people.length} islanders are still asleep.`, 'event');
     this.last = performance.now();
@@ -185,6 +186,7 @@ IS.Sim = class {
     this.renderer.draw(now, rdt);
     const t2 = performance.now();
     this.ui.frame(now);
+    IS.Audio.update(rdt);
     if (this.perf) this.showPerf(frameMs, t1 - t0, t2 - t1, performance.now() - t2);
   }
 

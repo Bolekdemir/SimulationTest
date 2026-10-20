@@ -126,7 +126,7 @@ IS.Save = (() => {
 // Player preferences, kept on this device
 IS.Settings = (() => {
   const KEY = 'tw-settings';
-  const s = { speed: 1, fps: 60, names: true, journal: window.innerWidth >= 760, nightSkip: true, autosave: true, powers: false };
+  const s = { speed: 1, fps: 60, sound: 2, music: 2, names: true, journal: window.innerWidth >= 760, nightSkip: true, autosave: true, powers: false };
   try { Object.assign(s, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { /* defaults */ }
   return {
     get: k => s[k],
