@@ -49,6 +49,17 @@ IS.World = class {
     const rng = IS.mulberry32(1234);
     this.rng = rng;
 
+    // The ridge to the wild east bows north, away from the lighthouse
+    const RIDGE = [[54, 13], [66, 11], [80, 10], [94, 12], [108, 16]];
+    const ridgeY = x => {
+      if (x <= RIDGE[0][0]) return RIDGE[0][1];
+      for (let k = 1; k < RIDGE.length; k++) if (x <= RIDGE[k][0]) {
+        const [x0, y0] = RIDGE[k - 1], [x1, y1] = RIDGE[k], t = (1 - Math.cos(Math.PI * (x - x0) / (x1 - x0))) / 2;
+        return y0 + (y1 - y0) * t;
+      }
+      return RIDGE[RIDGE.length - 1][1];
+    };
+
     // 1. Island shape
     const land = new Uint8Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -63,7 +74,7 @@ IS.World = class {
       // The wild east: a big landmass, joined to the village by a ridge in the northeast
       const ex = (x - 116) / 42, ey = (y - 60) / 56;
       if (Math.sqrt(ex * ex + ey * ey) < 0.9 + n) isLand = true;
-      if (x >= 54 && x <= 112 && y >= 7 + n * 6 && y <= 14 + n * 6) isLand = true;
+      if (x >= 50 && x <= 110 && y >= 7 && Math.abs(y - ridgeY(x)) < 3.2 + (n2(x * 0.08, 7) - 0.5) * 3 + n * 8) isLand = true;
       if (x < 3 || y < 3 || x > W - 12 || y > H - 12) isLand = false; // the far edges need open sea or the ground smears past the map
       land[y * W + x] = isLand ? 1 : 0;
     }
@@ -174,7 +185,22 @@ IS.World = class {
     }
     line(18, 33, 18, 38);
     // Trail from the north trail along the ridge into the east woods
-    line(48, 15, 48, 11); line(48, 11, 104, 11); line(104, 11, 104, 26);
+    // A footpath through waypoints: long straight runs with even sidesteps, so it bends instead of zig-zagging
+    const trail = pts => {
+      for (let k = 1; k < pts.length; k++) {
+        const [x0, y0] = pts[k - 1], [x1, y1] = pts[k];
+        const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+        let x = x0, yy = y0;
+        paint(x, yy, TT.PATH);
+        while (x !== x1 || yy !== y1) {
+          if (yy === y1 || (x !== x1 && Math.abs(x - x0) / dx <= Math.abs(yy - y0) / dy)) x += Math.sign(x1 - x); else yy += Math.sign(y1 - yy);
+          paint(x, yy, TT.PATH);
+        }
+      }
+    };
+    const ridgeTrail = [[48, 15]];
+    for (let x = 54; x <= 102; x += 6) ridgeTrail.push([x, Math.round(ridgeY(x))]);
+    trail([...ridgeTrail, [104, 16], [105, 21], [104, 26]]);
     // Lighthouse on the eastern point
     let lh = null;
     for (let x = 79; x > 50 && !lh; x--) for (let yy = 19; yy <= 25; yy++) {
