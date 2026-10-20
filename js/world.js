@@ -80,6 +80,37 @@ IS.World = class {
       if (x < 3 || y < 3 || x > W - 12 || y > H - 12) isLand = false; // the far edges need open sea or the ground smears past the map
       land[y * W + x] = isLand ? 1 : 0;
     }
+    // Open sea is the water joined to the map edge; worked out before lakes and rivers are carved, so they never count as sea
+    const sea = new Uint8Array(W * H);
+    sea[0] = 1;
+    const sq = [0];
+    while (sq.length) {
+      const i = sq.pop(), x = i % W, y = (i / W) | 0;
+      for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + ax, ny = y + ay, j = ny * W + nx;
+        if (nx >= 0 && ny >= 0 && nx < W && ny < H && !land[j] && !sea[j]) { sea[j] = 1; sq.push(j); }
+      }
+    }
+    this.sea = sea;
+
+    // Lakes and rivers in the wild east
+    const nLake = IS.makeNoise(211);
+    const dig = (cx, cy, rx, ry) => {
+      for (let y = Math.floor(cy - ry - 2); y <= cy + ry + 2; y++) for (let x = Math.floor(cx - rx - 2); x <= cx + rx + 2; x++) {
+        const dx = (x - cx) / rx, dy = (y - cy) / ry;
+        if (this.inb(x, y) && dx * dx + dy * dy < 1 + (nLake(x * 0.3, y * 0.3) - 0.5) * 0.6) land[y * W + x] = 0;
+      }
+    };
+    const river = (pts, r) => {
+      for (let k = 1; k < pts.length; k++) {
+        const [x0, y0] = pts[k - 1], [x1, y1] = pts[k], n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
+        for (let s = 0; s <= n; s++) dig(x0 + (x1 - x0) * s / n, y0 + (y1 - y0) * s / n, r, r);
+      }
+    };
+    dig(118, 72, 9, 6); dig(106, 90, 5, 4);
+    river([[126, 70], [133, 66], [140, 69], [149, 65]], 1.4); // the big lake drains east to the sea
+    river([[122, 38], [118, 47], [121, 55], [117, 65]], 1); // a stream feeds it from the north woods, well away from the bay
+
     // 2. Distance fields
     const bfs = (sourceIsLand) => {
       const d = new Int16Array(W * H).fill(-1);
@@ -100,13 +131,20 @@ IS.World = class {
     const landDist = bfs(false);  // for land tiles: distance to water
     this.landDist = landDist;
 
+    this.cliffy = new Uint8Array(W * H);
+    const nCliff = IS.makeNoise(173);
+    const nearSea = (x, y) => { for (let b = -5; b <= 5; b++) for (let a = -5; a <= 5; a++) { const xx = x + a, yy = y + b; if (xx >= 0 && yy >= 0 && xx < W && yy < H && sea[yy * W + xx]) return true; } return false; };
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const i = y * W + x;
       if (!land[i]) { this.tiles[i] = this.waterDist[i] <= 3 ? TT.SHALLOW : TT.DEEP; continue; }
       const ld = landDist[i];
-      if (ld <= 1 || (y >= 43 && ld <= 3) || (y >= 46 && ld <= 4)) this.tiles[i] = TT.SAND;
+      const highland = (x >= 96 || y >= 64) && nCliff(x * 0.05, y * 0.05) > 0.5 && ld <= 4 && nearSea(x, y);
+      if (highland) { this.tiles[i] = TT.GRASS; if (ld <= 2) this.cliffy[i] = 1; }
+      else if ((ld <= 1 || (y >= 43 && ld <= 3) || (y >= 46 && ld <= 4)) && (x < 80 && y < 60 || nearSea(x, y))) this.tiles[i] = TT.SAND; // lakes get grassy banks
       else this.tiles[i] = TT.GRASS;
     }
+    const cl0 = this.cliffy.slice();
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (land[y * W + x] && (cl0[y * W + x - 1] || cl0[y * W + x + 1] || cl0[(y - 1) * W + x] || cl0[(y + 1) * W + x])) this.cliffy[y * W + x] = 1;
     // 3. Forest regions
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       if (this.tile(x, y) !== TT.GRASS) continue;
@@ -342,6 +380,13 @@ IS.World = class {
     const near = (x, yy, t, r) => { for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) if (this.tile(x + a, yy + b) === t) return true; return false; };
     const S2 = IS.Sprites;
     const putAnch = (kind, x, yy, spr, opts = {}) => place(kind, x, yy, spr, spr.ax, spr.ay, { footY: 20, ...opts });
+    // Boulders: a rock drawn twice the size, pixel for pixel, sitting on a 2x2 footprint
+    const boulder = v => wildSprites['boulder' + v] || (wildSprites['boulder' + v] = (() => {
+      const r = S2.makeRock(v * 7919 + 55), { c, g } = IS.makeCanvas(r.width * 2, r.height * 2);
+      g.imageSmoothingEnabled = false; g.drawImage(r, 0, 0, c.width, c.height);
+      c.ax = r.ax * 2 - 12; c.ay = r.ay * 2 - 4;
+      return c;
+    })());
     const wildSprites = {}, nThick = IS.makeNoise(101), nRock = IS.makeNoise(131), nPine = IS.makeNoise(157);
     for (let yy = 1; yy < H - 1; yy++) for (let x = 1; x < W - 1; x++) {
       const i = this.idx(x, yy);
@@ -358,7 +403,12 @@ IS.World = class {
         const forest = t === TT.FOREST;
         const thick = forest ? 0.06 + 0.26 * IS.clamp((nThick(x * 0.06, yy * 0.06) - 0.3) / 0.4, 0, 1) : 0.012;
         const roomy = !this.blocked[this.idx(x - 1, yy)] && !this.blocked[this.idx(x, yy - 1)];
-        if (nRock(x * 0.1, yy * 0.1) > 0.78 && h < 0.16 && roomy && !this.blocked[this.idx(x - 1, yy - 1)]) putAnch('rock', x, yy, spr('makeRock'));
+        const big = [[x - 1, yy], [x, yy - 1], [x - 1, yy - 1]].every(([a, b]) => !this.blocked[this.idx(a, b)] && !protect[this.idx(a, b)] && this.tile(a, b) === t);
+        if (big && h < 0.06 && (nRock(x * 0.1, yy * 0.1) > 0.72 || this.cliffy[this.idx(x, yy + 3)] || this.cliffy[this.idx(x + 3, yy)])) {
+          const bs = boulder(wildSeed % 6);
+          place('boulder', x, yy, bs, bs.ax, bs.ay, { footY: 20 });
+          for (const [a, b] of [[x - 1, yy], [x, yy - 1], [x - 1, yy - 1]]) this.blocked[this.idx(a, b)] = 1;
+        } else if (nRock(x * 0.1, yy * 0.1) > 0.78 && h < 0.16 && roomy && !this.blocked[this.idx(x - 1, yy - 1)]) putAnch('rock', x, yy, spr('makeRock'));
         else if (h < thick && roomy) {
           if (nPine(x * 0.07, yy * 0.07) > 0.55) place('tree', x, yy, spr('makePine'), 18, 59, { footY: 22, tree: true });
           else putAnch('tree', x, yy, spr('makeOak'), { tree: true });
@@ -726,7 +776,7 @@ IS.World = class {
       const v = i => Math.max(0, this.waterDist[i]);
       return IS.lerp(IS.lerp(v(y0 * GW + x0), v(y0 * GW + x1), tx), IS.lerp(v(y1 * GW + x0), v(y1 * GW + x1), tx), ty);
     };
-    const CLIFF = 9, DOCKH = 5;
+    const CLIFF = 9, DOCKH = 5, TALL = 24;
 
     for (let sy = 0; sy < H; sy++) {
       for (let sx = 0; sx < W; sx++) {
@@ -739,13 +789,17 @@ IS.World = class {
           let c = waterColor(wd(gx, gy) + (hb - 0.5) * 0.2);
           // Cliff faces hang below any land directly above this pixel
           let k = 0, above = 0;
-          for (let j = 1; j <= CLIFF; j++) { const m = at(sx, sy - j); if (!isWaterT(m)) { k = j; above = m; break; } }
-          const faceH = above === TT.DOCK ? DOCKH : CLIFF;
+          const look = wd(gx, gy) < 3 ? TALL : CLIFF;
+          for (let j = 1; j <= look; j++) { const m = at(sx, sy - j); if (!isWaterT(m)) { k = j; above = m; break; } }
+          let high = false;
+          if (k) { const q = (sy - k) * W + sx; high = this.cliffy[IS.clamp(Math.floor(GY[q]), 0, GH - 1) * GW + IS.clamp(Math.floor(GX[q]), 0, GW - 1)] === 1; }
+          const faceH = above === TT.DOCK ? DOCKH : high ? TALL : CLIFF;
           if (k && k <= faceH) {
             let cc;
             if (above === TT.DOCK) cc = k >= DOCKH - 1 ? C.cliffDirtD : C.cliffWood;
             else if (above === TT.SAND) cc = mixc(C.cliffSand, C.cliffDirtD, (k / CLIFF) * 0.7);
             else if (above === TT.PATH || above === TT.PLAZA) cc = mixc(C.cliffStone, C.cliffDirtD, k / CLIFF * 0.6);
+            else if (high) cc = k <= 2 ? C.lip : mixc(mixc(C.cliffDirt, C.cliffStone, 0.35), C.cliffDirtD, (k - 2) / TALL * 0.75 + (k % 6 === 0 ? 0.18 : 0)); // layered rock
             else cc = k <= 2 ? C.lip : mixc(C.cliffDirt, C.cliffDirtD, (k - 2) / CLIFF);
             if (hb > 0.85) cc = mixc(cc, [255, 230, 200], 0.15);
             set(Ld, p, cc);
