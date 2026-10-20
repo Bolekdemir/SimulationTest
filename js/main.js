@@ -45,11 +45,12 @@ IS.Sim = class {
     window.addEventListener('resize', () => this.renderer.resize());
     this.log(`Welcome to ${IS.CONFIG.islandName}. ${this.people.length} islanders are still asleep.`, 'event');
     this.last = performance.now();
-    // Capped near 60 fps (60 at 120/240 Hz, 72 at 144 Hz): uncapped, a fast screen redraws the island up
-    // to 240 times a second even while paused, and some PCs then slow the whole tab down after a few seconds
+    // Frame rate cap from Settings (60 by default; 0 = the screen's rate). Uncapped, a fast screen redraws
+    // the island up to 240 times a second even while paused, and some PCs then slow the whole tab down.
     const loop = now => {
       requestAnimationFrame(loop);
-      if (now - this.last < 1000 / 75) return;
+      const fps = IS.Settings.get('fps');
+      if (fps && now - this.last < 1000 / (fps * 1.25)) return;
       this.frame(now);
     };
     requestAnimationFrame(loop);

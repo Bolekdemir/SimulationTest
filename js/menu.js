@@ -119,7 +119,7 @@ IS.Menu = class {
   bindSettings() {
     const sync = () => {
       document.querySelectorAll('#settings .switch').forEach(b => b.setAttribute('aria-checked', !!IS.Settings.get(b.dataset.opt)));
-      document.querySelectorAll('#settings .seg button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === IS.Settings.get('speed')));
+      document.querySelectorAll('#settings .seg button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.v === IS.Settings.get(b.parentElement.dataset.opt)));
     };
     document.querySelectorAll('#settings .switch').forEach(b => {
       b.setAttribute('role', 'switch');
@@ -132,8 +132,9 @@ IS.Menu = class {
       });
     });
     document.querySelectorAll('#settings .seg button').forEach(b => b.addEventListener('click', () => {
-      IS.Settings.set('speed', +b.dataset.v);
-      if (this.mode === 'pause') this.resumeSpeed = +b.dataset.v;
+      const k = b.parentElement.dataset.opt;
+      IS.Settings.set(k, +b.dataset.v);
+      if (k === 'speed' && this.mode === 'pause') this.resumeSpeed = +b.dataset.v;
       sync();
     }));
     sync();
