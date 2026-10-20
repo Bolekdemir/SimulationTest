@@ -98,6 +98,15 @@ IS.Audio = (() => {
     const t = ac.currentTime;
     tone(bus.sfx, 'sine', 1046, 1046, t, 0.5, 0.05); tone(bus.sfx, 'sine', 1568, 1568, t + 0.08, 0.6, 0.04);
   };
+  // A boat's horn: two low notes, a little out of tune, from far away
+  A.horn = () => {
+    if (!ready()) return;
+    const t = ac.currentTime, lp = filt('lowpass', 520); lp.connect(bus.sfx);
+    for (const [d, f] of [[0, 147], [0.9, 131]]) for (const det of [0, 3]) {
+      const g = tone(lp, 'sawtooth', f + det, f + det, t + d, 0.8, 0.06, 0.08);
+      g.connect(bus.verb);
+    }
+  };
   A.shutter = () => { if (ready()) { const t = ac.currentTime; burst(bus.sfx, bus.white, 'highpass', 3000, t, 0.05, 0.3); burst(bus.sfx, bus.white, 'bandpass', 2000, t + 0.09, 0.07, 0.25, 1.5); } };
   A.splash = () => { if (ready() && rate('splash', 0.15)) burst(bus.sfx, bus.white, 'bandpass', 1400, ac.currentTime, 0.45, 0.25, 0.7, 500); };
   // The Hall's bell: inharmonic partials, three strikes
@@ -247,6 +256,8 @@ IS.Audio = (() => {
     const fl = sim.renderer.flash || 0;
     if (fl > lastFlash + 0.5) A.thunder(false);
     lastFlash = fl;
+    const boat = sim.events.boat;
+    if (boat && !boat.snd) { boat.snd = true; A.horn(); }
     // god powers: each new effect plays once
     for (const f of sim.godFx) {
       if (f.snd) continue;
