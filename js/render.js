@@ -320,7 +320,7 @@ IS.Renderer = class {
     for (const it of list) {
       if (it.kind === 'obj') {
         const o = it.o;
-        ctx.drawImage(o.sprite, Math.round(o.s.x - o.ax - ox), Math.round(o.s.y - o.ay - oy));
+        ctx.drawImage(o.tree ? this.sway(o, t) : o.sprite, Math.round(o.s.x - o.ax - ox), Math.round(o.s.y - o.ay - oy));
         hide(o.sprite, Math.round(o.s.x - o.ax - ox), Math.round(o.s.y - o.ay - oy));
         if (o.kind === 'firepit' && w.bonfire.lit) this.drawFire(ctx, o.s.x - ox, o.s.y - oy - 4, t);
       } else if (it.kind === 'bld') {
@@ -981,6 +981,26 @@ IS.Renderer = class {
       }
     }
     ctx.globalAlpha = 1;
+  }
+  // Trees lean a pixel in the wind now and then, a gust rolling across them; storms shake them hard
+  sway(o, t) {
+    const w = this.sim.weather, f = w === 'storm' ? 2.4 : w === 'rain' || w === 'cloudy' ? 1.2 : 0.8;
+    const v = Math.sin(t * f - o.tx * 0.3 - o.ty * 0.18) + 0.6 * Math.sin(t * f * 2.3 + o.tx * 0.7);
+    const thr = w === 'storm' ? 0.4 : 1.05;
+    if (Math.abs(v) < thr) return o.sprite;
+    const C = this.swayCache || (this.swayCache = new WeakMap());
+    let pair = C.get(o.sprite);
+    if (!pair) {
+      const sp = o.sprite, cut = Math.round(o.ay * 0.42);
+      pair = [-1, 1].map(dx => {
+        const { c, g } = IS.makeCanvas(sp.width, sp.height, false);
+        g.drawImage(sp, 0, cut, sp.width, sp.height - cut, 0, cut, sp.width, sp.height - cut);
+        g.drawImage(sp, 0, 0, sp.width, cut, dx, 0, sp.width, cut);
+        return c;
+      });
+      C.set(o.sprite, pair);
+    }
+    return pair[v > 0 ? 1 : 0];
   }
   makeFly() {
     const { c, g } = IS.makeCanvas(9, 9, false);

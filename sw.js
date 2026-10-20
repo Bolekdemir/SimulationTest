@@ -1,6 +1,6 @@
 // Offline support for the installed app. Game files are fetched fresh when
 // online (so updates land right away) and served from the cache when not.
-const CACHE = 'tidewhistle-v34';
+const CACHE = 'tidewhistle-v35';
 const CORE = [
   './', 'index.html', 'manifest.webmanifest',
   'icons/icon-32.png', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png',
