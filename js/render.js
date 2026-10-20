@@ -251,6 +251,7 @@ IS.Renderer = class {
       ctx.drawImage(IS.Sprites.crops[cr.kind][st], Math.round(s.x - 9 - ox), Math.round(s.y - 14 - oy));
     }
     IS.Gods.drawDecals(this, ctx, ox, oy, t);
+    this.drawPrints(ctx, ox, oy);
     const bot = sim.events.bottle;
     if (bot) {
       const s = I.g2s(bot.tx + 0.5, bot.ty + 0.5);
@@ -918,6 +919,19 @@ IS.Renderer = class {
             ctx.fillRect(Math.round(x - ox), Math.round(y - oy - t * 2 % 4), 1, 1);
           }
         }
+        if (day > 0 && k >= 8 && this.sun()) {
+          // butterflies: wander over the grass, wings flapping open and shut
+          x += Math.sin(t * 0.9 + ph * 3) * 26; y += Math.sin(t * 0.6 + ph) * 14 - Math.abs(Math.sin(t * 3 + ph)) * 3;
+          const g = IS.Iso.s2g(x, y), tt = this.sim.world.tile(Math.floor(g.gx), Math.floor(g.gy));
+          if (tt === IS.TT.GRASS || tt === IS.TT.FOREST || tt === IS.TT.FARM) {
+            const X = Math.round(x - ox), Y = Math.round(y - oy);
+            ctx.globalAlpha = day;
+            ctx.fillStyle = ['#f6e05a', '#f9a8d4', '#ffffff', '#9ad4ff', '#ffb35c'][Math.floor(r(7) * 5)];
+            if (Math.sin(t * 16 + ph * 5) > 0) { ctx.fillRect(X - 1, Y, 1, 1); ctx.fillRect(X + 1, Y, 1, 1); ctx.fillRect(X - 1, Y - 1, 1, 1); ctx.fillRect(X + 1, Y - 1, 1, 1); }
+            else ctx.fillRect(X, Y - 1, 1, 1);
+            ctx.fillStyle = '#3a2a30'; ctx.fillRect(X, Y, 1, 1);
+          }
+        }
         if (night > 0 && k >= 3) {
           x += Math.sin(t * 0.7 + ph * 2) * 10; y += Math.cos(t * 0.5 + ph) * 6;
           const g = IS.Iso.s2g(x, y);
@@ -981,6 +995,28 @@ IS.Renderer = class {
         const len = 1 + Math.round((tw - 0.55) * 8);
         ctx.fillRect(Math.round(x - ox - len / 2), Math.round(y - oy), len, 1);
       }
+    }
+    ctx.globalAlpha = 1;
+  }
+  // Footprints in the sand behind anyone walking the beach, fading after a minute
+  drawPrints(ctx, ox, oy) {
+    const w = this.sim.world, P = this.prints || (this.prints = []), now = performance.now();
+    for (const p of this.sim.people) {
+      if (p.mode !== 'normal' || p.building || p.pose === 'swim') continue;
+      const last = p._print;
+      if (last && Math.hypot(p.x - last.x, p.y - last.y) < 5) continue;
+      if (w.tile(Math.floor(p.x / IS.TILE), Math.floor(p.y / IS.TILE)) !== IS.TT.SAND) { p._print = null; continue; }
+      const side = last ? -last.side : 1;
+      p._print = { x: p.x, y: p.y, side };
+      P.push({ x: p.x, y: p.y, side, t: now });
+    }
+    while (P.length && (P.length > 400 || now - P[0].t > 60000)) P.shift();
+    ctx.fillStyle = '#7a5434';
+    for (const f of P) {
+      const s = IS.Iso.w2s(f.x, f.y), X = Math.round(s.x - ox) + f.side, Y = Math.round(s.y - oy);
+      if (X < -4 || Y < -4 || X > this.vw + 4 || Y > this.vh + 4) continue;
+      ctx.globalAlpha = 0.5 * (1 - (now - f.t) / 60000);
+      ctx.fillRect(X, Y, 2, 1);
     }
     ctx.globalAlpha = 1;
   }
