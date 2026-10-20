@@ -143,8 +143,12 @@ IS.World = class {
       else if ((ld <= 1 || (y >= 43 && ld <= 3) || (y >= 46 && ld <= 4)) && (x < 80 && y < 60 || nearSea(x, y))) this.tiles[i] = TT.SAND; // lakes get grassy banks
       else this.tiles[i] = TT.GRASS;
     }
-    const cl0 = this.cliffy.slice();
-    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (land[y * W + x] && (cl0[y * W + x - 1] || cl0[y * W + x + 1] || cl0[(y - 1) * W + x] || cl0[(y + 1) * W + x])) this.cliffy[y * W + x] = 1;
+    // Spread the cliff mark two tiles, water included: the drawn shoreline wobbles, and the renderer
+    // looks up whatever tile sits under the edge pixel; a gap there turns the cliff face into a comb
+    for (let pass = 0; pass < 2; pass++) {
+      const cl0 = this.cliffy.slice();
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (cl0[y * W + x - 1] || cl0[y * W + x + 1] || cl0[(y - 1) * W + x] || cl0[(y + 1) * W + x]) this.cliffy[y * W + x] = 1;
+    }
     // 3. Forest regions
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       if (this.tile(x, y) !== TT.GRASS) continue;
@@ -794,7 +798,7 @@ IS.World = class {
           const look = wd(gx, gy) < 3 ? TALL : CLIFF;
           for (let j = 1; j <= look; j++) { const m = at(sx, sy - j); if (!isWaterT(m)) { k = j; above = m; break; } }
           let high = false;
-          if (k) { const q = (sy - k) * W + sx; high = this.cliffy[IS.clamp(Math.floor(GY[q]), 0, GH - 1) * GW + IS.clamp(Math.floor(GX[q]), 0, GW - 1)] === 1; }
+          if (k && (above === TT.GRASS || above === TT.FOREST)) { const q = (sy - k) * W + sx; high = this.cliffy[IS.clamp(Math.floor(GY[q]), 0, GH - 1) * GW + IS.clamp(Math.floor(GX[q]), 0, GW - 1)] === 1; } // beaches and paths keep their short edge
           const faceH = above === TT.DOCK ? DOCKH : high ? TALL : CLIFF;
           if (k && k <= faceH) {
             let cc;
