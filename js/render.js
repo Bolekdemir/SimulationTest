@@ -384,6 +384,8 @@ IS.Renderer = class {
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     }
+    if (!lowFx) this.drawClouds(ctx, ox, oy, t, amb);
+    this.drawGlints(ctx, ox, oy, t, amb);
     this.drawLighting(ctx, amb, ox, oy, t);
     this.drawWeather(ctx, rdt, t, amb);
     if (!lowFx) this.drawRays(ctx, ox, oy, t);
@@ -926,6 +928,56 @@ IS.Renderer = class {
           ctx.globalCompositeOperation = 'source-over';
           ctx.fillStyle = '#f6ffc8'; ctx.fillRect(Math.round(x - ox), Math.round(y - oy), 1, 1);
         }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  // Shadows of passing clouds sliding over the island by day: more of them when it's cloudy
+  drawClouds(ctx, ox, oy, t, amb) {
+    const sun = this.sun(), w = this.sim.weather;
+    if (!sun || w === 'rain' || w === 'storm' || w === 'fog') return;
+    const C = this.cloud || (this.cloud = this.makeCloud());
+    const Z = 1000, cover = w === 'cloudy' ? 0.5 : 0.32;
+    ctx.globalCompositeOperation = 'multiply';
+    for (let by = Math.floor((oy - 200) / Z) * Z; by < oy + this.vh + 200; by += Z) for (let bx = Math.floor((ox - 600) / Z) * Z; bx < ox + this.vw + 300; bx += Z) {
+      for (let k = 0; k < 3; k++) {
+        const r = n => { const v = Math.sin(bx * 0.013 + by * 0.029 + k * 17.1 + n * 3.7) * 43758.5; return v - Math.floor(v); };
+        const sc = 1.6 + r(3) * 1.6, x = bx + ((r(1) * Z + t * 9) % Z), y = by + r(2) * Z + Math.sin(t * 0.05 + k) * 20;
+        ctx.globalAlpha = cover * Math.min(1, sun.a * 1.5) * (0.7 + r(4) * 0.5);
+        ctx.drawImage(C, Math.round(x - ox - C.width * sc / 2), Math.round(y - oy - C.height * sc / 2), C.width * sc, C.height * sc);
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  makeCloud() {
+    const { c, g } = IS.makeCanvas(320, 160, false);
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 320, 160);
+    for (let i = 0; i < 9; i++) {
+      const x = 70 + Math.random() * 180, y = 55 + Math.random() * 50, r = 35 + Math.random() * 40;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, 'rgba(70, 62, 140, 0.8)'); gr.addColorStop(1, 'rgba(70, 62, 140, 0)');
+      g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    return c;
+  }
+  // Sun (or moon) catching the water: short twinkling streaks on the sea and lakes
+  drawGlints(ctx, ox, oy, t, amb) {
+    const sun = this.sun(), w = this.sim.world, Z = 128;
+    const day = sun ? sun.a : 0, moon = this.sim.weather === 'sunny' ? amb.dark * 0.6 : 0;
+    if (day < 0.1 && moon < 0.1) return;
+    ctx.fillStyle = day > 0.1 ? '#fffbe8' : '#d8e4ff';
+    for (let by = Math.floor(oy / Z) * Z; by < oy + this.vh; by += Z) for (let bx = Math.floor(ox / Z) * Z; bx < ox + this.vw; bx += Z) {
+      for (let k = 0; k < 14; k++) {
+        const r = n => { const v = Math.sin(bx * 0.071 + by * 0.113 + k * 9.73 + n * 1.91) * 43758.5; return v - Math.floor(v); };
+        const tw = Math.sin(t * (1.2 + r(3) * 1.6) + r(4) * 6.28);
+        if (tw < 0.55) continue;
+        const x = bx + r(1) * Z, y = by + r(2) * Z, g = IS.Iso.s2g(x, y);
+        const tx = Math.floor(g.gx), ty = Math.floor(g.gy);
+        if (!w.isWater(tx, ty) || !w.isWater(tx + 1, ty) || !w.isWater(tx, ty + 1)) continue;
+        ctx.globalAlpha = Math.max(day, moon) * (tw - 0.55) * 2.2;
+        const len = 1 + Math.round((tw - 0.55) * 8);
+        ctx.fillRect(Math.round(x - ox - len / 2), Math.round(y - oy), len, 1);
       }
     }
     ctx.globalAlpha = 1;

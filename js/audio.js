@@ -130,6 +130,43 @@ IS.Audio = (() => {
   };
   A.ghost = () => { if (ready()) { const t = ac.currentTime; for (const d of [0, 7]) tone(bus.sfx, 'sine', 330 + d, 220 + d, t, 2.6, 0.05, 0.6).connect(bus.verb); } };
 
+  // Voices: a quick babble of syllables when someone on screen speaks. Everyone has their own pitch.
+  const voice = p => {
+    if (!p._voice) {
+      let h = 0; for (const c of p.name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+      const low = p.cfg.pronoun === 'he';
+      p._voice = { f: (low ? 150 : 250) + (h % 90), wave: ['square', 'triangle', 'sawtooth'][h % 3], speed: 0.065 + (h % 5) * 0.006 };
+    }
+    return p._voice;
+  };
+  const babble = (p, text) => {
+    const v = voice(p), t0 = ac.currentTime, n = IS.clamp(Math.round(text.length / 4), 2, 10);
+    const ask = /\?\s*$/.test(text), shout = /!\s*$/.test(text);
+    for (let i = 0; i < n; i++) {
+      const t = t0 + i * v.speed * (0.85 + Math.random() * 0.3), last = i === n - 1;
+      const f = v.f * (1 + (Math.random() - 0.5) * 0.35) * (last && ask ? 1.35 : 1) * (shout ? 1.12 : 1);
+      const o = ac.createOscillator(), g = gain(0), bp = filt('bandpass', 700 + Math.random() * 1300, 2.2);
+      o.type = v.wave; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * (last && ask ? 1.25 : 0.93), t + v.speed);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(shout ? 0.11 : 0.08, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + v.speed * 0.9);
+      chain(o, bp, g, bus.sfx); o.start(t); o.stop(t + v.speed);
+    }
+  };
+  let lastTalk = 0;
+  const voices = () => {
+    if (sim.cam.zoom < 2 || sim.speedValue() > 5 || sim.menuOpen) return;
+    const r = sim.renderer, now = performance.now();
+    for (const p of sim.people) {
+      const b = p.bubble;
+      if (!b || b.id === p._heard) continue;
+      p._heard = b.id;
+      if (now - lastTalk < 220 || (p.building && p.building.cut < 0.5)) continue;
+      const s = IS.Iso.w2s(p.x, p.y);
+      if (s.x < r.ox || s.x > r.ox + r.vw || s.y < r.oy || s.y > r.oy + r.vh + 30) continue;
+      lastTalk = now;
+      babble(p, b.text || '');
+    }
+  };
+
   // Birds: a few quick rising/falling chirps
   const bird = () => {
     const t = ac.currentTime, base = 2200 + Math.random() * 1800, n = 2 + Math.floor(Math.random() * 4), up = Math.random() < 0.5;
@@ -219,6 +256,7 @@ IS.Audio = (() => {
       else if (f.kind === 'beam') A.magic(!!f.grave);
       else if (f.kind === 'ghost') A.ghost();
     }
+    voices();
     if (level('music') > 0) music();
   };
 
