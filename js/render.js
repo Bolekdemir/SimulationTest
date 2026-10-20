@@ -101,7 +101,7 @@ IS.Renderer = class {
     this.canvas.style.height = vh * z + 'px';
     this.light.c.width = vw; this.light.c.height = vh;
     this.shadow.c.width = vw; this.shadow.c.height = vh;
-    this.bloomA = IS.makeCanvas(Math.ceil(vw / 4), Math.ceil(vh / 4), true);
+    this.bloomA = IS.makeCanvas(Math.ceil(vw / 4), Math.ceil(vh / 4), false);
     this.bloomB = IS.makeCanvas(Math.ceil(vw / 12), Math.ceil(vh / 12), false);
     const vg = IS.makeCanvas(vw, vh, false);
     const rad = Math.hypot(vw, vh) / 2;
@@ -760,31 +760,28 @@ IS.Renderer = class {
 
   // Bloom: everything bright on screen glows. The frame is shrunk, everything
   // below a brightness threshold is dropped, and the rest is blurred back on top.
+  // The threshold is a canvas filter so it stays on the GPU: reading pixels back
+  // every frame makes Chrome move the game canvas off the GPU after a while,
+  // and then drawing the big island ground drops the game to a few fps.
   drawBloom(ctx, amb) {
     const A = this.bloomA, B = this.bloomB;
+    if (typeof A.g.filter !== 'string') return; // no canvas filters (older Safari): no glow
     const aw = A.c.width, ah = A.c.height;
+    // brightness(b) then contrast(c) maps thr -> 0 and 1 -> 1
+    const thr = IS.lerp(0.86, 0.66, amb.dark), c = (1 + thr) / (1 - thr), b = 0.5 + 0.5 / c;
     A.g.imageSmoothingEnabled = true;
     A.g.clearRect(0, 0, aw, ah);
+    A.g.filter = `brightness(${b}) contrast(${c}) sepia(0.15)`;
     A.g.drawImage(this.canvas, 0, 0, aw, ah);
-    const img = A.g.getImageData(0, 0, aw, ah);
-    const d = img.data;
-    const thr = IS.lerp(0.86, 0.66, amb.dark), inv = 1 / (1 - thr);
-    for (let i = 0; i < d.length; i += 4) {
-      const l = (d[i] * 0.3 + d[i + 1] * 0.55 + d[i + 2] * 0.15) / 255;
-      const f = l > thr ? Math.min(1, (l - thr) * inv) : 0;
-      const k = f * f * 1.1;
-      d[i] *= k; d[i + 1] *= k * 0.92; d[i + 2] *= k * 0.78;
-      d[i + 3] = 255;
-    }
-    A.g.putImageData(img, 0, 0);
+    A.g.filter = 'none';
     B.g.imageSmoothingEnabled = true;
     B.g.clearRect(0, 0, B.c.width, B.c.height);
     B.g.drawImage(A.c, 0, 0, B.c.width, B.c.height);
     ctx.imageSmoothingEnabled = true;
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.4 + 0.3 * amb.dark;
+    ctx.globalAlpha = 0.28 + 0.22 * amb.dark;
     ctx.drawImage(B.c, 0, 0, this.vw, this.vh);
-    ctx.globalAlpha = 0.2 + 0.15 * amb.dark;
+    ctx.globalAlpha = 0.12 + 0.1 * amb.dark;
     ctx.drawImage(A.c, 0, 0, this.vw, this.vh);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
