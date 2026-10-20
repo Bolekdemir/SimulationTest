@@ -67,6 +67,11 @@ A round ends when:
 - **Island is 4x bigger** (80x60 -> 160x120 tiles, about 4.1x the land). The village is untouched; the new land is the **wild east**, joined by a forested ridge with a trail from the north trail to "the east woods". Activities (fishing, foraging, beach) stay in the village corner for now so nobody hikes across the map for firewood; open the east up when Direction 2 events need it. Old saves still load (all village coordinates are the same).
 - **Wild east terrain:** lakes, a river, highland sea cliffs, boulders, and **terraced hills** (raised levels with rock walls and stone stairs; open valleys keep the east walkable). Wander spots: the east woods, the lake, the cliffs, the lookout.
 - Pathfinding fix found along the way: the search counted already-finished tiles toward its limit, which only showed up on the bigger map.
+- **Lighting pass:** ambient bloom (wide haze tinted by the hour, soft horizontal flares at night), sun shafts with dust specks, lit windows that stay behind things in front of them, light pools under windows and lamps, roofs casting short shadows on walls, cloud shadows, glints on the water, candle flicker.
+- **Life in the air:** pollen by day (gold at sunset), butterflies, fireflies at night, rain splashes, trees swaying in gusts (hard in storms), footprints in the sand.
+- **Sound** (all generated, no files): sea, wind, rain, fire, birds and gulls by day, crickets at night, thunder, a soft generative tune that follows the time of day, islander voice babble (everyone has their own pitch), the Hall bell when an event starts, the ferry horn, god power effects, UI clicks. Sound and Music levels in Settings.
+- **Pacing (small):** the first visitor always comes on day one's boat, so something happens in the first few minutes.
+- **Photo key (O):** saves a crisp screenshot, handy for store pages later.
 
 ## Open questions
 1. **The hidden truth.** What is the island's secret? (Mav does not know yet.)
@@ -79,6 +84,6 @@ A round ends when:
 8. Numbers: prices, payouts, the day cap, catch-up cap.
 
 ## Easy wins that need no new design
-- **Sound:** ambient waves, footsteps, UI clicks, music.
+- ~~Sound~~ (done, see above). Still open: footsteps, a real composed soundtrack later if the game ships.
 - **Speed:** earlier first visitor, faster growth, early wins in the first 10 minutes.
 - Handoff open items: pacing of town growth, repeated-line cleanup, check whether GitHub Pages serves the branch.
