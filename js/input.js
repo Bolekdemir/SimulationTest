@@ -133,6 +133,7 @@ IS.Input = class {
     if (!isDown) return;
     const sim = this.sim;
     if (sim.menu && sim.menu.isOpen) { if (k === 'escape' && sim.menu.mode === 'pause') sim.menu.primary(); return; }
+    if (k === '`') { sim.perf = sim.perf ? null : { fps: 60, sim: 0, draw: 0, ui: 0, el: null }; if (!sim.perf) document.getElementById('perf')?.remove(); return; }
     if (k === 'escape' && sim.placing) { IS.Build.cancelPlacing(sim); return; }
     if (k === 'escape' && sim.power !== 'hand') { IS.Gods.setPower(sim, 'hand'); return; }
     const pw = IS.Gods.POWERS.find(x => x.key === k);

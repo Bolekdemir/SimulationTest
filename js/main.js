@@ -133,6 +133,7 @@ IS.Sim = class {
 
   // ---------------------------------------------------------------- loop
   frame(now) {
+    const t0 = performance.now(), frameMs = now - this.last;
     const rdt = IS.clamp((now - this.last) / 1000, 0, 0.05); // the first frame can be stamped slightly in the past
     this.last = now;
     // Fast-forward the night while everyone is asleep
@@ -176,8 +177,21 @@ IS.Sim = class {
       this.cam.x += (s.x - this.cam.x) * Math.min(1, rdt * 4);
       this.cam.y += (s.y - 20 - this.cam.y) * Math.min(1, rdt * 4);
     }
+    const t1 = performance.now();
     this.renderer.draw(now, rdt);
+    const t2 = performance.now();
     this.ui.frame(now);
+    if (this.perf) this.showPerf(frameMs, t1 - t0, t2 - t1, performance.now() - t2);
+  }
+
+  // Backtick toggles a small readout of where each frame's time goes
+  showPerf(frameMs, sim, draw, ui) {
+    const P = this.perf, k = 0.05;
+    P.fps += (1000 / Math.max(1, frameMs) - P.fps) * k; P.sim += (sim - P.sim) * k; P.draw += (draw - P.draw) * k; P.ui += (ui - P.ui) * k;
+    if (!P.el) { P.el = document.createElement('div'); P.el.id = 'perf'; P.el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99;padding:6px 9px;background:rgba(0,0,0,.75);color:#fff;font:13px monospace;white-space:pre;pointer-events:none'; document.body.appendChild(P.el); }
+    if ((P.n = (P.n || 0) + 1) % 10) return;
+    const mem = performance.memory ? ` heap ${Math.round(performance.memory.usedJSHeapSize / 1e6)}MB` : '';
+    P.el.textContent = `${P.fps.toFixed(0)} fps   sim ${P.sim.toFixed(1)}ms  draw ${P.draw.toFixed(1)}ms  ui ${P.ui.toFixed(1)}ms\nspeed ${this.speedIdx}  zoom ${this.cam.zoom}  people ${this.people.length}  talks ${this.conversations.length}${mem}`;
   }
 
   ctx() {
