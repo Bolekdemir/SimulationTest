@@ -1041,9 +1041,9 @@ IS.World = class {
     });
     void pk;
 
-    // Cut the ground into 512px tiles and drop the empty ones. One 4608px-wide canvas is past some
+    // Cut the ground into 128px tiles and drop the empty ones. One 4608px-wide canvas is past some
     // GPUs' texture limit and is mostly open sea, which the plain background fill already covers.
-    const TS = 512, deep = waterStops[waterStops.length - 1][1];
+    const TS = 128, deep = waterStops[waterStops.length - 1][1];
     const cut = (src, keep) => {
       const out = [];
       for (let ty = 0; ty < H; ty += TS) for (let tx = 0; tx < W; tx += TS) {

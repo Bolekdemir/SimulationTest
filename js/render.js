@@ -48,7 +48,7 @@ IS.Renderer = class {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.light = IS.makeCanvas(16, 16, false);
-    this.shadow = IS.makeCanvas(16, 16, false);
+    this.shadowStatic = IS.makeCanvas(16, 16, false);
     this.silCache = new WeakMap();
     this.wave = this.makeWaveTexture();
     this.fog = this.makeFogTexture();
@@ -92,6 +92,7 @@ IS.Renderer = class {
   }
 
   resize() {
+    this.quality = null; // re-measure at the new size
     const wrap = this.canvas.parentElement;
     const cw = wrap.clientWidth, ch = wrap.clientHeight;
     const z = this.sim.cam.zoom;
@@ -100,7 +101,7 @@ IS.Renderer = class {
     this.canvas.style.width = vw * z + 'px';
     this.canvas.style.height = vh * z + 'px';
     this.light.c.width = vw; this.light.c.height = vh;
-    this.shadow.c.width = vw; this.shadow.c.height = vh;
+    this.shadowStatic.c.width = vw; this.shadowStatic.c.height = vh;
     this.bloomA = IS.makeCanvas(Math.ceil(vw / 4), Math.ceil(vh / 4), false);
     this.bloomB = IS.makeCanvas(Math.ceil(vw / 12), Math.ceil(vh / 12), false);
     const vg = IS.makeCanvas(vw, vh, false);
@@ -197,7 +198,16 @@ IS.Renderer = class {
   }
 
   // ------------------------------------------------------------------
+  // Effects quality: after a resize or zoom, time the first frames with every effect on. If they are
+  // slow (Chrome drawing this canvas on the CPU), drop the purely decorative full-screen layers at that size.
   draw(now, rdt) {
+    const t0 = performance.now();
+    this.drawFrame(now, rdt);
+    const q = this.quality || (this.quality = { n: 0, ms: 0, low: false });
+    if (q.n < 60) { q.ms += performance.now() - t0; if (++q.n === 60) q.low = q.ms / 60 > 14; }
+  }
+
+  drawFrame(now, rdt) {
     const sim = this.sim, w = sim.world, ctx = this.ctx, I = IS.Iso, T = IS.TILE;
     const vw = this.vw, vh = this.vh, cam = sim.cam;
     cam.x = vw >= I.W ? I.W / 2 : IS.clamp(cam.x, vw / 2, I.W - vw / 2);
@@ -223,8 +233,6 @@ IS.Renderer = class {
     }
     ctx.globalAlpha = 0.6 + 0.35 * Math.sin(t * 1.4);
     tiles(w.ground.foam);
-    ctx.globalAlpha = 0.35 + 0.3 * Math.sin(t * 1.4 + 2);
-    tiles(w.ground.foam, 1);
     ctx.globalAlpha = 1;
     this.drawDolphins(ctx, ox, oy, now);
     IS.Content.drawSea(this, ctx, ox, oy, now);
@@ -333,7 +341,8 @@ IS.Renderer = class {
     this.drawStringLights(ctx, ox, oy, t);
     this.drawGulls(ctx, ox, oy, rdt, t);
 
-    if (amb.dark < 1) {
+    const lowFx = this.quality && this.quality.low;
+    if (amb.dark < 1 && !lowFx) {
       ctx.globalCompositeOperation = 'soft-light';
       ctx.globalAlpha = 0.3 * (1 - amb.dark);
       ctx.drawImage(this.dirLight, 0, 0);
@@ -342,10 +351,10 @@ IS.Renderer = class {
     }
     this.drawLighting(ctx, amb, ox, oy, t);
     this.drawWeather(ctx, rdt, t, amb);
-    this.drawBloom(ctx, amb);
+    if (!lowFx) this.drawBloom(ctx, amb);
     this.drawStars(ctx, now);
     IS.Content.drawSky(this, ctx, now);
-    ctx.drawImage(this.vignette, 0, 0);
+    if (!lowFx) ctx.drawImage(this.vignette, 0, 0);
     for (const p of sim.people) this.drawEmote(ctx, p, ox, oy, now);
   }
 
@@ -597,7 +606,7 @@ IS.Renderer = class {
       const { c, g } = IS.makeCanvas(img.width, img.height, false);
       g.drawImage(img, 0, 0);
       g.globalCompositeOperation = 'source-in';
-      g.fillStyle = '#000'; g.fillRect(0, 0, img.width, img.height);
+      g.fillStyle = '#3a2690'; g.fillRect(0, 0, img.width, img.height); // already in the shadow colour
       this.silCache.set(img, c);
       s = c;
     }
@@ -606,35 +615,40 @@ IS.Renderer = class {
   drawCastShadows(ctx, ox, oy, inView) {
     const sun = this.sun();
     if (!sun || sun.a < 0.02) return;
-    const S = this.shadow.g, sim = this.sim;
-    S.setTransform(1, 0, 0, 1, 0, 0);
-    S.clearRect(0, 0, this.vw, this.vh);
+    const sim = this.sim;
+    let G = ctx;
     const cast = (img, ax, ay, x, y, scale = 1) => {
-      S.setTransform(1, 0, -sun.k * sun.len * scale, -sun.len * scale, Math.round(x - ox), Math.round(y - oy));
-      S.drawImage(this.silhouette(img), -ax, -ay);
+      G.setTransform(1, 0, -sun.k * sun.len * scale, -sun.len * scale, Math.round(x - ox), Math.round(y - oy));
+      G.drawImage(this.silhouette(img), -ax, -ay);
     };
-    for (const o of sim.world.objects) {
-      if (o.kind === 'log' || o.kind === 'bench' || o.kind === 'flowers' || o.kind === 'lounger' || !inView(o.s.x, o.s.y, 140)) continue;
-      cast(o.sprite, o.ax, o.ay, o.s.x, o.s.y, o.kind === 'tree' || o.kind === 'bigoak' ? 0.85 : 1);
+    // Trees, rocks and buildings stand still: their shadows are redrawn only when the camera or the sun moves
+    const key = [ox, oy, this.vw, this.vh, Math.round(sun.k * 100), Math.round(sun.len * 100), sim.world.objects.length, sim.world.buildings.map(b => (b.cut > 0.5 ? 1 : 0)).join('')].join();
+    if (key !== this.shadowKey) {
+      this.shadowKey = key;
+      G = this.shadowStatic.g;
+      G.setTransform(1, 0, 0, 1, 0, 0);
+      G.clearRect(0, 0, this.vw, this.vh);
+      for (const o of sim.world.objects) {
+        if (o.kind === 'log' || o.kind === 'bench' || o.kind === 'flowers' || o.kind === 'lounger' || !inView(o.s.x, o.s.y, 140)) continue;
+        cast(o.sprite, o.ax, o.ay, o.s.x, o.s.y, o.kind === 'tree' || o.kind === 'bigoak' ? 0.85 : 1);
+      }
+      for (const b of sim.world.buildings) {
+        if (b.cut > 0.5) continue;
+        const base = IS.Iso.g2s(b.x0 + b.w, b.y0 + b.h);
+        cast(b.iso.canvas, base.x - b.iso.ox, base.y - b.iso.oy, base.x, base.y, 0.5);
+      }
+      G.setTransform(1, 0, 0, 1, 0, 0);
+      G = ctx;
     }
-    for (const b of sim.world.buildings) {
-      if (b.cut > 0.5) continue;
-      const base = IS.Iso.g2s(b.x0 + b.w, b.y0 + b.h);
-      cast(b.iso.canvas, base.x - b.iso.ox, base.y - b.iso.oy, base.x, base.y, 0.5);
-    }
+    ctx.globalAlpha = 0.3 * sun.a;
+    ctx.drawImage(this.shadowStatic.c, 0, 0);
     for (const p of sim.people) {
       if (p.mode !== 'normal' || p.building || p.pose === 'swim' || p.pose === 'sleep') continue;
       const s = IS.Iso.w2s(p.x, p.y);
       const f = p.frames[p.dir][p.pose === 'walk' ? [1, 0, 2, 0][Math.floor(p.anim / 6) % 4] : 0];
       cast(f, 11, 34, s.x, s.y);
     }
-    S.setTransform(1, 0, 0, 1, 0, 0);
-    S.globalCompositeOperation = 'source-in';
-    S.fillStyle = '#3a2690';
-    S.fillRect(0, 0, this.vw, this.vh);
-    S.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.3 * sun.a;
-    ctx.drawImage(this.shadow.c, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
   }
 
@@ -768,14 +782,18 @@ IS.Renderer = class {
     const aw = A.c.width, ah = A.c.height;
     // brightness(b) then contrast(c) maps thr -> 0 and 1 -> 1
     const thr = IS.lerp(0.86, 0.66, amb.dark), c = (1 + thr) / (1 - thr), b = 0.5 + 0.5 / c;
-    A.g.imageSmoothingEnabled = true;
-    A.g.clearRect(0, 0, aw, ah);
-    A.g.filter = `brightness(${b}) contrast(${c}) sepia(0.15)`;
-    A.g.drawImage(this.canvas, 0, 0, aw, ah);
-    A.g.filter = 'none';
-    B.g.imageSmoothingEnabled = true;
-    B.g.clearRect(0, 0, B.c.width, B.c.height);
-    B.g.drawImage(A.c, 0, 0, B.c.width, B.c.height);
+    // The glow barely changes between frames: rebuild it every third frame and reuse it in between
+    const fresh = (this.bloomN = (this.bloomN || 0) + 1) % 3 === 1;
+    if (fresh) {
+      A.g.imageSmoothingEnabled = true;
+      A.g.clearRect(0, 0, aw, ah);
+      A.g.filter = `brightness(${b}) contrast(${c}) sepia(0.15)`;
+      A.g.drawImage(this.canvas, 0, 0, aw, ah);
+      A.g.filter = 'none';
+      B.g.imageSmoothingEnabled = true;
+      B.g.clearRect(0, 0, B.c.width, B.c.height);
+      B.g.drawImage(A.c, 0, 0, B.c.width, B.c.height);
+    }
     ctx.imageSmoothingEnabled = true;
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = 0.28 + 0.22 * amb.dark;
