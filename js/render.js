@@ -49,6 +49,7 @@ IS.Renderer = class {
     this.ctx = canvas.getContext('2d');
     this.light = IS.makeCanvas(16, 16, false);
     this.shadowStatic = IS.makeCanvas(16, 16, false);
+    this.winMask = IS.makeCanvas(16, 16, false);
     this.silCache = new WeakMap();
     this.wave = this.makeWaveTexture();
     this.fog = this.makeFogTexture();
@@ -102,6 +103,7 @@ IS.Renderer = class {
     this.canvas.style.height = vh * z + 'px';
     this.light.c.width = vw; this.light.c.height = vh;
     this.shadowStatic.c.width = vw; this.shadowStatic.c.height = vh;
+    this.winMask.c.width = vw; this.winMask.c.height = vh;
     this.bloomA = IS.makeCanvas(Math.ceil(vw / 4), Math.ceil(vh / 4), false);
     this.bloomB = IS.makeCanvas(Math.ceil(vw / 12), Math.ceil(vh / 12), false);
     const vg = IS.makeCanvas(vw, vh, false);
@@ -299,10 +301,25 @@ IS.Renderer = class {
     if (sim.kitten) list.push({ d: this.depthAt(sim.kitten.x / T, (sim.kitten.y - 6) / T), kind: 'kitten' });
     for (const o of IS.Content.objects(sim)) list.push({ d: this.depthAt(o.x / T, (o.y - 6) / T) - 0.05, o, kind: 'cobj' });
     list.sort((a, b) => a.d - b.d);
+    // Lit window panes go into their own layer as each building is drawn, and whatever is drawn in
+    // front of that building erases its shape from it. The lighting pass lays the layer on top, so
+    // panes stay bright through the night darkness without shining through trees and people.
+    const WM = this.winMask.g, winBoxes = [];
+    if (this.winUsed) WM.clearRect(0, 0, this.vw, this.vh);
+    this.winUsed = w.buildings.some(b => b.lit);
+    const hide = (img, x, y, sw, sh) => {
+      if (!winBoxes.length) return;
+      const w2 = sw || img.width, h2 = sh || img.height;
+      if (!winBoxes.some(r => x < r.x + r.w && x + w2 > r.x && y < r.y + r.h && y + h2 > r.y)) return;
+      WM.globalCompositeOperation = 'destination-out';
+      if (sw) WM.drawImage(img, 0, 0, sw, sh, x, y, sw, sh); else WM.drawImage(img, x, y);
+      WM.globalCompositeOperation = 'source-over';
+    };
     for (const it of list) {
       if (it.kind === 'obj') {
         const o = it.o;
         ctx.drawImage(o.sprite, Math.round(o.s.x - o.ax - ox), Math.round(o.s.y - o.ay - oy));
+        hide(o.sprite, Math.round(o.s.x - o.ax - ox), Math.round(o.s.y - o.ay - oy));
         if (o.kind === 'firepit' && w.bonfire.lit) this.drawFire(ctx, o.s.x - ox, o.s.y - oy - 4, t);
       } else if (it.kind === 'bld') {
         const b = it.b;
@@ -310,14 +327,30 @@ IS.Renderer = class {
           ctx.globalAlpha = 1 - b.cut;
           ctx.drawImage(b.iso.canvas, Math.round(b.iso.ox - ox), Math.round(b.iso.oy - oy));
           ctx.globalAlpha = 1;
+          if (b.cut < 0.5) hide(b.iso.canvas, Math.round(b.iso.ox - ox), Math.round(b.iso.oy - oy));
         }
         if (b.cut > 0.01 && b.iso.interior) {
           ctx.globalAlpha = b.cut;
           ctx.drawImage(b.iso.interior.front, Math.round(b.iso.ox - ox), Math.round(b.iso.oy - oy));
           ctx.globalAlpha = 1;
         }
+        if (b.lit && b.cut < 0.6) {
+          WM.globalAlpha = 1 - b.cut;
+          for (const win of b.iso.windows) {
+            const pts = win.pts.map(q => ({ x: q.x - ox, y: q.y - oy }));
+            IS.Iso.poly(WM, pts, win.glass ? '#fff0c0' : '#ffdf96');
+            IS.Iso.poly(WM, [pts[0], pts[1], { x: pts[1].x, y: pts[1].y - 3 }, { x: pts[0].x, y: pts[0].y - 3 }], '#fff8e0');
+          }
+          WM.globalAlpha = 1;
+          winBoxes.push({ x: b.iso.ox - ox, y: b.iso.oy - oy, w: b.iso.w, h: b.iso.h });
+        }
       } else if (it.kind === 'person') {
         this.drawPerson(ctx, it.p, ox, oy, t);
+        const p = it.p;
+        if (winBoxes.length && p.mode === 'normal' && (p.pose !== 'sleep' && p.pose !== 'swim') && !(p.building && p.building.cut < 0.99)) {
+          const s = IS.Iso.w2s(p.x, p.y), img = p.frames[p.dir][p.pose === 'walk' ? [1, 0, 2, 0][Math.floor(p.anim / 6) % 4] : 0];
+          if (p.pose === 'sit') hide(img, Math.round(s.x - ox) - 11, Math.round(s.y - oy) - 30, 22, 30); else hide(img, Math.round(s.x - ox) - 11, Math.round(s.y - oy) - 34);
+        }
       } else if (it.kind === 'grave') {
         IS.Gods.drawGrave(this, ctx, it.g, ox, oy, t);
       } else if (it.kind === 'cat') {
@@ -740,16 +773,11 @@ IS.Renderer = class {
     ctx.fillRect(0, 0, vw, vh);
     ctx.globalCompositeOperation = 'source-over';
 
-    // Glowing windows: cream panes from late afternoon on
+    // Glowing windows: cream panes from late afternoon on (the pane layer built in the depth pass)
     const winA = IS.clamp(0.3 + dark * 1.2, 0, 1);
+    if (this.winUsed) { ctx.globalAlpha = winA; ctx.drawImage(this.winMask.c, 0, 0); ctx.globalAlpha = 1; }
     for (const l of lights) {
-      if (l.win) {
-        if ((l.cut || 0) > 0.6) continue;
-        ctx.globalAlpha = winA * (1 - (l.cut || 0));
-        const pts = l.win.pts.map(p => ({ x: p.x - ox, y: p.y - oy }));
-        IS.Iso.poly(ctx, pts, l.win.glass ? '#fff0c0' : '#ffdf96');
-        IS.Iso.poly(ctx, [pts[0], pts[1], { x: pts[1].x, y: pts[1].y - 3 }, { x: pts[0].x, y: pts[0].y - 3 }], '#fff8e0');
-      } else if (l.lantern) {
+      if (l.lantern) {
         ctx.globalAlpha = winA;
         ctx.fillStyle = '#ffe9a8'; ctx.fillRect(Math.round(l.lantern.x - ox) - 1, Math.round(l.lantern.y - oy) - 2, 3, 5);
       }
@@ -835,6 +863,20 @@ IS.Renderer = class {
       ctx.globalAlpha = strength * (0.24 + 0.1 * Math.sin(t * 0.23 + i * 2.1));
       ctx.setTransform(Math.cos(ang), Math.sin(ang), -Math.sin(ang), Math.cos(ang), x, -20);
       ctx.drawImage(R, -wid / 2, 0, wid, this.vh * 1.4);
+      // Dust specks drifting down through the shaft, twinkling as they turn in the light
+      ctx.fillStyle = '#fff6dc';
+      ctx.globalCompositeOperation = 'source-over';
+      const a0 = ctx.globalAlpha * 4;
+      for (let k = 0; k < 14; k++) {
+        const r = Math.sin(i * 91.7 + k * 37.3) * 0.5 + 0.5, r2 = Math.sin(i * 13.1 + k * 71.9) * 0.5 + 0.5;
+        const len = this.vh * 1.4, y = (r * len + t * (4 + r2 * 6)) % len;
+        const dx = (r2 - 0.5) * wid * 0.6 + Math.sin(t * 0.6 + k) * 4;
+        const tw = Math.sin(t * (1.5 + r2 * 2) + k * 2.3);
+        if (tw < 0) continue;
+        ctx.globalAlpha = Math.min(1, a0 * tw * (1 - y / len));
+        ctx.fillRect(Math.round(dx), Math.round(y), 1, 1);
+      }
+      ctx.globalCompositeOperation = 'screen';
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
