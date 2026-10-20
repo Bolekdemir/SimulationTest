@@ -45,9 +45,12 @@ IS.Sim = class {
     window.addEventListener('resize', () => this.renderer.resize());
     this.log(`Welcome to ${IS.CONFIG.islandName}. ${this.people.length} islanders are still asleep.`, 'event');
     this.last = performance.now();
+    // Capped near 60 fps (60 at 120/240 Hz, 72 at 144 Hz): uncapped, a fast screen redraws the island up
+    // to 240 times a second even while paused, and some PCs then slow the whole tab down after a few seconds
     const loop = now => {
-      this.frame(now);
       requestAnimationFrame(loop);
+      if (now - this.last < 1000 / 75) return;
+      this.frame(now);
     };
     requestAnimationFrame(loop);
   }
