@@ -1041,9 +1041,27 @@ IS.World = class {
     });
     void pk;
 
-    this.landCanvas = land.c;
-    this.waterCanvas = water.c;
-    this.foamCanvas = foam.c;
+    // Cut the ground into 512px tiles and drop the empty ones. One 4608px-wide canvas is past some
+    // GPUs' texture limit and is mostly open sea, which the plain background fill already covers.
+    const TS = 512, deep = waterStops[waterStops.length - 1][1];
+    const cut = (src, keep) => {
+      const out = [];
+      for (let ty = 0; ty < H; ty += TS) for (let tx = 0; tx < W; tx += TS) {
+        const tw = Math.min(TS, W - tx), th = Math.min(TS, H - ty);
+        let used = false;
+        for (let y = ty; y < ty + th && !used; y++) for (let x = tx; x < tx + tw; x++) if (keep((y * W + x) * 4)) { used = true; break; }
+        if (!used) continue;
+        const t = IS.makeCanvas(tw, th, false);
+        t.g.drawImage(src, tx, ty, tw, th, 0, 0, tw, th);
+        out.push({ x: tx, y: ty, c: t.c });
+      }
+      return out;
+    };
+    this.ground = {
+      water: cut(water.c, q => Wd[q + 3] && (Math.abs(Wd[q] - deep[0]) > 1 || Math.abs(Wd[q + 1] - deep[1]) > 1 || Math.abs(Wd[q + 2] - deep[2]) > 1)),
+      foam: cut(foam.c, q => Fd[q + 3] > 0),
+      land: cut(land.c, q => Ld[q + 3] > 0),
+    };
     this.pxW = this.W * IS.TILE; this.pxH = this.H * IS.TILE;
   }
 

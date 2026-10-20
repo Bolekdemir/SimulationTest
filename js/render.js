@@ -210,9 +210,8 @@ IS.Renderer = class {
 
     ctx.fillStyle = '#3448b8';
     ctx.fillRect(0, 0, vw, vh);
-    const sx = Math.max(0, ox), sy = Math.max(0, oy);
-    const sw = Math.min(I.W - sx, vw - (sx - ox)), sh = Math.min(I.H - sy, vh - (sy - oy));
-    ctx.drawImage(w.waterCanvas, sx, sy, sw, sh, sx - ox, sy - oy, sw, sh);
+    const tiles = (list, dy = 0) => { for (const g of list) if (g.x < ox + vw && g.x + g.c.width > ox && g.y + dy < oy + vh && g.y + g.c.height + dy > oy) ctx.drawImage(g.c, g.x - ox, g.y - oy + dy); };
+    tiles(w.ground.water);
     const wt = sim.waveTime;
     for (const [dx, dy, a] of [[wt * 6, wt * 3, 0.55], [-wt * 4 + 40, wt * 2 + 20, 0.35]]) {
       ctx.save();
@@ -223,13 +222,13 @@ IS.Renderer = class {
       ctx.restore();
     }
     ctx.globalAlpha = 0.6 + 0.35 * Math.sin(t * 1.4);
-    ctx.drawImage(w.foamCanvas, sx, sy, sw, sh, sx - ox, sy - oy, sw, sh);
+    tiles(w.ground.foam);
     ctx.globalAlpha = 0.35 + 0.3 * Math.sin(t * 1.4 + 2);
-    ctx.drawImage(w.foamCanvas, sx, sy, sw, sh, sx - ox, sy - oy + 1, sw, sh);
+    tiles(w.ground.foam, 1);
     ctx.globalAlpha = 1;
     this.drawDolphins(ctx, ox, oy, now);
     IS.Content.drawSea(this, ctx, ox, oy, now);
-    ctx.drawImage(w.landCanvas, sx, sy, sw, sh, sx - ox, sy - oy, sw, sh);
+    tiles(w.ground.land);
     IS.Build.drawGround(this, ctx, ox, oy, t);
 
     const inView = (x, y, m = 80) => x > ox - m && x < ox + vw + m && y > oy - m && y < oy + vh + m * 2;
