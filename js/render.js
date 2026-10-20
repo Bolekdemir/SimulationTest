@@ -209,6 +209,7 @@ IS.Renderer = class {
     this.ox = ox; this.oy = oy;
     const t = now / 1000;
     const amb = this.ambient(sim.clock.min);
+    this.dark = amb.dark;
 
     ctx.fillStyle = '#3448b8';
     ctx.fillRect(0, 0, vw, vh);
@@ -287,7 +288,7 @@ IS.Renderer = class {
     // panes stay bright through the night darkness without shining through trees and people.
     const WM = this.winMask.g, winBoxes = [];
     if (this.winUsed) WM.clearRect(0, 0, this.vw, this.vh);
-    this.winUsed = w.buildings.some(b => b.lit);
+    this.winUsed = w.buildings.some(b => b.lit) || this.dark > 0.45;
     const hide = (img, x, y, sw, sh) => {
       if (!winBoxes.length) return;
       const w2 = sw || img.width, h2 = sh || img.height;
@@ -328,6 +329,12 @@ IS.Renderer = class {
       } else if (it.kind === 'person') {
         this.drawPerson(ctx, it.p, ox, oy, t);
         const p = it.p;
+        // a carried lantern's flame goes in the window layer too, so trees in front hide it
+        if (this.dark > 0.45 && !p.building && p.mode === 'normal' && p.pose !== 'swim' && p.pose !== 'sleep' && p.pose !== 'fish') {
+          const s = IS.Iso.w2s(p.x, p.y), lx = Math.round(s.x - ox) + (p.dir === 'left' ? -6 : 7) - 1, ly = Math.round(s.y - oy) - 14 + (p.pose === 'walk' ? Math.round(Math.sin(p.anim / 3)) : 0) - 1;
+          WM.fillStyle = '#ffe9a8'; WM.fillRect(lx, ly, 3, 4);
+          winBoxes.push({ x: lx, y: ly, w: 3, h: 4 });
+        }
         if (winBoxes.length && p.mode === 'normal' && (p.pose !== 'sleep' && p.pose !== 'swim') && !(p.building && p.building.cut < 0.99)) {
           const s = IS.Iso.w2s(p.x, p.y), img = p.frames[p.dir][p.pose === 'walk' ? [1, 0, 2, 0][Math.floor(p.anim / 6) % 4] : 0];
           if (p.pose === 'sit') hide(img, Math.round(s.x - ox) - 11, Math.round(s.y - oy) - 30, 22, 30); else hide(img, Math.round(s.x - ox) - 11, Math.round(s.y - oy) - 34);
@@ -520,6 +527,11 @@ IS.Renderer = class {
       ctx.fillStyle = '#fff4e6'; ctx.fillRect(sx - 3, sy - 13, 6, 1);
     }
     if (p.pose === 'fish' && !p.chat) this.drawRod(ctx, p, sx, sy, t);
+    // A hand lantern for anyone out after dark (its light is added in collectLights)
+    if (this.dark > 0.45 && !p.building && p.pose !== 'swim' && p.pose !== 'sleep' && p.pose !== 'fish') {
+      const lx = sx + (p.dir === 'left' ? -7 : 6), ly = sy - 14 + (p.pose === 'walk' ? Math.round(Math.sin(p.anim / 3)) : 0);
+      ctx.fillStyle = '#3a2a30'; ctx.fillRect(lx, ly - 3, 3, 1); ctx.fillRect(lx + 1, ly - 4, 1, 1);
+    }
     // Umbrellas out in the rain, in each islander's own colour
     const wet = this.sim.weather === 'rain' || this.sim.weather === 'storm';
     if (wet && !p.building && p.pose !== 'fish' && p.pose !== 'work' && p.pose !== 'carry') {
@@ -709,6 +721,12 @@ IS.Renderer = class {
       });
       for (const lt of bld.iso.lanterns || []) lights.push({ x: lt.x, y: lt.y + 4, r: 34, s: 0.8 * dark * flick(lt.x), warm: 0.4, lantern: lt });
     }
+    if (dark > 0.45) for (const p of sim.people) {
+      if (p.building || p.mode !== 'normal' || p.pose === 'swim' || p.pose === 'sleep' || p.pose === 'fish') continue;
+      const s = I.w2s(p.x, p.y);
+      const lx = Math.round(s.x) + (p.dir === 'left' ? -6 : 7), ly = Math.round(s.y) - 14 + (p.pose === 'walk' ? Math.round(Math.sin(p.anim / 3)) : 0);
+      lights.push({ x: lx, y: s.y - 6, r: 30, s: Math.min(1, (dark - 0.45) * 3) * 0.75 * flick(p.x), warm: 0.45, lantern: { x: lx, y: ly + 1 }, held: true });
+    }
     if (w.bonfire.lit) {
       const fl = 1 + Math.sin(t * 13) * 0.06 + Math.sin(t * 7.3) * 0.05;
       const s = I.g2s(w.bonfire.x + 0.5, w.bonfire.y + 0.5);
@@ -773,7 +791,7 @@ IS.Renderer = class {
     const winA = IS.clamp(0.3 + dark * 1.2, 0, 1);
     if (this.winUsed) { ctx.globalAlpha = winA; ctx.drawImage(this.winMask.c, 0, 0); ctx.globalAlpha = 1; }
     for (const l of lights) {
-      if (l.lantern) {
+      if (l.lantern && !l.held) {
         ctx.globalAlpha = winA;
         ctx.fillStyle = '#ffe9a8'; ctx.fillRect(Math.round(l.lantern.x - ox) - 1, Math.round(l.lantern.y - oy) - 2, 3, 5);
       }
