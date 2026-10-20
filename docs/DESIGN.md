@@ -20,6 +20,9 @@ Release checks still to do: are the islanders based on real people (get their OK
 
 ## Direction 2: Lost Season 1 / Doors style (the current favourite)
 
+### Setting (Mav's correction)
+The islanders are **not stranded or abandoned**. Tidewhistle is a civilized island meant to be lived on (the current island, with its Hall, dock, and weekly events). It just has **secrets**. Lost is a reference for the mystery and the "who experiences what" storytelling, not for survival. Mav wants the game shifted toward this direction **slowly**, one small step at a time.
+
 ### Core idea
 - Caretaker tone. Mav does not want another "mess with people" game.
 - The island has a mystery. The **answer is always the same** (like Doors).
