@@ -76,7 +76,7 @@ IS.World = class {
       // The wild east: a big landmass, joined to the village by a ridge in the northeast
       const ex = (x - 116) / 42, ey = (y - 60) / 56;
       if (Math.sqrt(ex * ex + ey * ey) < 0.9 + n) isLand = true;
-      if (x >= 50 && x <= 114 && y >= 7 && y <= bayN(x) + n * 10) isLand = true;
+      if (x >= 50 && x <= 114 && y >= 7 && y <= 7 + (bayN(x) - 7) * 1.5 + n * 10) isLand = true;
       if (x < 3 || y < 3 || x > W - 12 || y > H - 12) isLand = false; // the far edges need open sea or the ground smears past the map
       land[y * W + x] = isLand ? 1 : 0;
     }
@@ -206,7 +206,7 @@ IS.World = class {
     // Lighthouse on the eastern point
     let lh = null;
     for (let x = 79; x > 50 && !lh; x--) for (let yy = 19; yy <= 25; yy++) {
-      if (this.isLand(x, yy) && landDist[this.idx(x, yy)] >= 2) { lh = { x, y: yy }; break; }
+      if (this.isLand(x, yy) && landDist[this.idx(x, yy)] >= 2 && landDist[this.idx(x, yy)] <= 3) { lh = { x, y: yy }; break; } // on the shore, not inland
     }
     lh = lh || { x: 70, y: 22 };
     this.lighthouseTile = lh;
