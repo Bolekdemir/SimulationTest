@@ -196,6 +196,8 @@ IS.Renderer = class {
     const t0 = performance.now();
     this.drawFrame(now, rdt);
     const q = this.quality || (this.quality = { n: 0, ms: 0, low: false });
+    const fx = IS.Settings.get('fx'); // 0 auto, 1 always high, 2 always low
+    if (fx) { q.low = fx === 2; return; }
     if (q.n < 60) { q.ms += performance.now() - t0; if (++q.n === 60) q.low = q.ms / 60 > 14; }
   }
 

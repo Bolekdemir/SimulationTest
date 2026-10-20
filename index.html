@@ -410,7 +410,7 @@
   .cast-type { margin: 6px 0 8px; font-size: 13px; color: var(--berry); }
   #cast-close { min-height: 32px; }
   #settings { width: min(460px, 100%); padding: 10px; animation: rise 320ms var(--out); }
-  #settings .inner { padding: 20px 22px; background: var(--page); box-shadow: 0 0 0 2px var(--cover-lo); display: flex; flex-direction: column; gap: 16px; }
+  #settings .inner { padding: 18px 22px; background: var(--page); box-shadow: 0 0 0 2px var(--cover-lo); display: flex; flex-direction: column; gap: 12px; }
   #settings h2 { margin: 0; font-size: 26px; font-weight: 700; }
   .opts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .opts li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 2px dotted var(--page-3); }
@@ -591,6 +591,7 @@
           <li><div><b>Starting speed</b><small>How fast time runs when you open the island</small></div><div class="seg" data-opt="speed"><button data-v="1">1×</button><button data-v="2">2×</button><button data-v="3">5×</button></div></li>
           <li><div><b>Sound</b><small>Sea, birds, weather and effects</small></div><div class="seg" data-opt="sound"><button data-v="0">Off</button><button data-v="1">Low</button><button data-v="2">Mid</button><button data-v="3">High</button></div></li>
           <li><div><b>Music</b><small>A soft tune that follows the time of day</small></div><div class="seg" data-opt="music"><button data-v="0">Off</button><button data-v="1">Low</button><button data-v="2">Mid</button><button data-v="3">High</button></div></li>
+          <li><div><b>Effects</b><small>Light rays, glow and haze. Auto turns them off if the island draws slowly</small></div><div class="seg" data-opt="fx"><button data-v="0">Auto</button><button data-v="1">High</button><button data-v="2">Low</button></div></li>
           <li><div><b>Frame rate</b><small>Higher is smoother on fast screens, but some PCs slow down when pushed</small></div><div class="seg" data-opt="fps"><button data-v="60">60</button><button data-v="120">120</button><button data-v="0">Max</button></div></li>
           <li><div><b>Name tags</b><small>Show names under everyone</small></div><button class="switch" data-opt="names"></button></li>
           <li><div><b>Island journal</b><small>Open the event log on start</small></div><button class="switch" data-opt="journal"></button></li>
