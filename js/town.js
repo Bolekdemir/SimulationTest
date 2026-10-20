@@ -369,7 +369,9 @@ IS.Town = (() => {
       const boatDay = sim.weekdayOf(day) === 2;
       const cooldown = day - st.lastVisitDay < 2;
       const cap = IS.Build ? IS.Build.popCap(sim) : 16;
-      if (!T.visitor(sim) && !st.pending && !cooldown && pop < cap && r.score >= 50) {
+      // The very first visitor always comes on the first boat, so something happens early
+      if (!st.visits && !T.visitor(sim) && !st.pending) T.scheduleVisitor(sim);
+      else if (!T.visitor(sim) && !st.pending && !cooldown && pop < cap && r.score >= 50) {
         const chance = 0.18 + (r.score - 50) / 90 + (boatDay ? 0.25 : 0);
         if (Math.random() < chance) T.scheduleVisitor(sim);
       }

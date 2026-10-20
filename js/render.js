@@ -1085,8 +1085,19 @@ IS.Renderer = class {
         ctx.lineTo(Math.round(d.x + d.l * slant) + 0.5, Math.round(d.y - d.l));
       }
       ctx.stroke();
-      ctx.fillStyle = 'rgba(220, 235, 255, 0.5)';
-      for (let i = 0; i < (w === 'storm' ? 10 : 5); i++) ctx.fillRect(Math.random() * vw | 0, Math.random() * vh | 0, 2, 1);
+      // drops hitting the ground: a dot that bursts into a little crown and fades
+      const sp = this.splashes || (this.splashes = []);
+      for (let n = rdt * (w === 'storm' ? 140 : 70); n > 0; n--) if (Math.random() < n) sp.push({ x: Math.random() * vw + this.ox, y: Math.random() * vh + this.oy, t: 0 });
+      ctx.fillStyle = 'rgb(225, 238, 255)';
+      for (let i = sp.length - 1; i >= 0; i--) {
+        const d = sp[i]; d.t += rdt;
+        if (d.t > 0.3) { sp.splice(i, 1); continue; }
+        const x = Math.round(d.x - this.ox), y = Math.round(d.y - this.oy), k = d.t / 0.3, r = 1 + Math.round(k * 2);
+        ctx.globalAlpha = 0.6 * (1 - k);
+        if (k < 0.3) ctx.fillRect(x, y, 1, 1);
+        else { ctx.fillRect(x - r, y, 1, 1); ctx.fillRect(x + r, y, 1, 1); ctx.fillRect(x - r + 1, y - 1, 1, 1); ctx.fillRect(x + r - 1, y - 1, 1, 1); }
+      }
+      ctx.globalAlpha = 1;
     }
     if (w === 'storm') {
       this.nextFlash -= rdt;
