@@ -65,6 +65,7 @@ A round ends when:
 
 ## Done so far
 - **Island is 4x bigger** (80x60 -> 160x120 tiles, about 4.1x the land). The village is untouched; the new land is the **wild east**, joined by a forested ridge with a trail from the north trail to "the east woods". Activities (fishing, foraging, beach) stay in the village corner for now so nobody hikes across the map for firewood; open the east up when Direction 2 events need it. Old saves still load (all village coordinates are the same).
+- **Wild east terrain:** lakes, a river, highland sea cliffs, boulders, and **terraced hills** (raised levels with rock walls and stone stairs; open valleys keep the east walkable). Wander spots: the east woods, the lake, the cliffs, the lookout.
 - Pathfinding fix found along the way: the search counted already-finished tiles toward its limit, which only showed up on the bigger map.
 
 ## Open questions

@@ -265,6 +265,80 @@ IS.World = class {
     }
     for (const b of this.buildings) for (const d of b.doors) prot(d.x, d.y + 1, 1);
 
+    // Terraces in the wild east: smooth hills become flat levels nested inside each other, so every
+    // wall is one step tall. Walls are walked around; stairs cut into the front faces lead up.
+    const STEP = 16; // screen px per level
+    const elev = new Uint8Array(W * H), nHill = IS.makeNoise(241);
+    // Valley floors stay open so the wild east is always walkable from end to end
+    const valley = new Uint8Array(W * H);
+    for (const line of [[[104, 26], [104, 40], [112, 52], [118, 62]], [[104, 40], [96, 58], [100, 80], [118, 92], [134, 99]], [[118, 62], [138, 56]]]) {
+      for (let k = 1; k < line.length; k++) {
+        const [x0, y0] = line[k - 1], [x1, y1] = line[k], n = Math.ceil(Math.hypot(x1 - x0, y1 - y0));
+        for (let s = 0; s <= n; s++) {
+          const cx = Math.round(x0 + (x1 - x0) * s / n), cy = Math.round(y0 + (y1 - y0) * s / n);
+          for (let b = -8; b <= 8; b++) for (let a = -8; a <= 8; a++) if (a * a + b * b <= 42 && this.inb(cx + a, cy + b)) valley[(cy + b) * W + cx + a] = 1;
+        }
+      }
+    }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (!land[i] || x < 86 || y < 32 || valley[i]) continue;
+      const e = nHill(x * 0.045, y * 0.045) * 0.75 + nHill(x * 0.11 + 9, y * 0.11) * 0.25;
+      elev[i] = Math.max(0, Math.min(e > 0.62 ? 3 : e > 0.56 ? 2 : e > 0.5 ? 1 : 0, Math.floor((landDist[i] - 2) / 2)));
+    }
+    const n8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    for (let pass = 0; pass < 4; pass++) {
+      const e0 = elev.slice(); // read the last pass, not this one, or the erosion snowballs
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      if (!e0[i]) continue;
+      let lo = 9, same = 0;
+      for (const [a, b] of n8) { const v = e0[i + b * W + a]; if (v >= e0[i]) same++; }
+      // rings at least three tiles wide, so a stair always has solid ground in front of it
+      for (let b = -3; b <= 3; b++) for (let a = -3; a <= 3; a++) if (this.inb(x + a, y + b)) lo = Math.min(lo, e0[i + b * W + a]);
+      if (e0[i] > lo + 1) elev[i] = lo + 1; // one step at a time
+      else if (same < 5) elev[i] = e0[i] - 1; // no slivers or lone pillars
+      }
+    }
+    const rim = new Uint8Array(W * H), stairs = new Uint8Array(W * H), hidden = new Uint8Array(W * H);
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      if (elev[i] && (elev[i - 1] < elev[i] || elev[i + 1] < elev[i] || elev[i - W] < elev[i] || elev[i + W] < elev[i])) rim[i] = 1;
+    }
+    // Stairs: on front faces (stepping down toward +x or +y), between a terrace and the level just below
+    const used = [];
+    for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+      const i = y * W + x, L = elev[i];
+      if (!rim[i] || IS.hash2(x, y, 77) > 0.6) continue;
+      for (const [a, b, dir] of [[1, 0, 1], [0, 1, 2]]) {
+        const f = i + b * W + a, back = i - b * W - a;
+        if (elev[f] !== L - 1 || rim[f] && elev[f] > 0 || elev[back] !== L || rim[back] || !land[f]) continue;
+        if (used.some(u => u.L === L && Math.abs(u.x - x) + Math.abs(u.y - y) < 9)) continue;
+        stairs[i] = dir; used.push({ x, y, L });
+        break;
+      }
+    }
+    // Ground hidden behind a terrace on screen: nobody can stand there and nothing grows there
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const L = elev[y * W + x];
+      if (!L) continue;
+      for (let a = 0; a <= 4; a++) for (let b = 0; b <= 4; b++) {
+        const xx = x - a, yy = y - b;
+        if ((a || b) && Math.abs(a - b) <= 1 && this.inb(xx, yy) && elev[yy * W + xx] < L && a + b <= 2 * (L - elev[yy * W + xx]) + 1) hidden[yy * W + xx] = 1;
+      }
+    }
+    for (let i = 0; i < W * H; i++) {
+      if ((rim[i] && !stairs[i]) || hidden[i]) this.blocked[i] = 1;
+      if (stairs[i]) { protect[i] = 1; protect[i + (stairs[i] === 1 ? 1 : W)] = 1; protect[i - (stairs[i] === 1 ? 1 : W)] = 1; }
+    }
+    let maxL = 0;
+    for (let i = 0; i < W * H; i++) maxL = Math.max(maxL, elev[i]);
+    Object.assign(this, { elev, stairs, hidden, STEP, maxElev: maxL });
+    // Everything drawn at a world position is lifted to the ground it stands on
+    IS.Iso.lift = (wx, wy) => this.liftAt(wx, wy);
+    IS.Iso.levelAt = (x, y) => (this.inb(x, y) ? elev[y * W + x] : 0);
+    IS.Iso.maxLevel = maxL; IS.Iso.STEP = STEP;
+
     const S = IS.Sprites;
     const T = IS.TILE;
     const place = (kind, tx, ty, sprite, ax, ay, opts = {}) => {
@@ -517,6 +591,11 @@ IS.World = class {
       { name: 'the farm', x: 30, y: 40 },
       { name: 'the east woods', x: 104, y: 26 },
       { name: 'the lake', x: 118, y: 63 },
+      ...(() => { // the highest terrace anyone can climb to
+        let best = -1;
+        for (let k = 0; k < W * H; k++) if (this.reach[k] && this.elev[k] && !this.stairs[k] && (best < 0 || this.elev[k] > this.elev[best] || (this.elev[k] === this.elev[best] && landDist[k] > landDist[best]))) best = k;
+        return best < 0 ? [] : [{ name: 'the lookout', x: best % W, y: (best / W) | 0 }];
+      })(),
       { name: 'the cliffs', ...this.findNear(132, 100, (x, yy) => this.cliffy[this.idx(x, yy)] === 1 && this.walkable(x, yy) && reachable(x, yy), 30) },
     ].map(p => {
       const t = this.findNear(p.x, p.y, (x, yy) => this.walkable(x, yy) && reachable(x, yy));
@@ -529,6 +608,16 @@ IS.World = class {
     }
 
     this.renderGround();
+  }
+
+  // Screen px of height at a world position; on stairs it eases down toward the lower side
+  liftAt(wx, wy) {
+    if (!this.maxElev) return 0;
+    const gx = wx / IS.TILE, gy = (wy - 6) / IS.TILE, tx = Math.floor(gx), ty = Math.floor(gy);
+    if (!this.inb(tx, ty)) return 0;
+    const i = this.idx(tx, ty), L = this.elev[i], st = this.stairs[i];
+    if (!st) return L * this.STEP;
+    return (L - IS.clamp(st === 1 ? gx - tx : gy - ty, 0, 1)) * this.STEP;
   }
 
   faceToWater(x, y) {
@@ -728,9 +817,39 @@ IS.World = class {
     };
     const mat = new Uint8Array(W * H);
     const GX = new Float32Array(W * H), GY = new Float32Array(W * H);
+    // Terraces: a pixel shows a lifted top if the ground one lift below it is that high,
+    // or a wall face if the ground somewhere in that level's step below it is
+    const FACE = 31, liftLv = new Uint8Array(W * H), faceK = new Uint8Array(W * H), faceStair = new Uint8Array(W * H), STEP = this.STEP || 16, maxL = this.maxElev || 0;
+    // Highest terrace that can reach each ground tile on screen (only those levels get tested)
+    const nearMax = new Uint8Array(GW * GH);
+    if (maxL) for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) { const L = this.elev[y * GW + x]; if (L) for (let b = -8; b <= 1; b++) for (let a = -8; a <= 1; a++) if (this.inb(x + a, y + b) && nearMax[(y + b) * GW + x + a] < L) nearMax[(y + b) * GW + x + a] = L; }
+    const lvlXY = (gx, gy) => { const x = Math.floor(gx), y = Math.floor(gy); return this.inb(x, y) ? this.elev[y * GW + x] : 0; };
+    const PD = 1 / 16; // one screen px down is +1/16 on both grid axes
     for (let sy = 0; sy < H; sy++) for (let sx = 0; sx < W; sx++) {
-      const g = ISO.s2g(sx + 0.5, sy + 0.5);
+      let g = ISO.s2g(sx + 0.5, sy + 0.5);
       const i = sy * W + sx;
+      const nm = maxL ? nearMax[IS.clamp(Math.floor(g.gy), 0, GH - 1) * GW + IS.clamp(Math.floor(g.gx), 0, GW - 1)] : 0;
+      if (nm) {
+        let hit = false;
+        for (let L = nm; L >= 1 && !hit; L--) {
+          if (lvlXY(g.gx + L * STEP * PD, g.gy + L * STEP * PD) >= L) { g = { gx: g.gx + L * STEP * PD, gy: g.gy + L * STEP * PD }; hit = true; liftLv[i] = L; break; }
+          for (let d = L * STEP - 1; d >= (L - 1) * STEP; d--) {
+            if (lvlXY(g.gx + d * PD, g.gy + d * PD) >= L) {
+              const gf = { gx: g.gx + d * PD, gy: g.gy + d * PD };
+              hit = true;
+              const fx = Math.floor(gf.gx), fy = Math.floor(gf.gy);
+              // A wall whose foot is ground hidden behind the terrace is a step in a diagonal back edge:
+              // show it as terrace top, or every step leaves a little wedge of wall
+              const hid = (x, y) => this.inb(x, y) && this.hidden[y * GW + x];
+              if (hid(fx + 1, fy) || hid(fx, fy + 1)) { g = gf; liftLv[i] = L; break; }
+              mat[i] = FACE; faceK[i] = L * STEP - d; GX[i] = gf.gx; GY[i] = gf.gy;
+              faceStair[i] = this.inb(fx, fy) && (this.stairs[fy * GW + fx] || this.stairs[IS.clamp(fy - 1, 0, GH - 1) * GW + fx] || this.stairs[fy * GW + IS.clamp(fx - 1, 0, GW - 1)]) ? 1 : 0;
+              break;
+            }
+          }
+        }
+        if (mat[i] === FACE) continue;
+      }
       GX[i] = g.gx; GY[i] = g.gy;
       let t = tileAt(Math.floor(g.gx), Math.floor(g.gy));
       if (natural(t)) {
@@ -791,6 +910,15 @@ IS.World = class {
         const gx = GX[i], gy = GY[i];
         const fidx = IS.clamp(Math.floor(gy * R), 0, FH - 1) * FW + IS.clamp(Math.floor(gx * R), 0, FW - 1);
         const hb = IS.hash2(sx >> 1, sy >> 1, 3);
+        if (t === FACE) {
+          const k = faceK[i];
+          let c;
+          if (faceStair[i]) c = (k % 4) < 2 ? C.st[1] : mixc(C.st[3], C.cliffDirtD, 0.45); // stone steps
+          else c = k <= 2 ? C.lip : mixc(mixc(C.cliffDirt, C.cliffStone, 0.35), C.cliffDirtD, (k - 2) / STEP * 0.6 + (k % 5 === 0 ? 0.15 : 0));
+          if (hb > 0.9) c = mixc(c, [255, 230, 200], 0.12);
+          set(Ld, p, c);
+          continue;
+        }
         if (isWaterT(t)) {
           let c = waterColor(wd(gx, gy) + (hb - 0.5) * 0.2);
           // Cliff faces hang below any land directly above this pixel
@@ -834,6 +962,8 @@ IS.World = class {
             c = ramp[b];
             if (above > b) c = mixc(c, C.clumpShade, 0.35);
             if (hb > 0.985) c = mixc(c, [255, 250, 200], 0.4);
+            if (at(sx, sy - 1) === FACE || at(sx, sy - 3) === FACE) c = mixc(c, C.clumpShade, 0.45); // foot of a terrace wall
+            if (liftLv[i]) { c = mixc(c, [255, 246, 196], 0.06 * liftLv[i]); if (at(sx, sy + 1) === FACE || at(sx, sy + 2) === FACE) c = mixc(c, C.gl, 0.45); } // higher ground catches more sun
             break;
           }
           case TT.SAND: {
@@ -894,7 +1024,7 @@ IS.World = class {
       this.shadowEllipse(g, s.x, s.y, big ? (o.big ? 22 : 14) : 9, big ? 7 : 4);
     }
     // Decals: flowers and grass tufts, and fallen leaves under trees
-    for (const d of this.decals) { const s = P(d.x + 12, d.y + 12); g.drawImage(d.sprite, Math.round(s.x - d.sprite.width / 2), Math.round(s.y - d.sprite.height + 2)); }
+    for (const d of this.decals) { if (this.hidden && this.hidden[this.idx(Math.floor((d.x + 12) / IS.TILE), Math.floor((d.y + 6) / IS.TILE))]) continue; const s = P(d.x + 12, d.y + 12); g.drawImage(d.sprite, Math.round(s.x - d.sprite.width / 2), Math.round(s.y - d.sprite.height + 2)); }
     const r = IS.mulberry32(99);
     for (const o of this.objects) {
       if (o.kind !== 'tree' && o.kind !== 'bigoak') continue;

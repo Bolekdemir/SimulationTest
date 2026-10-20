@@ -46,6 +46,7 @@ IS.Build = (() => {
     for (let y = r.y0 - 1; y <= r.y0 + r.h; y++) for (let x = r.x0 - 1; x <= r.x0 + r.w; x++) {
       const t = W.tile(x, y), inside = inRect(x, y, r);
       if (W.isWater(x, y)) return { ok: false, why: 'Too close to the water.' };
+      if (W.elev && (W.elev[W.idx(x, y)] || W.hidden[W.idx(x, y)])) return { ok: false, why: 'Too steep here.' };
       if (t === tt.WALL || t === tt.FLOOR) return { ok: false, why: 'Too close to another building.' };
       if (inside && W.landDist[W.idx(x, y)] < 2) return { ok: false, why: 'Too close to the water.' };
       if (inside && ![tt.GRASS, tt.SAND, tt.FOREST].includes(t)) return { ok: false, why: t === tt.FARM ? 'That\'s the farm.' : t === tt.DOCK ? 'That\'s the dock.' : 'Can\'t build on the paths or the plaza.' };

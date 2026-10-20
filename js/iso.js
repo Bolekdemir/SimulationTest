@@ -17,12 +17,18 @@ IS.Iso = (() => {
     I.H = (world.W + world.H) * 8 + 220;
   };
   I.g2s = (gx, gy) => ({ x: (gx - gy) * 16 + I.OX, y: (gx + gy) * 8 + I.OY });
-  I.w2s = (x, y) => I.g2s(x / IS.TILE, (y - 6) / IS.TILE);
+  // Terraces (world.js) set lift, levelAt and maxLevel; flat islands leave them unset
+  I.w2s = (x, y) => { const s = I.g2s(x / IS.TILE, (y - 6) / IS.TILE); if (I.lift) s.y -= I.lift(x, y); return s; };
   I.s2g = (sx, sy) => {
     const u = (sx - I.OX) / 16, v = (sy - I.OY) / 8;
     return { gx: (u + v) / 2, gy: (v - u) / 2 };
   };
-  I.s2w = (sx, sy) => { const g = I.s2g(sx, sy); return { x: g.gx * IS.TILE, y: g.gy * IS.TILE + 6 }; };
+  I.s2w = (sx, sy) => {
+    let g = I.s2g(sx, sy);
+    // A click on a terrace lands on its top, not on the ground behind it
+    for (let L = I.maxLevel || 0; L >= 1; L--) { const t = I.s2g(sx, sy + L * I.STEP); if (I.levelAt(Math.floor(t.gx), Math.floor(t.gy)) >= L) { g = t; break; } }
+    return { x: g.gx * IS.TILE, y: g.gy * IS.TILE + 6 };
+  };
 
   // Warm light / cool shade colour ramps
   I.lit = (hex, a = 0.12) => IS.mix(hex, '#fff0c8', a);
