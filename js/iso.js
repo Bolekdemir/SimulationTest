@@ -56,6 +56,22 @@ IS.Iso = (() => {
   };
   I.plane = plane;
 
+  // The roof casts a short hard shadow onto the walls under it. Call snap() before drawing the roof
+  // and eaveShadow() after: whatever the roof changed is the roof, and its shape shifted down darkens the walls.
+  I.snap = c => { const s = IS.makeCanvas(c.width, c.height, false); s.g.drawImage(c, 0, 0); return s.c; };
+  I.eaveShadow = (c, before) => {
+    const w = c.width, h = c.height, g = c.getContext('2d');
+    const A = g.getImageData(0, 0, w, h), B = before.getContext('2d').getImageData(0, 0, w, h).data, d = A.data;
+    for (let i = 0; i < d.length; i += 4) if (d[i] === B[i] && d[i + 1] === B[i + 1] && d[i + 2] === B[i + 2] && d[i + 3] === B[i + 3]) d[i + 3] = 0;
+    const roof = IS.makeCanvas(w, h, false); roof.g.putImageData(A, 0, 0);
+    const sh = IS.makeCanvas(w, h, false);
+    sh.g.globalAlpha = 0.19; for (const dy of [2, 3, 6, 7]) sh.g.drawImage(roof.c, 0, dy);
+    sh.g.globalAlpha = 1; sh.g.globalCompositeOperation = 'source-in'; sh.g.fillStyle = '#24103c'; sh.g.fillRect(0, 0, w, h);
+    g.clearRect(0, 0, w, h); g.drawImage(before, 0, 0);
+    g.globalCompositeOperation = 'source-atop'; g.drawImage(sh.c, 0, 0); g.globalCompositeOperation = 'source-over';
+    g.drawImage(roof.c, 0, 0);
+  };
+
   // Snap anti-aliased edges to hard pixels, then outline: polygon art becomes pixel art
   I.crisp = (c, outlineCol = '#2a1f40') => {
     const g = c.getContext('2d');
@@ -281,6 +297,7 @@ IS.Iso = (() => {
     }
 
     // Roof
+    const walls = I.snap(ext);
     const roofLit = I.lit(roof, 0.12), roofShade = I.shade(roof, 0.36), roofDeep = I.deep(roof, 0.35);
     const shingles = (f, base, rows, line) => {
       f.fillStyle = base; f.fillRect(0, 0, 1, 1);
@@ -324,6 +341,7 @@ IS.Iso = (() => {
       g.beginPath(); g.moveTo(Wv.x, Wv.y); g.lineTo(Sv.x, Sv.y); g.lineTo(Ev.x, Ev.y); g.stroke();
       out.ridge = { a: Rn, b: Rs, along: 'y' };
     }
+    if (!isGlass) I.eaveShadow(ext, walls);
     // Chimney
     if (!isGlass && deco !== 'shed') {
       const cx = x1 - 1.2, cy = y0 + 0.6;
@@ -613,6 +631,7 @@ IS.Iso = (() => {
     }
 
     // ---- roof
+    const walls = I.snap(ext);
     const ym = (y0 + y1) / 2, Hr = WH + RH, eH = WH - 2;
     const xa = x0 - ov, xb = x1 + ov, ga = y1 + ov, gb = y0 - ov;
     poly(g, [P(xa, gb, eH), P(xb, gb, eH), P(xb, ym, Hr), P(xa, ym, Hr)], roofDeep);
@@ -702,6 +721,7 @@ IS.Iso = (() => {
     pline(g, F1, Re, timber, 2);
     pline(g, Re, P(xb, gb, eH), I.shade(timber, 0.2), 2);
 
+    I.eaveShadow(ext, walls);
     // ---- cupola with a bell, a clock and a copper roof
     {
       const xm = x0 + b.w / 2, cs = 0.44, cz = Hr - 6;

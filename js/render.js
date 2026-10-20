@@ -106,6 +106,8 @@ IS.Renderer = class {
     this.winMask.c.width = vw; this.winMask.c.height = vh;
     this.bloomA = IS.makeCanvas(Math.ceil(vw / 4), Math.ceil(vh / 4), false);
     this.bloomB = IS.makeCanvas(Math.ceil(vw / 12), Math.ceil(vh / 12), false);
+    this.bloomC = IS.makeCanvas(Math.ceil(vw / 40), Math.ceil(vh / 40), false);
+    this.bloomS = IS.makeCanvas(Math.ceil(vw / 48), Math.ceil(vh / 4), false);
     const vg = IS.makeCanvas(vw, vh, false);
     const rad = Math.hypot(vw, vh) / 2;
     const gr = vg.g.createRadialGradient(vw / 2, vh / 2, rad * 0.5, vw / 2, vh / 2, rad);
@@ -385,6 +387,7 @@ IS.Renderer = class {
     this.drawLighting(ctx, amb, ox, oy, t);
     this.drawWeather(ctx, rdt, t, amb);
     if (!lowFx) this.drawRays(ctx, ox, oy, t);
+    this.drawMotes(ctx, ox, oy, t, amb);
     if (!lowFx) this.drawBloom(ctx, amb);
     this.drawStars(ctx, now);
     IS.Content.drawSky(this, ctx, now);
@@ -857,6 +860,13 @@ IS.Renderer = class {
     const ang = IS.clamp(-sun.k * 0.35, -0.6, 0.6); // lean with the sun, like the shadows
     const span = this.vw + this.vh;
     ctx.globalCompositeOperation = 'screen';
+    // A few huge, faint shafts behind the small ones, drifting slower, so the light has depth
+    for (let i = 0; i < 3; i++) {
+      const wid = 260 + i * 90, x = ((i * 523 + 140 - ox * 0.2 + Math.sin(t * 0.03 + i * 2.4) * 50) % span + span) % span - this.vh * 0.3;
+      ctx.globalAlpha = strength * (0.11 + 0.05 * Math.sin(t * 0.11 + i * 1.3));
+      ctx.setTransform(Math.cos(ang), Math.sin(ang), -Math.sin(ang), Math.cos(ang), x, -40);
+      ctx.drawImage(R, -wid / 2, 0, wid, this.vh * 1.6);
+    }
     for (let i = 0; i < 7; i++) {
       const wid = 70 + ((i * 53) % 110), drift = Math.sin(t * 0.07 + i * 1.7) * 30;
       const x = ((i * 337 - ox * 0.35 + drift) % span + span) % span - this.vh * 0.3;
@@ -881,6 +891,51 @@ IS.Renderer = class {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
+  }
+  // Floating life in the air: pollen catching the light by day, gold at sunset, fireflies over land at night.
+  // Each 256px block of the world holds the same few motes, so they stay put as the camera moves.
+  drawMotes(ctx, ox, oy, t, amb) {
+    const w = this.sim.weather;
+    if (w === 'rain' || w === 'storm') return;
+    const night = IS.clamp((amb.dark - 0.35) / 0.3, 0, 1), day = 1 - night, Z = 256;
+    const F = this.fly || (this.fly = this.makeFly());
+    const gold = this.sim.clock.min > 960 && night < 1;
+    for (let by = Math.floor(oy / Z) * Z; by < oy + this.vh; by += Z) for (let bx = Math.floor(ox / Z) * Z; bx < ox + this.vw; bx += Z) {
+      const seed = (bx / Z) * 7919 + (by / Z) * 104729;
+      for (let k = 0; k < 10; k++) {
+        const r = (n) => { const v = Math.sin(seed + k * 12.9898 + n * 78.233) * 43758.5453; return v - Math.floor(v); };
+        const ph = r(3) * 6.28;
+        let x = bx + ((r(1) * Z + t * (3 + r(4) * 4)) % Z) + Math.sin(t * 0.4 + ph) * 8, y = by + ((r(2) * Z + Math.sin(t * 0.25 + ph) * 14) % Z);
+        if (day > 0 && k < 7) {
+          const tw = Math.sin(t * (0.8 + r(5)) + ph);
+          if (tw > 0) {
+            ctx.globalAlpha = day * tw * (gold ? 0.75 : 0.5);
+            ctx.fillStyle = gold ? '#ffd58a' : '#fffbe6';
+            ctx.fillRect(Math.round(x - ox), Math.round(y - oy - t * 2 % 4), 1, 1);
+          }
+        }
+        if (night > 0 && k >= 3) {
+          x += Math.sin(t * 0.7 + ph * 2) * 10; y += Math.cos(t * 0.5 + ph) * 6;
+          const g = IS.Iso.s2g(x, y);
+          if (this.sim.world.isWater(Math.floor(g.gx), Math.floor(g.gy))) continue;
+          const blink = Math.pow(Math.max(0, Math.sin(t * (0.6 + r(6) * 0.5) + ph)), 3);
+          if (blink < 0.02) continue;
+          ctx.globalAlpha = night * blink;
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.drawImage(F, Math.round(x - ox) - 4, Math.round(y - oy) - 4);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.fillStyle = '#f6ffc8'; ctx.fillRect(Math.round(x - ox), Math.round(y - oy), 1, 1);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  makeFly() {
+    const { c, g } = IS.makeCanvas(9, 9, false);
+    const gr = g.createRadialGradient(4.5, 4.5, 0, 4.5, 4.5, 4.5);
+    gr.addColorStop(0, 'rgba(210, 255, 120, 0.9)'); gr.addColorStop(0.4, 'rgba(170, 240, 90, 0.35)'); gr.addColorStop(1, 'rgba(150, 220, 80, 0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 9, 9);
+    return c;
   }
   makeRay() {
     const { c, g } = IS.makeCanvas(32, 128, false);
@@ -911,7 +966,7 @@ IS.Renderer = class {
   // every frame makes Chrome move the game canvas off the GPU after a while,
   // and then drawing the big island ground drops the game to a few fps.
   drawBloom(ctx, amb) {
-    const A = this.bloomA, B = this.bloomB;
+    const A = this.bloomA, B = this.bloomB, C = this.bloomC, S = this.bloomS;
     if (typeof A.g.filter !== 'string') return; // no canvas filters (older Safari): no glow
     const aw = A.c.width, ah = A.c.height;
     // brightness(b) then contrast(c) maps thr -> 0 and 1 -> 1. A low threshold makes it ambient:
@@ -930,11 +985,27 @@ IS.Renderer = class {
       B.g.filter = 'blur(1px)';
       B.g.drawImage(A.c, 0, 0, B.c.width, B.c.height);
       B.g.filter = 'none';
+      // a very wide haze, tinted with the hour (gold at sunset, violet at night)
+      C.g.imageSmoothingEnabled = true;
+      C.g.filter = 'blur(1px)';
+      C.g.drawImage(B.c, 0, 0, C.c.width, C.c.height);
+      C.g.filter = 'none';
+      C.g.globalCompositeOperation = 'multiply';
+      C.g.fillStyle = `rgb(${amb.tint.map(v => Math.round(IS.lerp(v, 255, 0.35))).join(',')})`;
+      C.g.fillRect(0, 0, C.c.width, C.c.height);
+      C.g.globalCompositeOperation = 'source-over';
+      // squeezed sideways only: bright points smear into soft horizontal flares
+      if (amb.dark > 0.2) { S.g.imageSmoothingEnabled = true; S.g.drawImage(A.c, 0, 0, S.c.width, S.c.height); }
+      // both go into the small glow layer, so the screen still takes just two full-size draws
+      B.g.globalCompositeOperation = 'screen';
+      B.g.globalAlpha = 0.6; B.g.drawImage(C.c, 0, 0, B.c.width, B.c.height);
+      if (amb.dark > 0.2) { B.g.globalAlpha = 0.7 * (amb.dark - 0.2); B.g.drawImage(S.c, 0, 0, B.c.width, B.c.height); }
+      B.g.globalAlpha = 1; B.g.globalCompositeOperation = 'source-over';
     }
     // 'screen' brightens without blowing out to white: a wide soft haze plus a tighter glow
     ctx.imageSmoothingEnabled = true;
     ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.55 + 0.2 * amb.dark;
+    ctx.globalAlpha = 0.5 + 0.2 * amb.dark;
     ctx.drawImage(B.c, 0, 0, this.vw, this.vh);
     ctx.globalAlpha = 0.3 + 0.1 * amb.dark;
     ctx.drawImage(A.c, 0, 0, this.vw, this.vh);
