@@ -1169,12 +1169,14 @@ IS.Renderer = class {
       ctx.fillRect(0, 0, vw, vh);
       this.flash = Math.max(0, this.flash - rdt * 2.5);
     }
-    if (w === 'fog') {
+    // Dawn mist: a thin fog that burns off as the sun climbs
+    const min = sim.clock.min, mist = w === 'fog' ? 0 : Math.max(0, 1 - Math.abs(min - 390) / 110) * 0.3;
+    if (w === 'fog' || mist > 0.01) {
       const off = (t * 8) % 256;
-      ctx.globalAlpha = 0.55;
+      ctx.globalAlpha = w === 'fog' ? 0.55 : mist;
       for (let y = -256; y < vh + 256; y += 256) for (let x = -256; x < vw + 256; x += 256) ctx.drawImage(this.fog, Math.round(x + off - (this.ox % 256)), Math.round(y - (this.oy % 256)));
       ctx.globalAlpha = 1;
-      ctx.fillStyle = 'rgba(232, 232, 250, 0.16)';
+      ctx.fillStyle = `rgba(232, 232, 250, ${w === 'fog' ? 0.16 : mist * 0.3})`;
       ctx.fillRect(0, 0, vw, vh);
     }
   }
