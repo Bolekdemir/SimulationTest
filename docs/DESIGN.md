@@ -63,6 +63,10 @@ A round ends when:
 - Spent any time, including mid-round, on **both single-use powers (save or harm) and permanent unlocks** (decided).
 - Not decided: what exactly is for sale, and all prices and payouts (need playtesting).
 
+## Done so far
+- **Island is 4x bigger** (80x60 -> 160x120 tiles, about 4.1x the land). The village is untouched; the new land is the **wild east**, joined by a forested ridge with a trail from the north trail to "the east woods". Activities (fishing, foraging, beach) stay in the village corner for now so nobody hikes across the map for firewood; open the east up when Direction 2 events need it. Old saves still load (all village coordinates are the same).
+- Pathfinding fix found along the way: the search counted already-finished tiles toward its limit, which only showed up on the bigger map.
+
 ## Open questions
 1. **The hidden truth.** What is the island's secret? (Mav does not know yet.)
 2. **The event pool.** What are the ~50 events? Suggested next step: brainstorm 5 and see which ones spark ideas.

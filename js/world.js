@@ -3,8 +3,9 @@ IS.TT = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, FOREST: 4, PATH: 5, PLAZA: 6, 
 
 IS.World = class {
   constructor() {
-    this.W = 80;
-    this.H = 60;
+    // The village keeps its old 80x60 corner; the rest is the wild east
+    this.W = 160;
+    this.H = 120;
     IS.Iso.setup(this);
     this.tiles = new Uint8Array(this.W * this.H);
     this.blocked = new Uint8Array(this.W * this.H);
@@ -59,7 +60,11 @@ IS.World = class {
       const px = (x - 70) / 6, py = (y - 22) / 3.2;
       if (px * px + py * py < 1) isLand = true;
       if (x >= 12 && x <= 67 && y >= 19 && y <= 43) isLand = true;
-      if (x < 3 || y < 3 || x > W - 4 || y > H - 4) isLand = false;
+      // The wild east: a big landmass, joined to the village by a ridge in the northeast
+      const ex = (x - 116) / 42, ey = (y - 60) / 56;
+      if (Math.sqrt(ex * ex + ey * ey) < 0.9 + n) isLand = true;
+      if (x >= 54 && x <= 112 && y >= 7 + n * 6 && y <= 14 + n * 6) isLand = true;
+      if (x < 3 || y < 3 || x > W - 12 || y > H - 12) isLand = false; // the far edges need open sea or the ground smears past the map
       land[y * W + x] = isLand ? 1 : 0;
     }
     // 2. Distance fields
@@ -96,7 +101,8 @@ IS.World = class {
       const north = y < 20 - n * 4;
       const west = x < 19 + n * 3 && y < 38;
       const ne = x > 60 && y < 20 && !(x > 64 && y > 17);
-      if (north || west || ne) this.setT(x, y, TT.FOREST);
+      const wild = x >= 80 && n > 0.4;
+      if (north || west || ne || wild) this.setT(x, y, TT.FOREST);
     }
 
     // 4. Buildings
@@ -167,9 +173,11 @@ IS.World = class {
       if ((x - 29) ** 2 / 25 + (yy - 12) ** 2 / 12 <= 1 && this.tile(x, yy) === TT.FOREST) this.setT(x, yy, TT.GRASS);
     }
     line(18, 33, 18, 38);
+    // Trail from the north trail along the ridge into the east woods
+    line(48, 15, 48, 11); line(48, 11, 104, 11); line(104, 11, 104, 26);
     // Lighthouse on the eastern point
     let lh = null;
-    for (let x = W - 2; x > 50 && !lh; x--) for (let yy = 19; yy <= 25; yy++) {
+    for (let x = 79; x > 50 && !lh; x--) for (let yy = 19; yy <= 25; yy++) {
       if (this.isLand(x, yy) && landDist[this.idx(x, yy)] >= 2) { lh = { x, y: yy }; break; }
     }
     lh = lh || { x: 70, y: 22 };
@@ -305,31 +313,35 @@ IS.World = class {
     const near = (x, yy, t, r) => { for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) if (this.tile(x + a, yy + b) === t) return true; return false; };
     const S2 = IS.Sprites;
     const putAnch = (kind, x, yy, spr, opts = {}) => place(kind, x, yy, spr, spr.ax, spr.ay, { footY: 20, ...opts });
+    const wildSprites = {};
     for (let yy = 1; yy < H - 1; yy++) for (let x = 1; x < W - 1; x++) {
       const i = this.idx(x, yy);
       if (protect[i] || this.blocked[i]) continue;
       const t = this.tiles[i];
       const h = IS.hash2(x, yy, 5);
-      const seed = x * 131 + yy * 7;
+      // Village sprites are one of a kind; the wild east reuses 24 of each so the island loads fast
+      const wildSeed = (x >= 80 || yy >= 60) ? (x * 131 + yy * 7) % 24 : -1;
+      const seed = wildSeed >= 0 ? wildSeed : x * 131 + yy * 7;
+      const spr = (fn, ...a) => { if (wildSeed < 0) return S2[fn](seed, ...a); const k = fn + seed + a.join(); return wildSprites[k] || (wildSprites[k] = S2[fn](seed, ...a)); };
       if (t === TT.FOREST) {
         if (h < 0.36 && !this.blocked[this.idx(x - 1, yy)] && !this.blocked[this.idx(x, yy - 1)]) {
           const pine = yy < 13 || IS.hash2(x, yy, 9) < 0.3;
-          if (pine) place('tree', x, yy, S2.makePine(seed), 18, 59, { footY: 22, tree: true });
-          else putAnch('tree', x, yy, S2.makeOak(seed), { tree: true });
+          if (pine) place('tree', x, yy, spr('makePine'), 18, 59, { footY: 22, tree: true });
+          else putAnch('tree', x, yy, spr('makeOak'), { tree: true });
         } else if (h < 0.43) {
           const berries = IS.hash2(x, yy, 3) < 0.5;
-          const o = putAnch('bush', x, yy, S2.makeBush(seed, berries));
+          const o = putAnch('bush', x, yy, spr('makeBush', berries));
           if (berries) o.berries = true;
-        } else if (h < 0.47) putAnch('rock', x, yy, S2.makeRock(seed));
+        } else if (h < 0.47) putAnch('rock', x, yy, spr('makeRock'));
         else if (h < 0.49) place('stump', x, yy, S2.makeStump(), 10, 14, { footY: 20 });
       } else if (t === TT.GRASS) {
-        if (h < 0.06 && !near(x, yy, TT.PATH, 1) && !near(x, yy, TT.PLAZA, 2)) putAnch('tree', x, yy, S2.makeOak(seed), { tree: true });
-        else if (h < 0.1) putAnch('bush', x, yy, S2.makeBush(seed, h < 0.08));
-        else if (h < 0.115) putAnch('rock', x, yy, S2.makeRock(seed));
+        if (h < 0.06 && !near(x, yy, TT.PATH, 1) && !near(x, yy, TT.PLAZA, 2)) putAnch('tree', x, yy, spr('makeOak'), { tree: true });
+        else if (h < 0.1) putAnch('bush', x, yy, spr('makeBush', h < 0.08));
+        else if (h < 0.115) putAnch('rock', x, yy, spr('makeRock'));
       } else if (t === TT.SAND) {
         const ld = landDist[i];
-        if (h < 0.05 && ld >= 2 && !near(x, yy, TT.DOCK, 2)) place('tree', x, yy, S2.makePalm(seed), 24, 59, { footY: 22, tree: true });
-        else if (h < 0.065) putAnch('rock', x, yy, S2.makeRock(seed));
+        if (h < 0.05 && ld >= 2 && !near(x, yy, TT.DOCK, 2)) place('tree', x, yy, spr('makePalm'), 24, 59, { footY: 22, tree: true });
+        else if (h < 0.065) putAnch('rock', x, yy, spr('makeRock'));
       }
     }
     // Ground detail: several decals per tile, everywhere that isn't paved
@@ -364,7 +376,8 @@ IS.World = class {
     this.reach = this.computeReach(40, 33);
     const reachable = (x, yy) => this.reach[this.idx(x, yy)] === 1;
     for (let yy = 1; yy < H - 1; yy++) for (let x = 1; x < W - 1; x++) {
-      if (!reachable(x, yy)) continue;
+      // ponytail: activities stay in the village's old 80x60 corner so nobody hikes across the map for firewood; open the east up when events need it
+      if (!reachable(x, yy) || x >= 80 || yy >= 60) continue;
       const t = this.tile(x, yy);
       const h = IS.hash2(x, yy, 41);
       if (t === TT.FOREST && h < 0.12) this.addSpot('forage', x, yy, IS.pick(['up', 'left', 'right']), 'stand');
@@ -379,7 +392,7 @@ IS.World = class {
     this.addSpot('fish', 36, dockEnd - 1, 'left', 'stand');
     this.addSpot('fish', 43, dockEnd - 1, 'right', 'stand');
     // Swimming spots: shallow water next to the south beach
-    for (let yy = 40; yy < H - 1; yy++) for (let x = 1; x < W - 1; x++) {
+    for (let yy = 40; yy < 60; yy++) for (let x = 1; x < 80; x++) {
       if (this.tile(x, yy) === TT.SHALLOW && this.waterDist[this.idx(x, yy)] <= 2 && Math.abs(x - 39.5) > 5 && IS.hash2(x, yy, 13) < 0.12) this.addSpot('swim', x, yy, 'down', 'swim');
     }
     // Stargazing: beach, dock end, Old Oak clearing, lighthouse
@@ -402,6 +415,7 @@ IS.World = class {
       { name: 'the beach', x: bf.x - 4, y: bf.y },
       { name: 'the plaza', x: 40, y: 33 },
       { name: 'the farm', x: 30, y: 40 },
+      { name: 'the east woods', x: 104, y: 26 },
     ].map(p => {
       const t = this.findNear(p.x, p.y, (x, yy) => this.walkable(x, yy) && reachable(x, yy));
       return { ...p, x: t.x, y: t.y };
@@ -548,8 +562,8 @@ IS.World = class {
     const canEnter = (x, y) => (x === gx && y === gy) || this.walkable(x, y) || (swim && this.swimmable(x, y));
     if (!canEnter(gx, gy)) return null;
     const N = W * this.H;
-    if (!this._g || this._g.length !== N) { this._g = new Float32Array(N); this._from = new Int32Array(N); this._stamp = new Uint32Array(N); this._gen = 0; }
-    const g = this._g, from = this._from, stamp = this._stamp;
+    if (!this._g || this._g.length !== N) { this._g = new Float32Array(N); this._from = new Int32Array(N); this._stamp = new Uint32Array(N); this._done = new Uint32Array(N); this._gen = 0; }
+    const g = this._g, from = this._from, stamp = this._stamp, done = this._done;
     const gen = ++this._gen;
     const start = this.idx(sx, sy), goal = this.idx(gx, gy);
     const heap = new IS.Heap();
@@ -559,7 +573,9 @@ IS.World = class {
     while (heap.size) {
       const cur = heap.pop();
       if (cur === goal) break;
-      if (++expanded > 9000) return null;
+      if (done[cur] === gen) continue; // a stale heap entry: this tile was already expanded
+      done[cur] = gen;
+      if (++expanded > N) return null;
       const cx = cur % W, cy = (cur / W) | 0;
       for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nx = cx + a, ny = cy + b;
