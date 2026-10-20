@@ -86,7 +86,8 @@ IS.makeCanvas = (w, h, readback) => {
   c.width = Math.max(1, Math.ceil(w));
   c.height = Math.max(1, Math.ceil(h));
   // Small sprite canvases get read back for outlining; keep those on the CPU.
-  const g = c.getContext('2d', { willReadFrequently: readback ?? (c.width * c.height < 160000) });
+  // ?gpusprites skips that hint (testing whether it causes the slowdown after ~10s on some PCs)
+  const g = c.getContext('2d', { willReadFrequently: readback ?? (!/[?&]gpusprites\b/.test(location.search) && c.width * c.height < 160000) });
   g.imageSmoothingEnabled = false;
   return { c, g };
 };

@@ -46,7 +46,7 @@ IS.Renderer = class {
   constructor(sim, canvas) {
     this.sim = sim;
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = canvas.getContext('2d', /[?&]cpu\b/.test(location.search) ? { willReadFrequently: true } : undefined); // ?cpu: draw on the CPU from the start (diagnostic)
     this.light = IS.makeCanvas(16, 16, false);
     this.shadowStatic = IS.makeCanvas(16, 16, false);
     this.silCache = new WeakMap();
