@@ -53,13 +53,11 @@ IS.Renderer = class {
     this.silCache = new WeakMap();
     this.wave = this.makeWaveTexture();
     this.fog = this.makeFogTexture();
-    this.cloud = this.makeCloud();
     this.rain = [];
     this.flash = 0;
     this.nextFlash = 3;
     this.gulls = [];
     const I = IS.Iso;
-    this.clouds = Array.from({ length: 6 }, () => ({ x: Math.random() * I.W, y: Math.random() * I.H, s: IS.rand(0.9, 1.6) }));
     this.fireflies = Array.from({ length: 50 }, () => {
       const t = IS.pick(sim.world.spots.forage || [{ x: 30, y: 12 }]);
       return { x: t.x * IS.TILE + IS.rand(0, 24), y: t.y * IS.TILE + IS.rand(-20, 10), ph: Math.random() * 10 };
@@ -165,16 +163,6 @@ IS.Renderer = class {
     g.putImageData(img, 0, 0);
     return c;
   }
-  makeCloud() {
-    const { c, g } = IS.makeCanvas(300, 170);
-    for (let i = 0; i < 7; i++) {
-      const gr = g.createRadialGradient(60 + i * 28, 85 + Math.sin(i) * 20, 0, 60 + i * 28, 85 + Math.sin(i) * 20, 64);
-      gr.addColorStop(0, 'rgba(40, 30, 110, 0.12)');
-      gr.addColorStop(1, 'rgba(40, 30, 110, 0)');
-      g.fillStyle = gr; g.fillRect(0, 0, 300, 170);
-    }
-    return c;
-  }
 
   // Ambient light by time of day: a tint and how strongly it applies (multiply).
   ambient(min) {
@@ -273,16 +261,6 @@ IS.Renderer = class {
       ctx.strokeStyle = '#ffd27a';
       ctx.globalAlpha = 0.7 + 0.3 * Math.sin(t * 5);
       ctx.beginPath(); ctx.ellipse(Math.round(s.x) + 0.5, Math.round(s.y) + 0.5, 11, 5, 0, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-    if (sim.weather === 'sunny' || sim.weather === 'cloudy') {
-      for (const cl of this.clouds) {
-        cl.x += rdt * 7 * Math.max(1, sim.speedValue() * 0.3);
-        if (cl.x > I.W + 300) { cl.x = -320; cl.y = Math.random() * I.H; }
-        if (!inView(cl.x, cl.y, 340)) continue;
-        ctx.globalAlpha = sim.weather === 'cloudy' ? 1 : 0.7;
-        ctx.drawImage(this.cloud, Math.round(cl.x - ox), Math.round(cl.y - oy), 300 * cl.s, 170 * cl.s);
-      }
       ctx.globalAlpha = 1;
     }
 
@@ -952,7 +930,7 @@ IS.Renderer = class {
   drawClouds(ctx, ox, oy, t, amb) {
     const sun = this.sun(), w = this.sim.weather;
     if (!sun || w === 'rain' || w === 'storm' || w === 'fog') return;
-    const C = this.cloud || (this.cloud = this.makeCloud());
+    const C = this.cloudTex || (this.cloudTex = this.makeCloudShadow());
     const Z = 1000, cover = w === 'cloudy' ? 0.5 : 0.32;
     ctx.globalCompositeOperation = 'multiply';
     for (let by = Math.floor((oy - 200) / Z) * Z; by < oy + this.vh + 200; by += Z) for (let bx = Math.floor((ox - 600) / Z) * Z; bx < ox + this.vw + 300; bx += Z) {
@@ -966,7 +944,7 @@ IS.Renderer = class {
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
-  makeCloud() {
+  makeCloudShadow() {
     const { c, g } = IS.makeCanvas(320, 160, false);
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, 320, 160);
     for (let i = 0; i < 9; i++) {
