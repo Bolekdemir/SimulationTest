@@ -107,6 +107,16 @@ IS.Audio = (() => {
       g.connect(bus.verb);
     }
   };
+  // Meow: a nasal voice that rises then falls
+  A.meow = () => {
+    if (!ready() || !rate('meow', 4)) return;
+    const t = ac.currentTime, f0 = 520 + Math.random() * 160, o = ac.createOscillator(), g = gain(0), bp = filt('bandpass', 1100, 3);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 1.45, t + 0.18); o.frequency.exponentialRampToValueAtTime(f0 * 0.8, t + 0.55);
+    bp.frequency.setValueAtTime(900, t); bp.frequency.linearRampToValueAtTime(1600, t + 0.2); bp.frequency.linearRampToValueAtTime(800, t + 0.55);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.06); g.gain.setValueAtTime(0.12, t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    chain(o, bp, g, bus.sfx); o.start(t); o.stop(t + 0.65);
+  };
   A.shutter = () => { if (ready()) { const t = ac.currentTime; burst(bus.sfx, bus.white, 'highpass', 3000, t, 0.05, 0.3); burst(bus.sfx, bus.white, 'bandpass', 2000, t + 0.09, 0.07, 0.25, 1.5); } };
   A.splash = () => { if (ready() && rate('splash', 0.15)) burst(bus.sfx, bus.white, 'bandpass', 1400, ac.currentTime, 0.45, 0.25, 0.7, 500); };
   // The Hall's bell: inharmonic partials, three strikes
@@ -222,11 +232,18 @@ IS.Audio = (() => {
       const t = M.next, bar = Math.floor(M.step / 8), inBar = M.step % 8;
       const prog = night ? NIGHT : DAY, chord = prog[Math.floor(bar / 2) % 4];
       if (inBar === 0 && bar % 2 === 0) { pad(chord.slice(0, 3), t, beat * 16, night ? 0.018 : 0.014); pluck(midi(chord[0] - 24), t, 0.09, 2.4); }
-      const restP = night ? 0.62 : 0.45;
-      if (Math.random() > restP || inBar === 0) {
-        const root = chord[0], useChord = inBar % 4 === 0 || Math.random() < 0.5;
-        const n = useChord ? IS.pick(chord) : root + IS.pick(PENTA) + (Math.random() < 0.3 ? 12 : 0);
-        pluck(midi(n + (night ? 0 : 12)), t, night ? 0.06 : 0.07);
+      // The melody is a two-bar motif played A A' B A over each pass of the chords, following the chord root,
+      // so it repeats and answers itself like a tune instead of wandering note to note
+      if (M.step % 64 === 0 || !M.A) {
+        const make = () => { let d = 2 + Math.floor(Math.random() * 3); return Array.from({ length: 16 }, (_, i) => { if (i && Math.random() < (night ? 0.6 : 0.45)) return null; d = IS.clamp(d + IS.pick([-2, -1, -1, 1, 1, 2]), 0, 7); return d; }); };
+        M.A = make(); M.B = make();
+        M.A2 = M.A.map(d => (d !== null && Math.random() < 0.25 ? IS.clamp(d + IS.pick([-1, 1]), 0, 7) : d));
+      }
+      const phrase = [M.A, M.A2, M.B, M.A][Math.floor((M.step % 64) / 16)], d = phrase[M.step % 16];
+      if (d !== null) {
+        // steps of C major pentatonic, starting from the scale note at (or just under) the chord's root
+        const i = d + ({ 60: 0, 57: -1, 53: -2, 55: -2 }[chord[0]] || 0), oct = Math.floor(i / 5);
+        pluck(midi(60 + 12 * oct + PENTA[i - oct * 5] + (night ? 0 : 12)), t, night ? 0.06 : 0.07);
       }
       M.step++; M.next += beat * (inBar % 2 ? 0.92 : 1.08); // a little swing
     }
@@ -256,6 +273,12 @@ IS.Audio = (() => {
     const fl = sim.renderer.flash || 0;
     if (fl > lastFlash + 0.5) A.thunder(false);
     lastFlash = fl;
+    const cat = sim.cat;
+    if (cat && sim.cam.zoom >= 2 && !sim.menuOpen) {
+      const r = sim.renderer, s = IS.Iso.w2s(cat.x, cat.y), seen = s.x > r.ox && s.x < r.ox + r.vw && s.y > r.oy && s.y < r.oy + r.vh;
+      if (seen && (Math.random() < rdt / 40 || (cat.pettedBy && !cat._purred))) A.meow();
+      cat._purred = !!cat.pettedBy;
+    }
     const boat = sim.events.boat;
     if (boat && !boat.snd) { boat.snd = true; A.horn(); }
     // god powers: each new effect plays once
