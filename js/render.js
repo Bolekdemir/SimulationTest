@@ -520,6 +520,16 @@ IS.Renderer = class {
       ctx.fillStyle = '#fff4e6'; ctx.fillRect(sx - 3, sy - 13, 6, 1);
     }
     if (p.pose === 'fish' && !p.chat) this.drawRod(ctx, p, sx, sy, t);
+    // Umbrellas out in the rain, in each islander's own colour
+    const wet = this.sim.weather === 'rain' || this.sim.weather === 'storm';
+    if (wet && !p.building && p.pose !== 'fish' && p.pose !== 'work' && p.pose !== 'carry') {
+      const col = p.cfg.look.accent || p.cfg.look.shirt, ux = sx + (p.dir === 'left' ? 2 : -2), uy = sy - 40 + (this.sim.weather === 'storm' ? Math.round(Math.sin(t * 9 + p.name.length)) : 0);
+      ctx.fillStyle = '#5a4a40'; ctx.fillRect(ux, uy, 1, 13);
+      ctx.fillStyle = IS.shade(col, -0.3); ctx.fillRect(ux - 9, uy + 1, 19, 2);
+      ctx.fillStyle = col; ctx.fillRect(ux - 8, uy - 1, 17, 2); ctx.fillRect(ux - 6, uy - 2, 13, 1); ctx.fillRect(ux - 3, uy - 3, 7, 1);
+      ctx.fillStyle = IS.shade(col, 0.35); ctx.fillRect(ux - 5, uy - 1, 4, 1);
+      ctx.fillStyle = '#2a1f40'; ctx.fillRect(ux, uy - 4, 1, 1);
+    }
     ctx.globalAlpha = 1;
     IS.Content.drawProp(this, ctx, p, sx, sy, t);
     IS.Gods.drawOnPerson(this, ctx, p, sx, sy, t);
