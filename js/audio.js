@@ -70,7 +70,7 @@ IS.Audio = (() => {
 
   A.levels = () => {
     if (!ac) return;
-    set(bus.amb, 0.85 * level('sound'), 0.2); set(bus.sfx, 1.45 * level('sound'), 0.2); set(bus.mus, 0.38 * level('music'), 0.3);
+    set(bus.amb, 0.85 * level('sound'), 0.2); set(bus.sfx, 3.6 * level('sound'), 0.2); set(bus.mus, 0.38 * level('music'), 0.3);
   };
 
   A.init = s => {
@@ -133,14 +133,14 @@ IS.Audio = (() => {
   A.thunder = (near) => {
     if (!ready()) return;
     const t = ac.currentTime + (near ? 0 : 0.3 + Math.random() * 1.2);
-    if (near) burst(bus.sfx, bus.white, 'highpass', 1800, t, 0.25, 0.5, 0.5);
-    burst(bus.sfx, bus.brown, 'lowpass', near ? 900 : 400, t + 0.02, 3.4, near ? 0.9 : 0.6, 0.6, 60);
+    if (near) burst(bus.sfx, bus.white, 'highpass', 1800, t, 0.25, 0.2, 0.5);
+    burst(bus.sfx, bus.brown, 'lowpass', near ? 900 : 400, t + 0.02, 3.4, near ? 0.36 : 0.3, 0.6, 60);
   };
   A.boom = () => {
     if (!ready()) return;
     const t = ac.currentTime;
-    tone(bus.sfx, 'sine', 120, 35, t, 1.2, 0.6);
-    burst(bus.sfx, bus.brown, 'lowpass', 1600, t, 2.2, 1, 0.5, 80);
+    tone(bus.sfx, 'sine', 120, 35, t, 1.2, 0.24);
+    burst(bus.sfx, bus.brown, 'lowpass', 1600, t, 2.2, 0.4, 0.5, 80);
   };
   A.whistle = () => { if (ready()) { const t = ac.currentTime; tone(bus.sfx, 'sine', 2200, 280, t, 1.1, 0.06, 0.4); burst(bus.sfx, bus.pink, 'bandpass', 3000, t, 1.1, 0.12, 2, 600); } };
   A.magic = (big) => {
