@@ -70,7 +70,7 @@ IS.Audio = (() => {
 
   A.levels = () => {
     if (!ac) return;
-    set(bus.amb, 1.3 * level('sound'), 0.2); set(bus.sfx, 0.9 * level('sound'), 0.2); set(bus.mus, 0.55 * level('music'), 0.3);
+    set(bus.amb, 0.85 * level('sound'), 0.2); set(bus.sfx, 1.45 * level('sound'), 0.2); set(bus.mus, 0.38 * level('music'), 0.3);
   };
 
   A.init = s => {
